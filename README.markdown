@@ -56,7 +56,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 
         ```q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt >= 3"```  
 
-  * Now, let's see if we can get something more interesting. The following command will provide the total size of the files for each date. Notice that the file size is in c5.  
+  * Now, let's see if we can get something more interesting. The following command will provide the **total size** of the files for each date. Notice that the file size is in c5.  
 
         ```q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"```  
 

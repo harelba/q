@@ -1,4 +1,3 @@
-
 # q - SQL power for the Command Line
 
 ## Overview
@@ -28,8 +27,8 @@ One additional thing to note is that many Linux tools treat text as text and not
 ### Query
 q gets one parameter - An SQL-like query. The following applies:
 
-* The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. "SELECT * FROM -")
-* The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use "SELECT c2,c4 FROM myfile"
+* The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. `q "SELECT * FROM -"`)
+* The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
 * Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
   * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
 * For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
@@ -37,33 +36,37 @@ q gets one parameter - An SQL-like query. The following applies:
 ### Runtime options and flags
 q can also get some runtime flags (Linux style, before the parameter). The following parameters can be used, all optional:
 
-* **-z** - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
-* **-H <N>** - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
-* **-d** - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
-* **-b** - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
+* `-z` - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
+* `-H <N>` - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
+* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
+* `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
 
 ## Examples
 
-* This example demonstrates how we can use this script to do some calculations on tabular data. We'll use the output of ls as the input data (we're using --full-time so the output format will be the same on all machines).
-  * Execute the following command. It will create our test data:  
+1. Let's start with a simple example and work from there. 
+  * The following command will count the lines in the file *exampledatafile*. The output will be exactly as if we ran the `wc -l` command.  
 
-        ```ls -ltrd --full-time * > mydatafile```  
-    
-  * Execute the following command. It will calculate the average file size on the file list we created:  
+        ```q "SELECT COUNT(1) FROM exampledatafile"```  
 
-        ```q "SELECT AVG(c5) FROM mydatafile"```  
+  * Now, let's assume we want to know the number of files per date. Notice that the date is in column 6.
 
-  * Now, let's assume we want the same information, but per user:
+        ```q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"```  
 
-        ```q "SELECT c3,AVG(c5) FROM mydatafile GROUP BY c3"```  
+  * The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's remove the ones which have than 3 files:
 
-  * You'll see the the output consists of lines each having "username avg". However, the avg is in bytes. Let make it in MB:
+        ```q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt >= 3"```  
 
-        ```q "SELECT c3,AVG(c5)/1024/1024 FROM mydatafile GROUP BY c3"```  
+  * Now, let's see if we can get something more interesting. The following command will provide the total size of the files for each date. Notice that the file size is in c5.  
 
-  * And now, if we have lots of users, then it might not be easy to see the big offenders, so let's sort it in descending order:
+        ```q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"```  
 
-        ```q "SELECT c3,AVG(c5)/1024/1024 AS avg FROM mydatafile GROUP BY c3 ORDER BY avg DESC"```  
+  * We can see the results. However, the sums are in bytes. Let's show the same results but in KB:  
+
+        ```q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"```  
+
+  * The last command provided us with a list of results, but there is no order and the list is too long. Let's get the Top 5 dates:  
+
+        ```q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"```  
 
 ## Command Line Options
 

@@ -25,6 +25,8 @@ One additional thing to note is that many Linux tools treat text as text and not
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
 ## Usage
+
+### Query
 q gets one parameter - An SQL-like query. The following applies:
 * The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. "SELECT * FROM -")
 * The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use "SELECT c2,c4 FROM myfile"
@@ -32,13 +34,16 @@ q gets one parameter - An SQL-like query. The following applies:
   * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
 * For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
 
+### Runtime options and flags
 q can also get some runtime flags (Linux style, before the parameter). The following parameters can be used, all optional:
+
 * **-z** - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
 * **-H <N>** - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
 * **-d** - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
 * **-b** - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
 
 ## Examples
+
 * This example demonstrates how we can use this script to do some calculations on tabular data. We'll use the output of ls as the input data (we're using --full-time so the output format will be the same on all machines).
   * Execute the following command. It will create our test data:
 

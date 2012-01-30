@@ -1,76 +1,24 @@
-#!/usr/bin/python
 
-# Script    : q - The Q Continuum
-# Author    : Harel Ben Attia
-# Requires  : python with sqlite3
-#
-#
-# This script allows performing SQL-like SELECT statements on tabular text data.
-#
-# It's purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
-#
-# Examples:
-# ---------
-#
-# * This example demonstrates how we can use this script to do some calculation on tabular data. We'll use the output of ls
-#   as the input data (we're using --full-time so the output format will be the same on all machines):
-#
-#        1. Execute "ls -ltrd --full-time * > mydatafile". This will create out example data
-#        2. Execute the following command. It will calculate the average file size on the file list we created:
-#                q "SELECT AVG(c5) FROM mydatafile"
-#        3. Now, let's assume we want the same information, but per user:
-#                q "SELECT c3,AVG(c5) FROM mydatafile GROUP BY c3"
-#        4. You'll see the the output consists of lines each having "username avg". However, the avg is in bytes. Let make it in MB:
-#                q "SELECT c3,AVG(c5)/1024/1024 FROM mydatafile GROUP BY c3"
-#        5. And now, if we have lots of users, then it might not be easy to see the big offenders, so let's sort it in descending order:
-#                q "SELECT c3,AVG(c5)/1024/1024 AS avg FROM mydatafile GROUP BY c3 ORDER BY avg DESC"
-#
-# * This example shows how to reuse another program's output instead of writing it to a file. We actually didn't have to write the ls output
-#   to a file, since q can use standard input. Just use "-" as the table name. In that example we calculate the total amount of disk space per user
-#   and show it in descending order:
-#
-#        ls -ltrd --full-time * | q "SELECT c3,SUM(c5)/1024/1024 AS size FROM mydatafile GROUP BY c3 ORDER BY size DESC"
-#
-# * This is a simple example for counting lines (same functionality as "wc -l"):
-#
-#        ls -ltrd /* | q "SELECT count(1) FROM -"
-#
-#   The interesting part is that it is possible to add conditions, for example. In this example, we count the number of files that 
-#   have zero length:
-#
-#        ls -ltrd /* | q "SELECT count(1) FROM - WHERE c5=0"
-#
-#
-# Implementation:
-# ---------------
-# Implementation is currently very simplistic and allows regular SELECT statements only, but it does provide
-# relatively a lot of power since all the standard SQL capabilities are provided (expressions and functions, grouping, conditions etc.).
-# apply).
-#
-# Data typing and column inference are really simplistic - All types are strings and columns are determined according to the first line
-# of data, having the names of c1,c2,c3 etc. However, adding type inference and column name inference is quite easy and will be added.
-# 
-# Data typing implications:
-# * In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases
-#   it won't. One such example is providing a WHERE clause with inequality - such as c5 > 1000. This will not work properly out-of-the-box until 
-#   we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed. Example:
-#
-#         q "SELECT c5,c9 FROM mydatafile WHERE CAST(c5 AS INT) > 1000"
-#
-# Storage:
-# --------
-# * Data is being stored in an in-memory sqlite3 database, so there are no external depenedencies
-# * For now there are no checks and bounds on data size - It's up to you to make sure things don't get too big
-#
-# TODO:
-#   * Column name inference for files containing a header line
-#   * Column type inference according to actual data
-#   * Batch insertion to the database
-#   * Allow working with external DB
-#   * Real parsing of the SQL, allowing JOINs and Subqueries
-#   * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
-#   * Support semi structured data - e.g. log files, where there are several columns and then free text
-#   * Better error handling
-#   * Automatic detection of gzipped data
-#   * Support multiple files
 
+# q - Bring the power of SQL to the Linux Command Line
+
+## Overview
+This script allows performing SQL-like statements on tabular text data. It's purpose is to bring SQL expressive power to manipulating text data using the Linux command line. Have you ever looked at a text file and wandered how easy would it be if this was a database table and not a text file?
+
+## Requirements
+* Python with the sqlite3 module installed. Python 2.5 and up contain this module.
+
+## Usage Examples
+* This example demonstrates how we can use this script to do some calculation on tabular data. We'll use the output of ls as the input data (we're using --full-time so the output format will be the same on all machines).
+  * Execute the following command. It will create out test data:
+```bash
+ls -ltrd --full-time * > mydatafile
+```
+
+## Command Line Options
+
+## Implementation
+
+## Limitations
+
+## Future Ideas

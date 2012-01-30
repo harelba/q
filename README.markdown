@@ -1,5 +1,4 @@
 
-
 # q - SQL power for the Command Line
 
 ## Overview
@@ -28,6 +27,7 @@ One additional thing to note is that many Linux tools treat text as text and not
 
 ### Query
 q gets one parameter - An SQL-like query. The following applies:
+
 * The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. "SELECT * FROM -")
 * The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use "SELECT c2,c4 FROM myfile"
 * Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
@@ -45,23 +45,25 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 ## Examples
 
 * This example demonstrates how we can use this script to do some calculations on tabular data. We'll use the output of ls as the input data (we're using --full-time so the output format will be the same on all machines).
-  * Execute the following command. It will create our test data:
+  * Execute the following command. It will create our test data:  
 
-    ls -ltrd --full-time * > mydatafile
+        ```ls -ltrd --full-time * > mydatafile```  
+    
+  * Execute the following command. It will calculate the average file size on the file list we created:  
 
-  * Execute the following command. It will calculate the average file size on the file list we created:
-
-    q "SELECT AVG(c5) FROM mydatafile"
+        ```q "SELECT AVG(c5) FROM mydatafile"```  
 
   * Now, let's assume we want the same information, but per user:
 
-    q "SELECT c3,AVG(c5) FROM mydatafile GROUP BY c3"
+        ```q "SELECT c3,AVG(c5) FROM mydatafile GROUP BY c3"```  
 
   * You'll see the the output consists of lines each having "username avg". However, the avg is in bytes. Let make it in MB:
 
-    q "SELECT c3,AVG(c5)/1024/1024 FROM mydatafile GROUP BY c3"
+        ```q "SELECT c3,AVG(c5)/1024/1024 FROM mydatafile GROUP BY c3"```  
 
   * And now, if we have lots of users, then it might not be easy to see the big offenders, so let's sort it in descending order:
+
+        ```q "SELECT c3,AVG(c5)/1024/1024 AS avg FROM mydatafile GROUP BY c3 ORDER BY avg DESC"```  
 
 ## Command Line Options
 

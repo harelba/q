@@ -52,7 +52,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 
         ```q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"```  
 
-  * The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's remove the ones which have than 3 files:
+  * The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's leave only the ones which have 3 files or more:  
 
         ```q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt >= 3"```  
 

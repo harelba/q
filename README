@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 # Script    : q - The Q Continuum
 # Author    : Harel Ben Attia
@@ -49,3 +50,27 @@
 # Data typing and column inference are really simplistic - All types are strings and columns are determined according to the first line
 # of data, having the names of c1,c2,c3 etc. However, adding type inference and column name inference is quite easy and will be added.
 # 
+# Data typing implications:
+# * In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases
+#   it won't. One such example is providing a WHERE clause with inequality - such as c5 > 1000. This will not work properly out-of-the-box until 
+#   we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed. Example:
+#
+#         q "SELECT c5,c9 FROM mydatafile WHERE CAST(c5 AS INT) > 1000"
+#
+# Storage:
+# --------
+# * Data is being stored in an in-memory sqlite3 database, so there are no external depenedencies
+# * For now there are no checks and bounds on data size - It's up to you to make sure things don't get too big
+#
+# TODO:
+#   * Column name inference for files containing a header line
+#   * Column type inference according to actual data
+#   * Batch insertion to the database
+#   * Allow working with external DB
+#   * Real parsing of the SQL, allowing JOINs and Subqueries
+#   * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
+#   * Support semi structured data - e.g. log files, where there are several columns and then free text
+#   * Better error handling
+#   * Automatic detection of gzipped data
+#   * Support multiple files
+

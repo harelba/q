@@ -77,11 +77,13 @@ Please make sure to read the limitation section as well.
 
 ### Limitations
 The following limitations exist in the current implementation:  
+
 * Simplistic Data typing and column inference - All types are strings and columns are determined according to the first line of data, having the names of c1,c2,c3 etc.
   * In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases it won't. One such example is providing a WHERE clause with inequality - such as c5 > 1000. This will not work properly out-of-the-box until we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed. Example:  
 
         ```q "SELECT c5,c9 FROM mydatafile WHERE CAST(c5 AS INT) > 1000"```  
-  * This is simple enough, but it break the simplicity a bit. This is the reason why the examples below avoided using a meaningful WHERE clause. Once this is fixed, the examples will be updated.
+
+  * This is simple enough, but it kind of breaks the idea of treating data as data. This is the reason why the examples below avoided using a meaningful WHERE clause. Once this is fixed, the examples will be updated.
 * Basic error handling only
 * No checks and bounds on data size
 

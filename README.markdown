@@ -18,7 +18,7 @@ One additional thing to note is that many Linux tools treat text as text and not
 * Python with the sqlite3 module installed. The module is a part of standard Python 2.5 and up.
 
 ## Installation
-* No installation is required - Just put q in the PATH.
+* No real installation is required - Just put q in the PATH.
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
@@ -70,7 +70,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
         ```q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"```  
 
 ## Implementation
-The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only simple SELECT statements (no JOINs or Subqueries yet). However, I do believe that it can be of service even at that state.
+The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only simple SELECT statements (no JOINs or Subqueries yet). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
 
 Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
 
@@ -102,3 +102,7 @@ The following limitations exist in the current implementation:
 ## Philosophy
 This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read the amazing book http://catb.org/~esr/writings/taoup/ and specifically http://catb.org/~esr/writings/taoup/html/ch01s06.html. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.
 
+## Contact
+Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
+
+Harel Ben-Attia, harelba@gmail.com, @harelba on Twitter

@@ -8,7 +8,7 @@
 #
 # q allows performing SQL-like statements on tabular text data.
 #
-# It's purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+# Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 #
 # Full Documentation and details in https://github.com/harelba/q
 #

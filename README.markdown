@@ -26,10 +26,12 @@ One additional thing to note is that many Linux tools treat text as text and not
 Let's postpone the official usage (See below). Look at the examples, and you'll probably get the general idea.
 
 1.  We'll start with a simple example and work from there. 
-  * The following command will count the lines in the file *exampledatafile*. The output will be exactly as if we ran the `wc -l` command.  
+  * The following commands will count the lines in the file *exampledatafile*. The output will be exactly as if we ran the `wc -l` command.  
 
         ```q "SELECT COUNT(1) FROM exampledatafile"```  
 
+        ```cat exampledatafile | q "SELECT COUNT(1) FROM -"```  
+        
   * Now, let's assume we want to know the number of files per date. Notice that the date is in column 6.
 
         ```q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"```  

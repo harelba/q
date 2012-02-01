@@ -6,7 +6,7 @@ Have you ever stared at a text file on the screen, hoping it would have been a d
 SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
-harelba
+
 **q allows performing SQL-like statements on tabular text data.**
 
 ### Why aren't other Linux tools enough?

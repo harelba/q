@@ -15,7 +15,7 @@ The standard Linux tools are amazing and I use them all the time, but the whole 
 One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).
 
 ## Requirements
-* Python with the sqlite3 module installed. The module is a part of standard Python 2.5 and up.
+* Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
 
 ## Installation
 * No real installation is required - Just put q in the PATH.

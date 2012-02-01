@@ -29,9 +29,9 @@ Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FR
 q gets one parameter - An SQL-like query. The following applies:
 
 * The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. `q "SELECT * FROM -"`)
-  * Actually multiple files can be provided:
-    * By separating the filenames with a + sign: `SELECT * FROM datafile1+datafile2+datefile3`.
-    * By using glob matching: `SELECT * FROM mydata*.dat`
+  * Actually multiple files can be provided by using one of both of the following ways:
+     * By separating the filenames with a + sign: `SELECT * FROM datafile1+datafile2+datefile3`.
+     * By using glob matching: `SELECT * FROM mydata*.dat`
   * Files with .gz extension are considered to be gzipped and decompressed on the fly.
 * The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
 * Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.

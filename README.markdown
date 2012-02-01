@@ -6,7 +6,7 @@ Have you ever stared at a text file on the screen, hoping it would have been a d
 SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
-
+harelba
 **q allows performing SQL-like statements on tabular text data.**
 
 ### Why aren't other Linux tools enough?
@@ -22,42 +22,10 @@ One additional thing to note is that many Linux tools treat text as text and not
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
-## Usage
-Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually print the entire file.
-
-### Query
-q gets one parameter - An SQL-like query. The following applies:
-
-* The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. `q "SELECT * FROM -"`)
-  * Actually multiple files can be provided by using one of both of the following ways:
-     * By separating the filenames with a + sign: `SELECT * FROM datafile1+datafile2+datefile3`.
-     * By using glob matching: `SELECT * FROM mydata*.dat`
-  * Files with .gz extension are considered to be gzipped and decompressed on the fly.
-* The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
-* Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
-  * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
-* For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
-
-### Runtime options and flags
-q can also get some runtime flags (Linux style, before the parameter). The following parameters can be used, all optional:
-
-* `-z` - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
-* `-H <N>` - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
-* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
-* `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
-* `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
-* `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
-* `-e <E>` - Specify the text encoding. Defaults to UTF-8
-
-### Output formatting option
-The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
-* X - column number - This is the SELECTed column (or expression) number, not the one from the original table. E.g, 1 is the first SELECTed column, 3 is the third SELECTed column.
-* f - A python formatting string - See http://docs.python.org/release/2.4.4/lib/typesseq-strings.html for details if needed.
-  * Example: `-f 3=%-10s,5=%4.3f,1=%x`
-
 ## Examples
+Let's postpone the official usage (See below). Look at the examples, and you'll probably get the general idea.
 
-1. Let's start with a simple example and work from there. 
+1.  We'll start with a simple example and work from there. 
   * The following command will count the lines in the file *exampledatafile*. The output will be exactly as if we ran the `wc -l` command.  
 
         ```q "SELECT COUNT(1) FROM exampledatafile"```  
@@ -98,6 +66,39 @@ The format of F is as a list of X=f separated by commas, where X is a column num
    * We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)
    * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
+
+## Usage
+Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually print the entire file.
+
+### Query
+q gets one parameter - An SQL-like query. The following applies:
+
+* The table name is the actual file name that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. `q "SELECT * FROM -"`)
+  * Actually multiple files can be provided by using one of both of the following ways:
+     * By separating the filenames with a + sign: `SELECT * FROM datafile1+datafile2+datefile3`.
+     * By using glob matching: `SELECT * FROM mydata*.dat`
+  * Files with .gz extension are considered to be gzipped and decompressed on the fly.
+* The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
+* Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
+  * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
+* For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
+
+### Runtime options and flags
+q can also get some runtime flags (Linux style, before the parameter). The following parameters can be used, all optional:
+
+* `-z` - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
+* `-H <N>` - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
+* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
+* `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
+* `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
+* `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
+* `-e <E>` - Specify the text encoding. Defaults to UTF-8
+
+### Output formatting option
+The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
+* X - column number - This is the SELECTed column (or expression) number, not the one from the original table. E.g, 1 is the first SELECTed column, 3 is the third SELECTed column.
+* f - A python formatting string - See http://docs.python.org/release/2.4.4/lib/typesseq-strings.html for details if needed.
+  * Example: `-f 3=%-10s,5=%4.3f,1=%x`
 
 ## Implementation
 The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only simple SELECT statements (no JOINs or Subqueries yet). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.

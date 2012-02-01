@@ -47,6 +47,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 * `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
 * `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
+* `-e <E>` - Specify the text encoding. Defaults to UTF-8
 
 ### Output formatting option
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:

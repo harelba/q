@@ -77,6 +77,18 @@ The format of F is as a list of X=f separated by commas, where X is a column num
 
         ```q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"```  
 
+2. A more complicated example, showing time manipulation. Let's assume that we have a file with a timestamp as its first column. We'll show how it's possible to get the number of rows per full minute:  
+
+        ```q "SELECT DATETIME(ROUND(c1/60000)*60000/1000,'unixepoch','-05:00') as min, COUNT(1) FROM datafile*.gz GROUP BY min```  
+        
+   There are several things to notice here:
+   * The timestamp value is in the first column, hence c1.
+   * The timestamp is assumed to be a unix epoch timestamp, but in ms, and DATETIME accepts seconds, so we need to divide by 1000
+   * The full-minute rounding is done by dividing by 60000 (ms), rounding and then multiplying by the same amount. Rounding to an hour, for example, would be the same except for having 3600000 instead of 60000.
+   * We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)
+   * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
+   * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
+
 ## Implementation
 The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only simple SELECT statements (no JOINs or Subqueries yet). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
 

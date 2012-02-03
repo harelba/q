@@ -88,30 +88,81 @@ class Sqlite3DB(object):
 	def drop_table(self,table_name):
 		return self.execute_and_fetch(self.generate_drop_table(table_name))	
 
+# Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
+#
+# A "qtable" is a filename which behaves like an SQL table...
 class Sql(object):
+
 	def __init__(self,sql):
 		# Currently supports only standard SELECT statements
 
+		# Holds original SQL
 		self.sql = sql
+		# Holds sql parts 
 		self.sql_parts = sql.split()
-		self.column_list = self.sql_parts[0]
-		# Simplistic way to determine table name
-		try:
-			self.table_name_position = [i+1 for i in range(0,len(self.sql_parts)) if self.sql_parts[i].upper() == 'FROM'][0]
-		except:
-			raise Exception("Could not detect table name in query")
-		self.table_name = self.sql_parts[self.table_name_position]
+	
+		# Set of qtable names
+		self.qtable_names = set()
+		# Dict from qtable names to their positions in sql_parts. Value here is a *list* of positions,
+		# since it is possible that the same qtable_name (file) is referenced in multiple positions
+		# and we don't want the database table to be recreated for each reference
+		self.qtable_name_positions = {}
+		# Dict from qtable names to their effective (actual database) table names
+		self.qtable_name_effective_table_names = {}
 
-		self.actual_table_name = None
+		# Go over all sql parts
+		idx = 0
+		while idx < len(self.sql_parts):
+			# Get the part string
+			part = self.sql_parts[idx]
+			# If it's a FROM or a JOIN
+			if part.upper() in ['FROM','JOIN']:
+				# and there is nothing after it,
+				if idx == len(self.sql_parts)-1:
+					# Just fail
+					raise Exception('FROM/JOIN is missing a table name after it')
+				
+				
+				qtable_name = self.sql_parts[idx+1]
+				# Otherwise, the next part contains the qtable name. In most cases the next part will be only the qtable name.
+				# We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...". 
+				# In that case, there will be an ending paranthesis as part of the name, and we want to handle this case gracefully.
+				# This is obviously a hack of a hack :) Just until we have complete parsing capabilities
+				if ')' in qtable_name:
+					leftover = qtable_name[qtable_name.index(')'):]
+					self.sql_parts.insert(idx+2,leftover)
+					qtable_name = qtable_name[:qtable_name.index(')')]
+					self.sql_parts[idx+1] = qtable_name
+					
 
-	def set_effective_table_name(self,actual):
-		self.actual_table_name = actual
+				self.qtable_names.add(qtable_name)
+
+				if qtable_name not in self.qtable_name_positions.keys():
+					self.qtable_name_positions[qtable_name] = []
+				
+				self.qtable_name_positions[qtable_name].append(idx+1)
+				idx += 2
+			else:
+				idx += 1
+
+	def set_effective_table_name(self,qtable_name,effective_table_name):
+		if qtable_name not in self.qtable_names:
+			raise Exception("Unknown qtable %s" % qtable_name)
+		if qtable_name in self.qtable_name_effective_table_names.keys():
+			raise Exception("Already set effective table name for qtable %s" % qtable_name)
+
+		self.qtable_name_effective_table_names[qtable_name] = effective_table_name
 
 	def get_effective_sql(self):
-		if self.actual_table_name is None:
-			raise Exception('Actual table name has not been set')
+		if len(filter(lambda x: x is None,self.qtable_name_effective_table_names)) != 0:
+			raise Exception('There are qtables without effective tables')
+		
 		effective_sql = [x for x in self.sql_parts]
-		effective_sql[self.table_name_position] = self.actual_table_name
+
+		for qtable_name,positions in self.qtable_name_positions.iteritems():
+			for pos in positions:
+				effective_sql[pos] = self.qtable_name_effective_table_names[qtable_name]
+
 		return " ".join(effective_sql)
 		
 	def execute_and_fetch(self,db):
@@ -198,6 +249,11 @@ class TableCreator(object):
 				files_to_go_over = ['-']
 			else:
 				files_to_go_over = glob.glob(fileglob)
+
+			# If there are no files to go over,
+			if len(files_to_go_over) == 0:
+				raise Exception("File has not been found '%s'" % fileglob)
+
 			# For each match
 			for filename in files_to_go_over:
 				self.lines_read = 0
@@ -224,6 +280,8 @@ class TableCreator(object):
 				finally:
 					if f != sys.stdin:
 						f.close()
+				if not self.table_created:
+					raise Exception('Table should have already been created for file %s' % filename)
 
 	def _insert_row(self,line):
 		# If table has not been created yet
@@ -298,8 +356,6 @@ db = Sqlite3DB()
 
 # Create SQL statment (command line is 'select' for now, so we add it manually...)
 sql_object = Sql('%s' % args[0])
-# Get "table name" which is actually the file name
-filename = sql_object.table_name
 
 # If the user flagged for a tab-delimited file then set the delimiter to tab
 if options.tab_delimited_with_header:
@@ -309,12 +365,14 @@ if options.tab_delimited_with_header:
 # Create a line splitter
 line_splitter = LineSplitter(options.delimiter)
 
-# Create the matching database table and populate it
-table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding)
-table_creator.populate()
+# Get each "table name" which is actually the file name
+for filename in sql_object.qtable_names:
+	# Create the matching database table and populate it
+	table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding)
+	table_creator.populate()
 
-# Replace the logical table name with the real table name
-sql_object.set_effective_table_name(table_creator.table_name)
+	# Replace the logical table name with the real table name
+	sql_object.set_effective_table_name(filename,table_creator.table_name)
 
 # Execute the query and fetch the data
 m = sql_object.execute_and_fetch(db)

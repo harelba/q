@@ -70,7 +70,7 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
 
 ## Usage
-Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually print the entire file.
+Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually prints the entire file.
 
 ### Query
 q gets one parameter - An SQL-like query. The following applies:

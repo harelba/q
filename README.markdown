@@ -1,4 +1,4 @@
-# q - SQL power for the Command Line
+# q - Treating Text as a Database
 
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.
@@ -7,7 +7,7 @@ SQL is a declarative language for data, and as such it allows me to define what 
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
-**q allows performing SQL-like statements on tabular text data.**
+**_q allows performing SQL-like statements on tabular text data._**
 
 ### Why aren't other Linux tools enough?
 The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.

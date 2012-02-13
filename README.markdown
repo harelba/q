@@ -69,6 +69,8 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
    * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
 
+3. JOINs and sub queries Examples will be provided soon.
+
 ## Usage
 Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually prints the entire file.
 
@@ -85,7 +87,10 @@ q gets one parameter - An SQL-like query. The following applies:
   * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
 * For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
 
+The tool also supports JOINs and subqueries. Please make sure to use table aliases when doing that.
+
 The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
+
 
 ### Runtime options and flags
 q can also get some runtime flags (Linux style, before the parameter). The following parameters can be used, all optional:
@@ -127,10 +132,10 @@ The following limitations exist in the current implementation:
 
 * Column name inference for files containing a header line
 * Column type inference according to actual data
-* Batch insertion to the database
+* Smarter batch insertion to the database
 * Allow working with external DB
-* Real parsing of the SQL, allowing JOINs and Subqueries
-* Provide mechanisms beyond SELECT. INSERT and CREATE TABLE SELECT and such.
+* Real parsing of the SQL, allowing smarter execution of queries.
+* Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
 * Support semi structured data - e.g. log files, where there are several columns and then free text
 * Better error handling
 

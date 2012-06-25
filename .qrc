@@ -1,0 +1,23 @@
+#
+# q options ini file. Put either in your home folder as .qrc or in the working directory 
+#   (both will be merged in that order)
+#
+# All options should reside in an [options] section
+#
+# Available options:
+# * delimiter - escaped string (e.g. use \t for tab or \x20 for space)
+# * gzipped - boolean True or False
+# * beautify - boolean True or False
+# * header_skip - integer number of lines to skip at the beginning of the file
+# * formatting - regular string - post-query formatting - see docs for details
+# * encoding - regular string - required encoding.
+#
+# All options have a matching command line option. See --help for details on defaults
+
+[options]
+#delimiter: \t
+#gzipped: False
+#beautify: True
+#header_skip: 0
+#formatting: 1=%4.3f,2=%4.3f
+#encoding: UTF-8

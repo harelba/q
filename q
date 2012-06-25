@@ -26,6 +26,7 @@ import codecs
 import locale
 import time
 import re
+from ConfigParser import ConfigParser
 
 DEBUG = False
 
@@ -37,20 +38,44 @@ else:
 
 SHOW_SQL = False
 
+p = ConfigParser()
+p.read([os.path.expanduser('~/.qrc'),'.qrc'])
+
+def get_option_with_default(p,option_type,option,default):
+	if not p.has_option('options',option):
+		return default
+	if option_type == 'boolean':
+		return p.getboolean('options',option)
+	elif option_type == 'int':
+		return p.getint('options',option)
+	elif option_type == 'string' : 
+		return p.get('options',option)
+	elif option_type == 'escaped_string':
+		return p.get('options',option).decode('string-escape')
+	else:
+		raise Exception("Unknown option type")
+
+default_beautify = get_option_with_default(p,'boolean','beautify',False)
+default_gzipped = get_option_with_default(p,'boolean','gzipped',False)
+default_delimiter = get_option_with_default(p,'escaped_string','delimiter',None)
+default_header_skip = get_option_with_default(p,'int','header_skip',0)
+default_formatting = get_option_with_default(p,'string','formatting',None)
+default_encoding = get_option_with_default(p,'string','encoding','UTF-8')
+
 parser = OptionParser()
-parser.add_option("-b","--beautify",dest="beautify",default=False,action="store_true",
+parser.add_option("-b","--beautify",dest="beautify",default=default_beautify,action="store_true",
                 help="Beautify output according to actual values. Might be slow...")
-parser.add_option("-z","--gzipped",dest="gzipped",default=False,action="store_true",
+parser.add_option("-z","--gzipped",dest="gzipped",default=default_gzipped,action="store_true",
                 help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-parser.add_option("-d","--delimiter",dest="delimiter",default=None,
+parser.add_option("-d","--delimiter",dest="delimiter",default=default_delimiter,
                 help="Field delimiter. If none specified, then standard whitespace is used as a delimiter")
 parser.add_option("-t","--tab-delimited-with-header",dest="tab_delimited_with_header",default=False,action="store_true",
                 help="Same as -d <tab> -H 1. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file")
-parser.add_option("-H","--header-skip",dest="header_skip",default=0,
+parser.add_option("-H","--header-skip",dest="header_skip",default=default_header_skip,
                 help="Skip n lines at the beginning of the data (still takes those lines into account in terms of structure)")
-parser.add_option("-f","--formatting",dest="formatting",default=None,
+parser.add_option("-f","--formatting",dest="formatting",default=default_formatting,
                 help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-parser.add_option("-e","--encoding",dest="encoding",default='UTF-8',
+parser.add_option("-e","--encoding",dest="encoding",default=default_encoding,
                 help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
 
 class Sqlite3DB(object):
@@ -420,7 +445,7 @@ sql_object = Sql('%s' % args[0])
 # If the user flagged for a tab-delimited file then set the delimiter to tab
 if options.tab_delimited_with_header:
 	options.delimiter = '\t'
-	options.header_skip = "1"
+	options.header_skip = "0"
 
 # Create a line splitter
 line_splitter = LineSplitter(options.delimiter)

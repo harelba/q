@@ -22,6 +22,8 @@ One additional thing to note is that many Linux tools treat text as text and not
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
+q supports an option file in ~/.qrc or in the working directory (with the name .qrc) which provides defaults for some or all of the command line options. A sample .qrc file with commented-out options is included. Just put it in your home folder and modify it according to your needs.
+
 ## Examples
 Let's postpone the official usage (See below). Look at the examples, and you'll probably get the general idea.
 

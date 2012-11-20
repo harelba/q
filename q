@@ -62,7 +62,26 @@ default_header_skip = get_option_with_default(p,'int','header_skip',0)
 default_formatting = get_option_with_default(p,'string','formatting',None)
 default_encoding = get_option_with_default(p,'string','encoding','UTF-8')
 
-parser = OptionParser()
+parser = OptionParser(usage="""
+	q allows performing SQL-like statements on tabular text data.
+
+	Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+
+	Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
+        Columns are named c1..cN and delimiter can be set using the -d (or -t) option.
+
+	All sqlite3 SQL constructs are supported.
+
+	Examples:
+
+          Example 1: ls -ltr * | q "select c1,count(1) from - group by c1"
+	    This example would print a count of each unique permission string in the current folder.
+
+	  Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
+	    This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+        See the help or https://github.com/harelba/q for more details.
+""")
 parser.add_option("-b","--beautify",dest="beautify",default=default_beautify,action="store_true",
                 help="Beautify output according to actual values. Might be slow...")
 parser.add_option("-z","--gzipped",dest="gzipped",default=default_gzipped,action="store_true",
@@ -99,7 +118,14 @@ class Sqlite3DB(object):
 		if not quote:
 			return ",".join(["%s" % x for x in l])
 		else:
-			return ",".join(["\"%s\"" % x for x in l])
+			# Quote the list items, and escape relevant strings
+			# Unfortunately, using list comprehension and performing replace on all elements here slows things down, so this is an optimization
+			def quote_and_escape(x):
+				if "'" in x:
+					x = x.replace("'","''")
+				return "'" + x + "'"
+
+			return ",".join(map(quote_and_escape,l))
 
 	def generate_insert_row(self,table_name,column_names,col_vals):
 		col_names_str = self._get_as_list_str(column_names)
@@ -433,7 +459,7 @@ def determine_max_col_lengths(m):
 		
 (options,args) = parser.parse_args()
 if len(args) != 1:
-    parser.print_usage()
+    parser.print_help()
     sys.exit(1)
 	
 # Create DB object

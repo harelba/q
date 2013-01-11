@@ -1,5 +1,6 @@
 #!/bin/bash
 
+VERSION=`cat version.txt`
 RPMBUILD=~/rpmbuild
 SOURCE_DIR=${RPMBUILD}/SOURCES
 SPEC_DIR=${RPMBUILD}/SPECS
@@ -10,9 +11,9 @@ echo "Creating RPM directory tree"
 
 [ -d ${SOURCE_DIR} ] || exit -1
 
-tar czf ${SOURCE_DIR}/q-0.1.tar.gz src
+tar czf ${SOURCE_DIR}/q-${VERSION}.tar.gz src
 
-sed -f version.txt q.spec > ${SPEC_DIR}/q.spec
+sed "s/QVERSION/$VERSION/g" q.spec > ${SPEC_DIR}/q.spec
 
 cd ${SPEC_DIR}
 /bin/rpmbuild -ba q.spec

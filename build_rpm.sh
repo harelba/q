@@ -11,7 +11,7 @@ echo "Creating RPM directory tree"
 
 [ -d ${SOURCE_DIR} ] || exit -1
 
-tar czf ${SOURCE_DIR}/q-${VERSION}.tar.gz src
+tar --exclude-vcs -czf ${SOURCE_DIR}/q-${VERSION}.tar.gz .
 
 sed "s/QVERSION/$VERSION/g" q.spec > ${SPEC_DIR}/q.spec
 

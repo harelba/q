@@ -25,16 +25,16 @@ One additional thing to note is that many Linux tools treat text as text and not
 q supports an option file in ~/.qrc or in the working directory (with the name .qrc) which provides defaults for some or all of the command line options. A sample .qrc file with commented-out options is included. Just put it in your home folder and modify it according to your needs.
 
 ## Examples
-Let's postpone the official usage (See below). Look at the examples, and you'll probably get the general idea.
+Let's postpone the official usage (See below). Look at the examples, and you'll get the general idea.
 
-1.  We'll start with a simple example and work from there. 
-  * The following commands will count the lines in the file *exampledatafile*. The output will be exactly as if we ran the `wc -l` command.  
+1.  We'll start with a simple example and work from there. The file `exampledatafile` contains the output of an `ls -l` command, a list of files in some directory. In this example we'll do some calculations on this file list.
+  * The following commands will count the lines in the file *exampledatafile*, effectively getting the number of files in the directory. The output will be exactly as if we ran the `wc -l` command.  
 
         ```q "SELECT COUNT(1) FROM exampledatafile"```  
 
         ```cat exampledatafile | q "SELECT COUNT(1) FROM -"```  
         
-  * Now, let's assume we want to know the number of files per date. Notice that the date is in column 6.
+  * Now, let's assume we want to know the number of files per date in the directory. Notice that the date is in column 6.
 
         ```q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"```  
 
@@ -71,8 +71,6 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
    * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
 
-3. JOINs and sub queries Examples will be provided soon.
-
 ## Usage
 Basic usage format is `q <flags> <query>`. Simplest execution is `q "SELECT * FROM myfile"` which will actually prints the entire file.
 
@@ -89,7 +87,7 @@ q gets one parameter - An SQL-like query. The following applies:
   * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
 * For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
 
-The tool also supports JOINs and subqueries. Please make sure to use table aliases when doing that.
+JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table alias when performing JOINs.
 
 The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
 
@@ -135,8 +133,10 @@ The following limitations exist in the current implementation:
 * Column name inference for files containing a header line
 * Column type inference according to actual data
 * Smarter batch insertion to the database
+* Faster reuse of previous data loading
 * Allow working with external DB
 * Real parsing of the SQL, allowing smarter execution of queries.
+* Full Subquery support (will be possible once real SQL parsing is performed)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
 * Support semi structured data - e.g. log files, where there are several columns and then free text
 * Better error handling

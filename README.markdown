@@ -110,11 +110,11 @@ The format of F is as a list of X=f separated by commas, where X is a column num
   * Example: `-f 3=%-10s,5=%4.3f,1=%x`
 
 ## Implementation
-The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only simple SELECT statements (no JOINs or Subqueries yet). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
+The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
 
 Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
 
-Please make sure to read the limitation section as well.
+Please make sure to read the limitations section as well.
 
 ### Limitations
 The following limitations exist in the current implementation:  

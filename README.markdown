@@ -58,6 +58,8 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
 
         ```q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"```  
         
+  * (An example of using JOIN will be added here - In the mean time just remember you have to use table alias for JOINed "tables")
+        
 2. A more complicated example, showing time manipulation. Let's assume that we have a file with a timestamp as its first column. We'll show how it's possible to get the number of rows per full minute:  
 
         q "SELECT DATETIME(ROUND(c1/60000)*60000/1000,'unixepoch','-05:00') as min, COUNT(1) FROM datafile*.gz GROUP BY min"  

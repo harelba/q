@@ -393,9 +393,6 @@ class TableCreator(object):
 		self._insert_row_i(line)
 
 	def _insert_row_i(self,line):
-		self.lines_read += 1
-		if self.lines_read <= self.header_skip:
-			return
 	        col_vals = line_splitter.split(line)
 
 		# If we have more columns than we inferred
@@ -425,6 +422,10 @@ class TableCreator(object):
 		if self.table_created:
 			raise Exception('Table is already created')
 
+		self.lines_read += 1
+		if self.lines_read <= self.header_skip:
+			return
+	
 		# Add that line to the column inferer
 		result = self.column_inferer.analyze(line)
 		# If inferer succeeded,

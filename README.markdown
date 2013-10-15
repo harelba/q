@@ -19,6 +19,7 @@ One additional thing to note is that many Linux tools treat text as text and not
 
 ## Installation
 * No real installation is required - Just put q in the PATH.
+* Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 

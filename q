@@ -48,7 +48,7 @@ def get_option_with_default(p,option_type,option,default):
 		return p.getboolean('options',option)
 	elif option_type == 'int':
 		return p.getint('options',option)
-	elif option_type == 'string' : 
+	elif option_type == 'string' :
 		return p.get('options',option)
 	elif option_type == 'escaped_string':
 		return p.get('options',option).decode('string-escape')
@@ -138,7 +138,7 @@ class Sqlite3DB(object):
 	def generate_end_transaction(self):
 		return "COMMIT"
 
-	# Get a list of column names so order will be preserved (Could have used OrderedDict, but 
+	# Get a list of column names so order will be preserved (Could have used OrderedDict, but
         # then we would need python 2.7)
 	def generate_create_table(self,table_name,column_names,column_dict):
 		# Convert dict from python types to db types
@@ -158,7 +158,7 @@ class Sqlite3DB(object):
 	def generate_end_transaction(self):
 		return "COMMIT"
 
-	# Get a list of column names so order will be preserved (Could have used OrderedDict, but 
+	# Get a list of column names so order will be preserved (Could have used OrderedDict, but
         # then we would need python 2.7)
 	def generate_create_table(self,table_name,column_names,column_dict):
 		# Convert dict from python types to db types
@@ -173,7 +173,7 @@ class Sqlite3DB(object):
 		return "DROP TABLE %s" % table_name
 
 	def drop_table(self,table_name):
-		return self.execute_and_fetch(self.generate_drop_table(table_name))	
+		return self.execute_and_fetch(self.generate_drop_table(table_name))
 
 # Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
 #
@@ -185,9 +185,9 @@ class Sql(object):
 
 		# Holds original SQL
 		self.sql = sql
-		# Holds sql parts 
+		# Holds sql parts
 		self.sql_parts = sql.split()
-	
+
 		# Set of qtable names
 		self.qtable_names = set()
 		# Dict from qtable names to their positions in sql_parts. Value here is a *list* of positions,
@@ -208,11 +208,21 @@ class Sql(object):
 				if idx == len(self.sql_parts)-1:
 					# Just fail
 					raise Exception('FROM/JOIN is missing a table name after it')
-				
-				
-				qtable_name = self.sql_parts[idx+1]
+
+
+                                if self.sql_parts[idx+1][0] in ["'",'"']:
+                                    bracket = self.sql_parts[idx+1][0]
+                                    i = idx+2
+                                    while i < len(self.sql_parts) and self.sql_parts[i].find(bracket) < 0:
+                                        i += 1
+                                    if i < len(self.sql_parts):
+                                        qtable_name = ' '.join(self.sql_parts[idx+1:i+1])
+                                    else:
+                                        raise Exception('Invalid table name')
+                                else:
+                                    qtable_name = self.sql_parts[idx+1]
 				# Otherwise, the next part contains the qtable name. In most cases the next part will be only the qtable name.
-				# We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...". 
+				# We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...".
 				# In that case, there will be an ending paranthesis as part of the name, and we want to handle this case gracefully.
 				# This is obviously a hack of a hack :) Just until we have complete parsing capabilities
 				if ')' in qtable_name:
@@ -220,13 +230,13 @@ class Sql(object):
 					self.sql_parts.insert(idx+2,leftover)
 					qtable_name = qtable_name[:qtable_name.index(')')]
 					self.sql_parts[idx+1] = qtable_name
-					
+
 
 				self.qtable_names.add(qtable_name)
 
 				if qtable_name not in self.qtable_name_positions.keys():
 					self.qtable_name_positions[qtable_name] = []
-				
+
 				self.qtable_name_positions[qtable_name].append(idx+1)
 				idx += 2
 			else:
@@ -243,7 +253,7 @@ class Sql(object):
 	def get_effective_sql(self):
 		if len(filter(lambda x: x is None,self.qtable_name_effective_table_names)) != 0:
 			raise Exception('There are qtables without effective tables')
-		
+
 		effective_sql = [x for x in self.sql_parts]
 
 		for qtable_name,positions in self.qtable_name_positions.iteritems():
@@ -251,7 +261,7 @@ class Sql(object):
 				effective_sql[pos] = self.qtable_name_effective_table_names[qtable_name]
 
 		return " ".join(effective_sql)
-		
+
 	def execute_and_fetch(self,db):
 		return db.execute_and_fetch(self.get_effective_sql())
 
@@ -352,7 +362,7 @@ class TableCreator(object):
 				self.current_filename = filename
 				self.lines_read = 0
 
-				# Check if it's standard input or a file 
+				# Check if it's standard input or a file
 				if filename == '-':
 					f = sys.stdin
 				else:
@@ -365,7 +375,7 @@ class TableCreator(object):
 				# And wrap it in an decoder (e.g. ascii, UTF-8 etc)
 				if encoder is not None:
 					f = encoder(f)
-					
+
 
 				# Read all the lines
 				try:
@@ -384,7 +394,7 @@ class TableCreator(object):
 		# If table has not been created yet
 		if not self.table_created:
 			# Try to create it along with another "example" line of data
-			self.try_to_create_table(line)	
+			self.try_to_create_table(line)
 
 		# If the table is still not created, then we don't have enough data, just return
 		if not self.table_created:
@@ -425,7 +435,7 @@ class TableCreator(object):
 		self.lines_read += 1
 		if self.lines_read <= self.header_skip:
 			return
-	
+
 		# Add that line to the column inferer
 		result = self.column_inferer.analyze(line)
 		# If inferer succeeded,
@@ -457,12 +467,12 @@ def determine_max_col_lengths(m):
 			if new_len > max_lengths[col_index]:
 				max_lengths[col_index] = new_len
 	return max_lengths
-		
+
 (options,args) = parser.parse_args()
 if len(args) != 1:
     parser.print_help()
     sys.exit(1)
-	
+
 # Create DB object
 db = Sqlite3DB()
 

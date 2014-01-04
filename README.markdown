@@ -37,27 +37,27 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
         
   * Now, let's assume we want to know the number of files per date in the directory. Notice that the date is in column 6.
 
-        q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"   
+            q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"   
 
   * The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's leave only the ones which have 3 files or more:  
 
-        q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt >= 3"   
+            q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt >= 3"   
 
   * Now, let's see if we can get something more interesting. The following command will provide the **total size** of the files for each date. Notice that the file size is in c5.  
 
-        q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"   
+            q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"   
 
   * We can see the results. However, the sums are in bytes. Let's show the same results but in KB:  
 
-        q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"  
+            q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"  
 
   * The last command provided us with a list of results, but there is no order and the list is too long. Let's get the Top 5 dates:  
 
-        q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"   
+            q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"   
 
   * Now we'll see how we can format the output itself, so it looks better:  
 
-        q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"  
+            q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"  
         
   * (An example of using JOIN will be added here - In the mean time just remember you have to use table alias for JOINed "tables")
         

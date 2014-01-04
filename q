@@ -285,7 +285,7 @@ class TableColumnInferer(object):
 
 		# FIXME: Hack to provide for some small variation in the column count. Will be fixed as soon as we have better column inferring
 		#self.column_count += max(6,int(self.column_count*0.2))
-		self.column_count += 5
+		self.column_count += 7
 
 		if self.column_count == 0:
 			raise Exception("Detected a column count of zero... Failing")

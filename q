@@ -74,7 +74,7 @@ parser = OptionParser(usage="""
 
 	Examples:
 
-          Example 1: ls -ltr * | q "select c1,count(1) from - group by c1"
+          Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
 	    This example would print a count of each unique permission string in the current folder.
 
 	  Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"

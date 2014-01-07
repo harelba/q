@@ -401,7 +401,10 @@ class TableCreator(object):
 
 		effective_column_names = self.column_inferer.column_names[:len(col_vals)]
 
-		self.buffered_inserts.append((effective_column_names,col_vals))
+		if len(effective_column_names) > 0:
+			self.buffered_inserts.append((effective_column_names,col_vals))
+		else:
+			self.buffered_inserts.append((["c1"],[""]))
 
 		if len(self.buffered_inserts) < 1000:
 			return

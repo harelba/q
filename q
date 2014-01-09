@@ -456,7 +456,7 @@ def determine_max_col_lengths(m):
 	max_lengths = [0 for x in xrange(0,len(m[0]))]
 	for row_index in xrange(0,len(m)):
 		for col_index in xrange(0,len(m[0])):
-			new_len = len(str(m[row_index][col_index]))
+			new_len = len(unicode(m[row_index][col_index]))
 			if new_len > max_lengths[col_index]:
 				max_lengths[col_index] = new_len
 	return max_lengths

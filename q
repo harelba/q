@@ -58,6 +58,7 @@ def get_option_with_default(p,option_type,option,default):
 default_beautify = get_option_with_default(p,'boolean','beautify',False)
 default_gzipped = get_option_with_default(p,'boolean','gzipped',False)
 default_delimiter = get_option_with_default(p,'escaped_string','delimiter',None)
+default_output_delimiter = get_option_with_default(p,'escaped_string','output_delimiter',None)
 default_header_skip = get_option_with_default(p,'int','header_skip',0)
 default_formatting = get_option_with_default(p,'string','formatting',None)
 default_encoding = get_option_with_default(p,'string','encoding','UTF-8')
@@ -88,6 +89,8 @@ parser.add_option("-z","--gzipped",dest="gzipped",default=default_gzipped,action
                 help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
 parser.add_option("-d","--delimiter",dest="delimiter",default=default_delimiter,
                 help="Field delimiter. If none specified, then standard whitespace is used as a delimiter")
+parser.add_option("-D","--output-delimiter",dest="output_delimiter",default=default_output_delimiter,
+                help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
 parser.add_option("-t","--tab-delimited-with-header",dest="tab_delimited_with_header",default=False,action="store_true",
                 help="Same as -d <tab> -H 1. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file")
 parser.add_option("-H","--header-skip",dest="header_skip",default=default_header_skip,
@@ -506,10 +509,18 @@ m = sql_object.execute_and_fetch(db)
 if options.beautify:
 	max_lengths = determine_max_col_lengths(m)
 
-if options.delimiter:
-	output_delimiter = options.delimiter
+if options.output_delimiter:
+	# If output delimiter is specified, then we use it
+	output_delimiter = options.output_delimiter
 else:
-	output_delimiter = " "
+	# Otherwise, 
+	if options.delimiter:
+		# if an input delimiter is specified, then we use it as the output as well
+		output_delimiter = options.delimiter
+	else:
+		# if no input delimiter is specified, then we use space as the default
+		# (since no input delimiter means any whitespace)
+		output_delimiter = " "
 
 if options.formatting:
 	formatting_dict = dict([(x.split("=")[0],x.split("=")[1]) for x in options.formatting.split(",")])

@@ -6,6 +6,7 @@
 #
 # Available options:
 # * delimiter - escaped string (e.g. use \t for tab or \x20 for space)
+# * outputdelimiter - escaped string (e.g. use \t for tab or \x20 for space)
 # * gzipped - boolean True or False
 # * beautify - boolean True or False
 # * header_skip - integer number of lines to skip at the beginning of the file
@@ -16,6 +17,7 @@
 
 [options]
 #delimiter: \t
+#output_delimiter: \t
 #gzipped: False
 #beautify: True
 #header_skip: 0

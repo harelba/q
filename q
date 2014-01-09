@@ -3,7 +3,6 @@
 # Name      : q (With respect to The Q Continuum)
 # Author    : Harel Ben Attia - harelba@gmail.com, harelba @ github, @harelba on twitter
 # Requires  : python with sqlite3
-# Version   : 0.1
 #
 #
 # q allows performing SQL-like statements on tabular text data.
@@ -14,6 +13,7 @@
 #
 # Run with --help for command line details
 #
+q_version = "1.1.2"
 
 import os,sys
 import random
@@ -96,6 +96,8 @@ parser.add_option("-f","--formatting",dest="formatting",default=default_formatti
                 help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
 parser.add_option("-e","--encoding",dest="encoding",default=default_encoding,
                 help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+parser.add_option("-v","--version",dest="version",default=False,action="store_true",
+                help="Print version")
 
 class Sqlite3DB(object):
 	def __init__(self,show_sql=SHOW_SQL):
@@ -462,6 +464,11 @@ def determine_max_col_lengths(m):
 	return max_lengths
 		
 (options,args) = parser.parse_args()
+
+if options.version:
+	print "q version %s" % q_version
+	sys.exit(0)
+
 if len(args) != 1:
     parser.print_help()
     sys.exit(1)

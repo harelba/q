@@ -13,7 +13,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.1.2"
+q_version = "1.1.3"
 
 import os,sys
 import random

@@ -101,14 +101,16 @@ parser.add_option("-e","--encoding",dest="encoding",default=default_encoding,
                 help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
 parser.add_option("-v","--version",dest="version",default=False,action="store_true",
                 help="Print version")
-
+def regexp(regular_expression, data):
+    return re.search(regular_expression, data) is not None;
+    
 class Sqlite3DB(object):
 	def __init__(self,show_sql=SHOW_SQL):
 		self.show_sql = show_sql
 		self.conn = sqlite3.connect(':memory:')
 		self.cursor = self.conn.cursor()
 		self.type_names = { str : 'TEXT' , int : 'INT' , float : 'FLOAT' }
-
+		self.conn.create_function("regexp", 2, regexp)
 	def execute_and_fetch(self,q):
 		try:
 			if self.show_sql:

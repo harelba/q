@@ -7,12 +7,32 @@ SQL is a declarative language for data, and as such it allows me to define what 
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
-**_q allows performing SQL-like statements on tabular text data._**
+```bash
+"q allows performing SQL-like statements on tabular text data"
+```
 
-### Why aren't other Linux tools enough?
-The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.
+## Quick example for the impatient
 
-One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).
+Command:
+```bash
+sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+```
+
+Output (total size per user/group in the /tmp subtree):
+```bash
+mapred hadoop   304.00390625
+root   root     8.0431451797485
+smith  smith    4.34389972687
+```
+        
+## Highlights
+
+* Seemless multi-table SQL support, including joins. filenames are just used instead of table names (or - for stdin)
+* Has homebrew installation support. Debian/RPM coming soon.
+* Full UTF-8 support (and other encodings)
+* Handling of gzipped files
+* Output delimiter matching and selection
+* Output beautifier
 
 ## Requirements
 * Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
@@ -105,7 +125,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 * `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
 * `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
-* `-e <E>` - Specify the text encoding. Defaults to UTF-8
+* `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
 
 ### Output formatting option
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
@@ -144,6 +164,11 @@ The following limitations exist in the current implementation:
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
 * Support semi structured data - e.g. log files, where there are several columns and then free text
 * Better error handling
+
+## Why aren't other Linux tools enough?
+The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.
+
+One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).
 
 ## Philosophy
 This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read the amazing book http://catb.org/~esr/writings/taoup/ and specifically http://catb.org/~esr/writings/taoup/html/ch01s06.html. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.

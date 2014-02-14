@@ -38,8 +38,9 @@ smith  smith    4.34389972687
 * Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
 
 ## Installation
-* No real installation is required - Just put q in the PATH.
 * Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
+* Debian/RPM Packages coming soon. Follow [me](https://twitter.com/harelba) on twitter for updates.
+* No real installation is required - Just put q in the PATH.
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
@@ -176,5 +177,5 @@ This tool has been designed with general Linux/Unix design principles in mind. I
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 
-Harel Ben-Attia, harelba@gmail.com, @harelba on Twitter
+Harel Ben-Attia, harelba@gmail.com, [@harelba](https://twitter.com/harelba) on Twitter
 

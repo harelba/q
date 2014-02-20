@@ -13,7 +13,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.1.5"
+q_version = "1.1.6"
 
 import os,sys
 import random
@@ -27,6 +27,7 @@ import locale
 import time
 import re
 from ConfigParser import ConfigParser
+import traceback
 
 DEBUG = False
 
@@ -80,6 +81,9 @@ parser = OptionParser(usage="""
 
 	  Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
 	    This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+	  Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+	    This example will output the total size in MB per user+group in the /tmp subtree
 
         See the help or https://github.com/harelba/q for more details.
 """)
@@ -186,6 +190,13 @@ class Sqlite3DB(object):
 
 	def drop_table(self,table_name):
 		return self.execute_and_fetch(self.generate_drop_table(table_name))	
+
+class ColumnCountMismatchException(Exception):
+	def __init__(self,msg):
+		self.msg = msg
+
+	def __str(self):
+		return repr(self.msg)
 
 # Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
 #
@@ -409,7 +420,7 @@ class TableCreator(object):
 
 		# If we have more columns than we inferred
 		if len(col_vals) > len(self.column_inferer.column_names):
-			raise Exception('Encountered a line in an invalid format %s:%s - %s columns instead of %s. Did you make sure to set the correct delimiter?' % (self.current_filename,self.lines_read,len(col_vals),len(self.column_inferer.column_names)))
+			raise ColumnCountMismatchException('Encountered a line in an invalid format %s:%s - %s columns instead of %s. Did you make sure to set the correct delimiter?' % (self.current_filename,self.lines_read,len(col_vals),len(self.column_inferer.column_names)))
 
 		effective_column_names = self.column_inferer.column_names[:len(col_vals)]
 
@@ -486,7 +497,7 @@ if len(args) != 1:
 # Create DB object
 db = Sqlite3DB()
 
-# Create SQL statment (command line is 'select' for now, so we add it manually...)
+# Create SQL statment 
 sql_object = Sql('%s' % args[0])
 
 # If the user flagged for a tab-delimited file then set the delimiter to tab
@@ -497,20 +508,27 @@ if options.tab_delimited_with_header:
 # Create a line splitter
 line_splitter = LineSplitter(options.delimiter)
 
-# Get each "table name" which is actually the file name
-for filename in sql_object.qtable_names:
-	# Create the matching database table and populate it
-	table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding)
-	start_time = time.time()
-	table_creator.populate()
-	if DEBUG:
-		print "TIMING - populate time is %4.3f" % (time.time() - start_time)
+try:
+	# Get each "table name" which is actually the file name
+	for filename in sql_object.qtable_names:
+		# Create the matching database table and populate it
+		table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding)
+		start_time = time.time()
+		table_creator.populate()
+		if DEBUG:
+			print "TIMING - populate time is %4.3f" % (time.time() - start_time)
 
-	# Replace the logical table name with the real table name
-	sql_object.set_effective_table_name(filename,table_creator.table_name)
+		# Replace the logical table name with the real table name
+		sql_object.set_effective_table_name(filename,table_creator.table_name)
 
-# Execute the query and fetch the data
-m = sql_object.execute_and_fetch(db)
+	# Execute the query and fetch the data
+	m = sql_object.execute_and_fetch(db)
+except sqlite3.OperationalError,e:
+	print "database access error: %s" % e
+	sys.exit(1)
+except ColumnCountMismatchException,e:
+	print e.msg
+	sys.exit(2)
 
 # If the user requested beautifying the output
 if options.beautify:

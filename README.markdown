@@ -40,7 +40,11 @@ smith  smith    4.34389972687
 ## Installation
 * Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
 * Debian/RPM Packages coming soon. Follow [me](https://twitter.com/harelba) on twitter for updates.
-* No real installation is required - Just put q in the PATH. Current version is `1.1.6` - Download it [here](https://github.com/harelba/q/archive/1.1.6.tar.gz)
+* No real installation is required - Just put q in the PATH. Current version is `1.1.6`
+
+    **Download it [here](https://github.com/harelba/q/archive/1.1.6.tar.gz)**
+    
+    
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 

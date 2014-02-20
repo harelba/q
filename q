@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Name      : q (With respect to The Q Continuum)
 # Author    : Harel Ben Attia - harelba@gmail.com, harelba @ github, @harelba on twitter

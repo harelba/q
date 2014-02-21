@@ -6,6 +6,8 @@ Summary:	q - Text as a Database.
 Group:		Applications/Text
 License:	GPL
 URL:		https://github.com/harelba/q
+Vendor:		Harel Ben-Attia
+Packager:	Harel Ben-Attia
 Source0:	%{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch:	noarch

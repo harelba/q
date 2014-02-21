@@ -1,10 +1,29 @@
 #!/bin/bash
 
+#
+# Simplistic RPM creation logic. See q.spec.template for actual spec
+#
+# Version number should be provided as input in the command line
+#
+# requires:
+#   * installation of ronn
+#   * installation of rpmbuild
+#
+# Output rpm is generated inside build/rpm/RPMS/noarch/
+#
+
 if [ $# -ne 1 ];
 then
 	echo 'create-rpm <version>'
 	exit 1
 fi
+
+command -v ronn &>/dev/null || { echo >&2 "ronn needs to be installed."; exit 1; }
+command -v rpmbuild &>/dev/null || { echo >&2 "rpmbuild needs to be installed."; exit 1; }
+
+base_folder=$(dirname $0)
+
+pushd ${base_folder}
 
 VERSION=$1
 REAL_PACKAGE_NAME=q
@@ -29,3 +48,5 @@ rpmbuild --define "_topdir `pwd`/build/rpm" -ta ${TAR_NAME}
 rm ${RPM_PACKAGE_NAME}.spec
 rm ${TAR_NAME}
 rm ${REAL_PACKAGE_NAME}.1
+
+popd

@@ -41,12 +41,12 @@ smith  smith    4.34389972687
 * Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
 * RPM Packaging is beta ready. You can download the beta RPM from the link below.
 * Debian Packaging will come soon.
-* No real installation is required - Just download the tar using the link below, extract it and put q in the PATH. 
 
-
-    **Current version is `1.1.7` - Download it [here](https://github.com/harelba/q/archive/1.1.7.tar.gz)**
+    **Current version is `1.1.7`**
     
-    **Beta RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated**
+    **Manual installation - Download it [here](https://github.com/harelba/q/archive/1.1.7.tar.gz), extract the files and put q in the PATH**
+    
+    **RPM - Beta RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated**
   
     
 

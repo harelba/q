@@ -44,7 +44,7 @@ smith  smith    4.34389972687
 * No real installation is required - Just download the tar using the link below, extract it and put q in the PATH. 
 
 
-    **Current version is `1.1.6` - Download it [here](https://github.com/harelba/q/archive/1.1.6.tar.gz)**
+    **Current version is `1.1.7` - Download it [here](https://github.com/harelba/q/archive/1.1.7.tar.gz)**
   
     
 

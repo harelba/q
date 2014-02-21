@@ -39,8 +39,9 @@ smith  smith    4.34389972687
 
 ## Installation
 * Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
-* Debian/RPM Packages coming soon. Follow [me](https://twitter.com/harelba) on twitter for updates.
-* No real installation is required - Just put q in the PATH. 
+* RPM Packaging ready, but still needs hosting. Follow [me](https://twitter.com/harelba) on twitter for updates.
+* Debian Packaging will come soon.
+* No real installation is required - Just download the tar using the link below, extract it and put q in the PATH. 
 
 
     **Current version is `1.1.6` - Download it [here](https://github.com/harelba/q/archive/1.1.6.tar.gz)**

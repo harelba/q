@@ -1,8 +1,27 @@
 #!/usr/bin/env python
 
+#   Copyright (C) 1988, 1998, 2000, 2002, 2004-2005, 2007-2014 Free Software
+#   Foundation, Inc.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3, or (at your option)
+#   any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc.,
+#   51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA */
+#
+# 
 # Name      : q (With respect to The Q Continuum)
 # Author    : Harel Ben Attia - harelba@gmail.com, harelba @ github, @harelba on twitter
-# Requires  : python with sqlite3
+# Requires  : python with sqlite3 (standard in python>=2.6)
 #
 #
 # q allows performing SQL-like statements on tabular text data.
@@ -13,7 +32,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.1.6"
+q_version = "1.1.7"
 
 import os,sys
 import random
@@ -524,7 +543,7 @@ try:
 	# Execute the query and fetch the data
 	m = sql_object.execute_and_fetch(db)
 except sqlite3.OperationalError,e:
-	print "database access error: %s" % e
+	print "query error: %s" % e
 	sys.exit(1)
 except ColumnCountMismatchException,e:
 	print e.msg

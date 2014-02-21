@@ -1,0 +1,49 @@
+Name:		q
+Version:	VERSION_PLACEHOLDER
+Release:	1%{?dist}
+Summary:	q - Text as a Database.
+
+Group:		Applications/Text
+License:	GPL
+URL:		https://github.com/harelba/q
+Source0:	%{name}-%{version}.tar.gz
+BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+BuildArch:	noarch
+
+Requires:	python-libs
+
+%description
+Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it?
+
+q solves this problem by allowing to perform SQL-like statements on tabular text data.
+
+%prep
+%setup  
+
+%install
+rm -rf %{buildroot}
+%{__install} -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
+%{__install} -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
+%{__install} -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
+%{__install} -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
+%{__install} -m 0644 %{name}.1 ${RPM_BUILD_ROOT}%{_mandir}/man1/
+gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/%{name}.1
+
+%clean
+rm -rf %{buildroot}
+
+
+%files
+%defattr(-,root,root,-)
+%doc README.markdown exampledatafile LICENSE THANKS AUTHORS
+%{_bindir}/q
+%doc %_mandir/man1/%{name}.1.gz
+
+%changelog
+* Thu Feb 20 2014 Harel Ben-Attia <harelba@gmail.com> 1.1.7-1
+- Better error reporting
+- Fixed python invocation for non stanard locations
+- Added man page
+
+* Wed Feb 19 2014 Jens Neu <jens@zeeroos.de> 1.1.5-1
+- initial release

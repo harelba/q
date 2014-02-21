@@ -1,0 +1,89 @@
+
+q(1) -- Treating text as a database
+===================================
+
+## SYNOPSIS
+
+`q` [OPTIONS] <query>
+
+## DESCRIPTION
+q allows performing SQL-like statements on tabular text data. Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+
+query should be an SQL-like query which contains filenames instead of table names (or - for stdin).
+
+Columns are named c1..cN and delimiter can be set using the -d (or -t) option.
+
+query should be enclosed in quotes, to make it one parameter.
+
+All sqlite3 SQL constructs are supported.
+
+See https://github.com/harelba/q for more details.
+
+## EXAMPLES
+Example 1: `ls -ltrd * | q "select c1,count(1) from - group by c1"`
+  This example would print a count of each unique permission string in the current folder.
+
+Example 2: `seq 1 1000 | q "select avg(c1),sum(c1) from -"`
+  This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+Example 3: `sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"`
+  This example will output the total size in MB per user+group in the /tmp subtree
+
+## OPTIONS
+* `-z` - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip)
+* `-H <N>` - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
+* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
+* `-D` - Column/field delimiter for output. If it exists, then the output will use this delimiter instead of the one used in input. Defaults to input delimiter if provided by `-d`, or space if not.
+* `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
+* `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
+* `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
+* `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
+
+
+## FORMATTING OPTIONS
+The format of F is as a list of X=f separated by commas, where X is a SELECTed column number and f is a python format (http://docs.python.org/release/2.4.4/lib/typesseq-strings.html)
+
+* Example: `-f "3=%-10s,5=%4.3f,1=%x"`
+
+## IMPLEMENTATION
+The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
+
+Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
+
+Please make sure to read the limitations section as well.
+
+## BUGS AND LIMITATIONS
+The following limitations exist in the current implementation:
+
+* Simplistic Data typing and column inference - All types are strings and columns are determined according to the first line of data, having the names of c1,c2,c3 etc. There's a column count hack, which is meant for tolerating a small variation in the column count
+* In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases it won't. One such example is using numeric conditions a WHERE clause  - such as c5 > 1000. This will not work properly out-of-the-box until we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed by adding 0+ before it. Example: `q "SELECT c5,c9 FROM mydatafile WHERE 0+c5 > 1000"`. This is simple enough, but it kind of breaks the idea of treating data as data. This is the reason why the examples below avoided using a meaningful WHERE clause. Once this is fixed, the examples will be updated
+* Basic error handling only
+* No checks and bounds on data size
+
+## FUTURE PLANS
+* Column name inference for files containing a header line
+* Column type inference according to actual data
+* Smarter batch insertion to the database
+* Faster reuse of previous data loading
+* Allow working with external DB
+* Real parsing of the SQL, allowing smarter execution of queries.
+* Full Subquery support (will be possible once real SQL parsing is performed)
+* Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
+* Support semi structured data - e.g. log files, where there are several columns and then free text
+* Better error handling
+
+## AUTHOR
+Harel Ben-Attia (harelba@gmail.com)
+
+[@harelba](https://twitter.com/harelba) on Twitter
+
+Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
+
+## COPYRIGHT
+Copyright (C) 1988, 1998, 2000, 2002, 2004-2005, 2007-2014 Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA 
+
+

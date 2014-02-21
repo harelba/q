@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ $# -ne 1 ];
+then
+	echo 'create-rpm <version>'
+	exit 1
+fi
+
+VERSION=$1
+REAL_PACKAGE_NAME=q
+RPM_PACKAGE_NAME=q
+MAN_PAGE_SRC=${RPM_PACKAGE_NAME}.manpage.1.ronn
+
+rm -rf build/
+
+mkdir -p build/rpm
+
+TAR_NAME=${RPM_PACKAGE_NAME}-${VERSION}.tar.gz
+
+ronn ${REAL_PACKAGE_NAME}.manpage.1.ronn
+rm ${REAL_PACKAGE_NAME}.1.html
+
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$1/" > ${RPM_PACKAGE_NAME}.spec
+
+tar --create --transform s,^,${RPM_PACKAGE_NAME}-$1/, --exclude ${RPM_PACKAGE_NAME}.spec.template -f ${TAR_NAME} *
+
+rpmbuild --define "_topdir `pwd`/build/rpm" -ta ${TAR_NAME}
+
+rm ${RPM_PACKAGE_NAME}.spec
+rm ${TAR_NAME}
+rm ${REAL_PACKAGE_NAME}.1

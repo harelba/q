@@ -46,7 +46,7 @@ smith  smith    4.34389972687
     
     **Manual installation - Download it [here](https://github.com/harelba/q/archive/1.1.7.tar.gz), extract the files and put q in the PATH**
     
-    **RPM - Beta RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated**
+    **RPM - Beta RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`**
   
     
 

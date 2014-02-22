@@ -135,7 +135,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 * `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
-* `-E <engine-version> - Should not be used unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSV. Please notify me of any problem that forces you to use v1.
+* `-E <engine-version> - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
 
 
 ### Output formatting option

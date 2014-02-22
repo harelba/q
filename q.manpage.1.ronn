@@ -38,6 +38,8 @@ Example 3: `sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total fr
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
 * `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
+* `-E <engine-version> - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
+
 
 
 ## FORMATTING OPTIONS

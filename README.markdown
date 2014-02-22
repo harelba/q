@@ -136,13 +136,13 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 
 * `-z` - Means that the file is gzipped. This is detected automatically if the file extension if .gz, but can be useful when reading gzipped data from stdin (since there is no content based detection for gzip).
 * `-H <N>` - Tells q to skip N header lines in the beginning of the file - Used naturally for skipping a header line. This can possibly be detected automatically in the future.
-* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If not provided, **any whitespace** will be used as a delimiter.
+* `-d` - Column/field delimiter. If it exists, then splitting lines will be done using this delimiter. If it doesn't, space will be used as the delimiter. If you need multi-character delimiters, run the tool with engine version 1 by adding `-E v1`. Using v1 will also revert to the old behavior where if no delimiter is provided, then any whitespace will be considered as a delimiter.
 * `-D` - Column/field delimiter for output. If it exists, then the output will use this delimiter instead of the one used in input. Defaults to input delimiter if provided by `-d`, or space if not.
 * `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
 * `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
-* `-E <engine-version> - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
+* `-E <engine-version>` - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
 
 
 ### Output formatting option

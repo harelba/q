@@ -62,18 +62,18 @@ SHOW_SQL = False
 p = ConfigParser()
 p.read([os.path.expanduser('~/.qrc'),'.qrc'])
 
+func_map = {
+    'boolean' : p.getboolean, 
+    'int': p.getint, 
+    'string': p.get, 
+    'escaped_string': lambda opts, opt: p.get(opts, opt).decode('string-escaped') }
+
 def get_option_with_default(p,option_type,option,default):
 	if not p.has_option('options',option):
 		return default
-	if option_type == 'boolean':
-		return p.getboolean('options',option)
-	elif option_type == 'int':
-		return p.getint('options',option)
-	elif option_type == 'string' : 
-		return p.get('options',option)
-	elif option_type == 'escaped_string':
-		return p.get('options',option).decode('string-escape')
-	else:
+    try
+        return func_map[option_type]('options', option)
+    except KeyError:
 		raise Exception("Unknown option type")
 
 default_beautify = get_option_with_default(p,'boolean','beautify',False)

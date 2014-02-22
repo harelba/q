@@ -8,7 +8,7 @@ SQL is a declarative language for data, and as such it allows me to define what 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
 ```bash
-"q allows performing SQL-like statements on tabular text data"
+"q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
 ## Quick example for the impatient

@@ -32,7 +32,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.1.7"
+q_version = "1.2.0"
 
 import os,sys
 import random
@@ -47,6 +47,7 @@ import time
 import re
 from ConfigParser import ConfigParser
 import traceback
+import csv
 
 DEBUG = False
 
@@ -111,7 +112,7 @@ parser.add_option("-b","--beautify",dest="beautify",default=default_beautify,act
 parser.add_option("-z","--gzipped",dest="gzipped",default=default_gzipped,action="store_true",
                 help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
 parser.add_option("-d","--delimiter",dest="delimiter",default=default_delimiter,
-                help="Field delimiter. If none specified, then standard whitespace is used as a delimiter")
+                help="Field delimiter. If none specified, then space is used as the delimiter. If you need multi-character delimiters, run the tool with engine version 1 by adding '-E v1'. Using v1 will also revert to the old behavior where if no delimiter is provided, then any whitespace will be considered as a delimiter.")
 parser.add_option("-D","--output-delimiter",dest="output_delimiter",default=default_output_delimiter,
                 help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
 parser.add_option("-t","--tab-delimited-with-header",dest="tab_delimited_with_header",default=False,action="store_true",
@@ -124,6 +125,9 @@ parser.add_option("-e","--encoding",dest="encoding",default=default_encoding,
                 help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
 parser.add_option("-v","--version",dest="version",default=False,action="store_true",
                 help="Print version")
+parser.add_option("-E","--engine-version",dest="engine_version",default='v2',
+                help="Engine version to use. v2 is the default, and supports quoted CSVs, but requires a specific delimiter (can't use multi-character delimiters). Use v1 if you need multi-char delimiters or if you encounter any problems (and please notify me if you do)")
+
 
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None
@@ -300,37 +304,40 @@ class Sql(object):
 class LineSplitter(object):
 	def __init__(self,delimiter):
 		self.delimiter = delimiter
+		if options.delimiter is not None:
+			escaped_delimiter = re.escape(delimiter)
+			self.split_regexp = re.compile('(?:%s)+' % escaped_delimiter)
+		else:
+			self.split_regexp = re.compile(r'\s+')
 
 	def split(self,line):
 		if line and line[-1] == '\n':
 			line = line[:-1]
-		if self.delimiter:
-			return line.split(self.delimiter)
-		else:
-			return line.split()
+		return self.split_regexp.split(line)
 
 class TableColumnInferer(object):
-	def __init__(self,line_splitter):
+	def __init__(self):
 		self.inferred = False
-		self.example_lines = []
-		self.line_splitter = line_splitter
+		self.example_col_vals = []
 
-	def analyze(self,example_line):
+	def analyze(self,example_col_vals):
 		if self.inferred:
 			raise Exception("Already inferred columns")
 
 		# Save the line as an example
-		self.example_lines.append(example_line)
+		self.example_col_vals.append(example_col_vals)
 
-		# Column count according to first line only for now
-		self.column_count = len(self.line_splitter.split(self.example_lines[0]))
+		# Column count is taken from the first row only, for now
+		self.column_count = len(example_col_vals)
+
+		if self.column_count == 1:
+			print >>sys.stderr,"Warning: column count is one - did you provide the correct delimiter?"
+		if self.column_count == 0:
+			raise Exception("Detected a column count of zero... Failing")
 
 		# FIXME: Hack to provide for some small variation in the column count. Will be fixed as soon as we have better column inferring
 		#self.column_count += max(6,int(self.column_count*0.2))
 		self.column_count += 7
-
-		if self.column_count == 0:
-			raise Exception("Detected a column count of zero... Failing")
 
 		# Only string type for now
 		self.column_types = [str for i in range(self.column_count)]
@@ -351,8 +358,17 @@ class TableColumnInferer(object):
 	def get_column_types(self):
 		return self.column_types
 
+def encoded_csv_reader(encoding,f,dialect,**kwargs):
+	csv_reader = csv.reader(f,dialect,**kwargs)
+	if encoding is not None and encoding != 'none':
+		for row in csv_reader:
+			yield [unicode(x,encoding) for x in row]
+	else:
+		for row in csv_reader:
+			yield row
+
 class TableCreator(object):
-	def __init__(self,db,filenames_str,line_splitter,header_skip=0,gzipped=False,encoding='UTF-8'):
+	def __init__(self,db,filenames_str,line_splitter,header_skip=0,gzipped=False,encoding='UTF-8',file_reading_method='manual'):
 		self.db = db
 		self.filenames_str = filenames_str
 		self.header_skip = header_skip
@@ -360,21 +376,19 @@ class TableCreator(object):
 		self.table_created = False
 		self.line_splitter = line_splitter
 		self.encoding = encoding
-		self.column_inferer = TableColumnInferer(line_splitter)
+		self.column_inferer = TableColumnInferer()
 
 		# Filled only after table population since we're inferring the table creation data
 		self.table_name = None
 
 		self.buffered_inserts = []
 
+		self.file_reading_method = file_reading_method
+
 	def get_table_name(self):
 		return self.table_name
 
 	def populate(self):
-		if self.encoding != 'none' and self.encoding is not None:
-			encoder = codecs.getreader(self.encoding)
-		else:
-			encoder = None
 		# Get the list of filenames
 		filenames = self.filenames_str.split("+")
 		# for each filename (or pattern)
@@ -388,6 +402,11 @@ class TableCreator(object):
 			# If there are no files to go over,
 			if len(files_to_go_over) == 0:
 				raise Exception("File has not been found '%s'" % fileglob)
+
+			if self.file_reading_method == 'csv':
+				read_file_method = self.read_file_using_csv
+			else:
+				read_file_method = self.read_file_manually
 
 			# For each match
 			for filename in files_to_go_over:
@@ -404,39 +423,51 @@ class TableCreator(object):
 				if self.gzipped or filename.endswith('.gz'):
 					f = gzip.GzipFile(fileobj=f)
 
-				# And wrap it in an decoder (e.g. ascii, UTF-8 etc)
-				if encoder is not None:
-					f = encoder(f)
-					
-
-				# Read all the lines
-				try:
-					line = f.readline()
-					while line:
-						self._insert_row(line)
-					        line = f.readline()
-				finally:
-					if f != sys.stdin:
-						f.close()
-					self._flush_inserts()
+				read_file_method(f)
 				if not self.table_created:
 					raise Exception('Table should have already been created for file %s' % filename)
 
-	def _insert_row(self,line):
+	def read_file_manually(self,f):
+		# Wrap in encoder if needed
+		if self.encoding != 'none' and self.encoding is not None:
+			encoder = codecs.getreader(self.encoding)
+			f = encoder(f)
+
+		# Read all the lines
+		try:
+			line = f.readline()
+			while line:
+	        		col_vals = line_splitter.split(line)
+				self._insert_row(col_vals)
+				line = f.readline()
+		finally:
+			if f != sys.stdin:
+				f.close()
+			self._flush_inserts()
+
+	def read_file_using_csv(self,f):
+		csv_reader = encoded_csv_reader(self.encoding,f,dialect='q')
+		try:
+			for col_vals in csv_reader:
+				self._insert_row(col_vals)
+		finally:
+			if f != sys.stdin:
+				f.close()
+			self._flush_inserts()
+
+	def _insert_row(self,col_vals):
 		# If table has not been created yet
 		if not self.table_created:
 			# Try to create it along with another "example" line of data
-			self.try_to_create_table(line)	
+			self.try_to_create_table(col_vals)
 
 		# If the table is still not created, then we don't have enough data, just return
 		if not self.table_created:
 			return
 		# The table already exists, so we can just add a new row
-		self._insert_row_i(line)
+		self._insert_row_i(col_vals)
 
-	def _insert_row_i(self,line):
-	        col_vals = line_splitter.split(line)
-
+	def _insert_row_i(self,col_vals):
 		# If we have more columns than we inferred
 		if len(col_vals) > len(self.column_inferer.column_names):
 			raise ColumnCountMismatchException('Encountered a line in an invalid format %s:%s - %s columns instead of %s. Did you make sure to set the correct delimiter?' % (self.current_filename,self.lines_read,len(col_vals),len(self.column_inferer.column_names)))
@@ -463,7 +494,7 @@ class TableCreator(object):
 		self.buffered_inserts = []
 
 
-	def try_to_create_table(self,line):
+	def try_to_create_table(self,col_vals):
 		if self.table_created:
 			raise Exception('Table is already created')
 
@@ -472,7 +503,7 @@ class TableCreator(object):
 			return
 	
 		# Add that line to the column inferer
-		result = self.column_inferer.analyze(line)
+		result = self.column_inferer.analyze(col_vals)
 		# If inferer succeeded,
 		if result:
 			# Then generate a temp table name
@@ -513,6 +544,10 @@ if len(args) != 1:
     parser.print_help()
     sys.exit(1)
 	
+if options.engine_version not in ['v1','v2']:
+	print >>sys.stderr,"Engine version must be either v1 or v2"
+	sys.exit(2)
+
 # Create DB object
 db = Sqlite3DB()
 
@@ -524,18 +559,38 @@ if options.tab_delimited_with_header:
 	options.delimiter = '\t'
 	options.header_skip = "0"
 
+if options.engine_version == 'v2':
+	if options.delimiter is None:
+		print >>sys.stderr,"Using space as default delimiter. Use '-d <delimiter>' to set it if needed"
+		options.delimiter = ' '
+	elif len(options.delimiter) != 1:
+		print >>sys.stderr,"Delimiter must be one character only. Add '-E v1' to the command line if you need multi-character delimiters. This will revert to version 1 of the engine which supports that. Please note that v1 does not support quoted fields."
+		sys.exit(5)
+	q_dialect = {'skipinitialspace': True, 'quoting': 0, 'delimiter': options.delimiter, 'quotechar': '"', 'doublequote': False}
+	csv.register_dialect('q',**q_dialect)
+	file_reading_method = 'csv'
+else:
+	file_reading_method = 'manual'
+
 # Create a line splitter
 line_splitter = LineSplitter(options.delimiter)
+
+if options.encoding != 'none':
+	try:
+		codecs.lookup(options.encoding)
+	except LookupError:
+		print >>sys.stderr,"Encoding %s could not be found" % options.encoding
+		sys.exit(10)
 
 try:
 	# Get each "table name" which is actually the file name
 	for filename in sql_object.qtable_names:
 		# Create the matching database table and populate it
-		table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding)
+		table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding,file_reading_method)
 		start_time = time.time()
 		table_creator.populate()
 		if DEBUG:
-			print "TIMING - populate time is %4.3f" % (time.time() - start_time)
+			print >>sys.stderr,"TIMING - populate time is %4.3f" % (time.time() - start_time)
 
 		# Replace the logical table name with the real table name
 		sql_object.set_effective_table_name(filename,table_creator.table_name)
@@ -543,11 +598,17 @@ try:
 	# Execute the query and fetch the data
 	m = sql_object.execute_and_fetch(db)
 except sqlite3.OperationalError,e:
-	print "query error: %s" % e
+	print >>sys.stderr,"query error: %s" % e
 	sys.exit(1)
 except ColumnCountMismatchException,e:
-	print e.msg
+	print >>sys.stderr,e.msg
 	sys.exit(2)
+except (UnicodeDecodeError,UnicodeError),e:
+	print >>sys.stderr,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
+	sys.exit(3)
+except KeyboardInterrupt:
+	print >>sys.stderr,"Interrupted"
+	sys.exit(0)
 
 # If the user requested beautifying the output
 if options.beautify:

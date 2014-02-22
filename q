@@ -561,7 +561,6 @@ if options.tab_delimited_with_header:
 
 if options.engine_version == 'v2':
 	if options.delimiter is None:
-		print >>sys.stderr,"Using space as default delimiter. Use '-d <delimiter>' to set it if needed"
 		options.delimiter = ' '
 	elif len(options.delimiter) != 1:
 		print >>sys.stderr,"Delimiter must be one character only. Add '-E v1' to the command line if you need multi-character delimiters. This will revert to version 1 of the engine which supports that. Please note that v1 does not support quoted fields."

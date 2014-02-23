@@ -11,19 +11,33 @@ The goal of this tool is to provide a bridge between the world of text files and
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
-## Quick example for the impatient
+## Quick examples for the impatient
 
-Command:
+__Command 1:__
 ```bash
 sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
 ```
 
-Output (total size per user/group in the /tmp subtree):
+__Output 1 (total size per user/group in the /tmp subtree):__
 ```bash
 mapred hadoop   304.00390625
 root   root     8.0431451797485
 smith  smith    4.34389972687
 ```
+
+__Command 2:__
+The following command _joins_ an ls output (`exampledatafile`) and a file containing rows of **group-name,email**  (`group-emails-example`) and provides a row of **filename,email** for each of the emails of the group. For brevity of output, there is also a filter for a specific filenames called `ppp` which is achieved using a WHERE clause.
+```bash
+q "select myfiles.c8,emails.c2 from exampledatafile myfiles join group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = 'ppp'"
+```
+
+__Output 2: (rows of filename,email):__
+```bash
+ppp dip.1@otherdomain.com
+ppp dip.2@otherdomain.com
+```
+
+You can see that the ppp filename appears twice, each time matched to one of the emails of the group `dip` to which it belongs. Take a look at the files [`exampledatafile`](exampledatafile) and [`group-emails-example`](group-emails-example) for the data.
         
 ## Highlights
 

@@ -48,6 +48,7 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Handling of gzipped files
 * Output delimiter matching and selection
 * Output beautifier
+* man page when installed through the RPM package
 
 ## Requirements
 * Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
@@ -59,17 +60,16 @@ You can see that the ppp filename appears twice, each time matched to one of the
 
     __**Current version is `1.2.0`**__
     
-    **Manual installation of the current version** - Download the main q executable from [here](https://raw.github.com/harelba/q/1.2.0/q) into a folder in the path and make the file executable
-    
-    **RPM of the current version** - RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`
- 
+    **RPM of the current version** - RPM package is ready and can be downloaded **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm)**. I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`
 
+    **Manual installation of the current version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.2.0/q)** into a folder in the path and make the file executable
+
+    
     __**Previous version is `1.1.7`**__
     
+    **RPM of the previous version** - RPM package of previous version is **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm)**. 
+
     **Manual installation of previous version** - [here](https://raw.github.com/harelba/q/1.1.7/q) - Just put the file in the path and make it executable
-    
-    **RPM of the previous version** - RPM package of previous version is [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm). 
-  
     
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.

@@ -27,7 +27,8 @@ smith  smith    4.34389972687
         
 ## Highlights
 
-* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (or - for stdin)
+* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+* Support for quoted fields 
 * Has homebrew installation support. RPM package is in beta. Debian package will follow.
 * Full UTF-8 support (and other encodings)
 * Handling of gzipped files

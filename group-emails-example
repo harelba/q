@@ -1,0 +1,12 @@
+root root.1@mydomain.com
+harel harel.1@mydomain.com
+root root.2@mydomain.com
+root root.3@mydomain.com
+daemon daemon.1@otherdomain.com
+dip dip.1@otherdomain.com
+dip dip.2@otherdomain.com
+fuse fuse.A@mydomain.com
+fuse fuse.B@mydomain.com
+fuse fuse.C@mydomain.com
+lpa lpa.1@mydomain.com
+shadow forsaken.1@mydomain.com

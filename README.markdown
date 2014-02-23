@@ -42,8 +42,8 @@ You can see that the ppp filename appears twice, each time matched to one of the
 ## Highlights
 
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+* Standard installation - RPM, Homebrew (Mac). Debian package coming soon.
 * Support for quoted fields 
-* Has homebrew installation support. RPM package is in beta. Debian package will follow.
 * Full UTF-8 support (and other encodings)
 * Handling of gzipped files
 * Output delimiter matching and selection

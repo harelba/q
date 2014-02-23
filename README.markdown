@@ -44,9 +44,9 @@ smith  smith    4.34389972687
 
     __**Current version is `1.2.0`**__
     
-    **Manual installation of the current version** - Download the main q executable from [here](https://raw.github.com/harelba/q/1.2.0/q) into a folder in the path and make the file executable**
+    **Manual installation of the current version** - Download the main q executable from [here](https://raw.github.com/harelba/q/1.2.0/q) into a folder in the path and make the file executable
     
-    **RPM of the current version** - RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`**
+    **RPM of the current version** - RPM package is ready and can be downloaded [here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm). I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`
  
 
     __**Previous version is `1.1.7`**__

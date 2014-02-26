@@ -7,9 +7,27 @@ SQL is a declarative language for data, and as such it allows me to define what 
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
+
 ```bash
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
+
+-----
+
+**Would appreciate any feedback you might have. I'm trying [this gitter chatroom](https://gitter.im/harelba/q) for that purpose. I'd appreciate any feedback on the following:**
+* A few short words about who you are, so I get to know who my customers are :)
+* What are you using it for?
+* What is the best missing feature?
+* What is the best feature in q?
+* What is your dream installation method for q?
+* How do you install it now?
+* What bugs do you see which prevent you from being fully productive with q?
+* Do you encounter non-intuitive behavior when using q? In what way?
+* Anything else on your mind
+
+**Please write your feedback no that chat room. I'll try to be available there whenever I can, but please drop a line there even if i'm not here, and i'll try to contact you as needed for more details.**
+
+------
 
 ## Quick examples for the impatient
 

@@ -557,7 +557,6 @@ sql_object = Sql('%s' % args[0])
 # If the user flagged for a tab-delimited file then set the delimiter to tab
 if options.tab_delimited_with_header:
 	options.delimiter = '\t'
-	options.header_skip = "0"
 
 if options.engine_version == 'v2':
 	if options.delimiter is None:

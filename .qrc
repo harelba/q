@@ -20,6 +20,6 @@
 #output_delimiter: \t
 #gzipped: False
 #beautify: True
-#header_skip: 0
+#skip_header: False
 #formatting: 1=%4.3f,2=%4.3f
 #encoding: UTF-8

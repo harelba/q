@@ -1,0 +1,555 @@
+#!/usr/bin/env python
+
+import unittest
+import pprint
+
+from subprocess import PIPE,Popen,STDOUT
+import sys,os
+import time
+from tempfile import NamedTemporaryFile
+
+def run_command(cmd_to_run):
+    p = Popen(cmd_to_run,stdout=PIPE,stderr=PIPE,shell=True)
+    o,e = p.communicate()
+    # remove last newline
+    o = o.strip()
+    e = e.strip()
+    # split rows
+    if o != '':
+        o = o.split(os.linesep)
+    else:
+        o = []
+    if e != '':
+        e = e.split(os.linesep)
+    else:
+        e = []
+    return (p.returncode,o,e)
+
+uneven_ls_output = """drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
+drwxr-xr-x   2 root     root      4096 Apr 19  2013 /mnt
+drwxr-xr-x   2 root     root      4096 Apr 24  2013 /srv
+drwx------   2 root     root     16384 Jun 21  2013 /lost+found
+lrwxrwxrwx   1 root     root        33 Jun 21  2013 /initrd.img.old -> /boot/initrd.img-3.8.0-19-generic
+drwxr-xr-x   2 root     root      4096 Jun 21  2013 /cdrom
+drwxr-xr-x   3 root     root      4096 Jun 21  2013 /home
+lrwxrwxrwx   1 root     root        29 Jun 21  2013 /vmlinuz -> boot/vmlinuz-3.8.0-19-generic
+lrwxrwxrwx   1 root     root        32 Jun 21  2013 /initrd.img -> boot/initrd.img-3.8.0-19-generic
+"""
+
+find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 11:00 /tmp
+8299123    4 drwxrwxr-x   2 harel    harel        4096 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576
+8263229  964 -rw-rw-r--   1 mapred   mapred      984569 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormcode.ser
+8263230    4 -rw-rw-r--   1 harel    harel        1223 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormconf.ser
+8299113    4 drwxrwxr-x   2 harel    harel        4096 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate
+8263406    4 -rw-rw-r--   1 harel    harel        2002 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514168746
+8263476    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514168746.version
+8263607    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514169735.version
+8263533    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514172733.version
+8263604    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514175754.version
+"""
+
+header_row = 'name,value1,value2'
+sample_data_rows = ['a,1,0','b,2,0','c,,0']
+
+sample_data_no_header = "\n".join(sample_data_rows) + "\n"
+sample_data_with_header = header_row + "\n" + sample_data_no_header
+sample_data_with_missing_header_names = "name,value1\n" + sample_data_no_header
+
+def one_column_warning(e):
+    return e[0].startswith('Warning: column count is one')
+
+class AbstractQTestCase(unittest.TestCase):
+    def create_file_with_data(self,data,encoding='utf-8'):
+        tmpfile = NamedTemporaryFile(delete=False)
+        if encoding != 'none' and encoding is not None:
+            tmpfile.write(data.encode(encoding))
+        else:
+            tmpfile.write(data)
+        tmpfile.close()
+        return tmpfile
+
+    def cleanup(self,tmpfile):
+        os.remove(tmpfile.name)
+
+class BasicTests(AbstractQTestCase):
+    def test_basic_aggregation(self):
+        retcode,o,e = run_command('seq 1 10 | ./q "select sum(c1),avg(c1) from -"')
+        self.assertTrue(retcode == 0)
+        self.assertTrue(len(o) == 1)
+        self.assertTrue(len(e) == 1)
+
+        s = sum(xrange(1,11))
+        self.assertTrue(o[0] == '%s %s' % (s,s / 10.0))
+        self.assertTrue(one_column_warning(e))
+
+    def test_gzipped_file(self):
+        tmpfile = self.create_file_with_data('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00',encoding='none')
+
+        cmd = './q -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
+
+        retcode,o,e = run_command(cmd)
+        self.assertTrue(retcode == 0)
+        self.assertTrue(len(o) == 1)
+        self.assertTrue(len(e) == 1)
+
+        s = sum(xrange(1,11))
+        self.assertTrue(o[0] == '%s %s' % (s,s / 10.0))
+        self.assertTrue(one_column_warning(e))
+
+        self.cleanup(tmpfile)
+
+    def test_delimition_mistake_with_header(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = './q -d " " "select * from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),3)
+
+        self.assertTrue(e[0].startswith("Warning: column count is one - did you provide the correct delimiter"))
+        self.assertTrue(e[1].startswith("Bad header row"))
+        self.assertTrue("Column name cannot contain commas" in e[2])
+        
+
+    def test_select_one_column(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = './q -d , "select c1 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+	
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(" ".join(o),'a b c')
+
+        self.cleanup(tmpfile)
+
+    def test_tab_delimition_parameter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header.replace(",","\t"))
+        cmd = './q -t "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+	
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+        self.assertEquals(o[0],sample_data_rows[0].replace(",","\t"))
+        self.assertEquals(o[1],sample_data_rows[1].replace(",","\t"))
+        self.assertEquals(o[2],sample_data_rows[2].replace(",","\t"))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],sample_data_rows[0].replace(",","|"))
+        self.assertEquals(o[1],sample_data_rows[1].replace(",","|"))
+        self.assertEquals(o[2],sample_data_rows[2].replace(",","|"))
+
+        self.cleanup(tmpfile)
+
+    def test_stdin_input(self):
+        cmd = 'printf "%s" | ./q -d , "select c1,c2,c3 from -"' % sample_data_no_header
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],sample_data_rows[0])
+        self.assertEquals(o[1],sample_data_rows[1])
+        self.assertEquals(o[2],sample_data_rows[2])
+
+    def test_column_separation(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],sample_data_rows[0])
+        self.assertEquals(o[1],sample_data_rows[1])
+        self.assertEquals(o[2],sample_data_rows[2])
+
+        self.cleanup(tmpfile)
+        
+    def test_column_analysis(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = './q -d , "select c1 from %s" -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'c1 - text')
+        self.assertEquals(o[2].strip(),'c2 - int')
+        self.assertEquals(o[3].strip(),'c3 - int')
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_no_header(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = './q -d , "select c1 from %s" -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'c1 - text')
+        self.assertEquals(o[2].strip(),'c2 - int')
+        self.assertEquals(o[3].strip(),'c3 - int')
+
+    def test_header_exception_on_numeric_header_data(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , "select * from %s" -A -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),3)
+        self.assertTrue('Bad header row: Header must contain only strings' in e[0])
+        self.assertTrue("Column name must be a string" in e[1])
+        self.assertTrue("Column name must be a string" in e[2])
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_with_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = './q -d , "select c1 from %s" -A -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'name - text')
+        self.assertEquals(o[2].strip(),'value1 - int')
+        self.assertEquals(o[3].strip(),'value2 - int')
+
+        self.cleanup(tmpfile)
+
+    def test_data_with_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = './q -d , "select name from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(" ".join(o),"a b c")
+
+        self.cleanup(tmpfile)
+
+    def test_generated_column_name_warning_when_header_line_exists(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = './q -d , "select c3 from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),2)
+        self.assertTrue('no such column: c3' in e[0])
+        self.assertEquals(e[1],'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names')
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_with_unexpected_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = './q -d , "select c1 from %s" -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),4)
+        self.assertEquals(len(e),1)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'c1 - text')
+        self.assertEquals(o[2].strip(),'c2 - text')
+        self.assertEquals(o[3].strip(),'c3 - text')
+
+        self.assertEquals(e[0],'Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data')
+
+        self.cleanup(tmpfile)
+
+    def test_empty_data(self):
+        tmpfile = self.create_file_with_data('')
+        cmd = './q -d , "select c1 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertTrue('Warning - data is empty' in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_empty_data_with_header_param(self):
+        tmpfile = self.create_file_with_data('')
+        cmd = './q -d , "select c1 from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertTrue('Warning - data is empty' in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_one_row_of_data_without_header_param(self):
+        tmpfile = self.create_file_with_data(header_row)
+        cmd = './q -d , "select c2 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),1)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'value1')
+
+        self.cleanup(tmpfile)
+
+    def test_one_row_of_data_with_header_param(self):
+        tmpfile = self.create_file_with_data(header_row)
+        cmd = './q -d , "select c2 from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertTrue('Warning - data is empty' in e[0])
+
+        self.cleanup(tmpfile)
+
+class ParsingModeTests(AbstractQTestCase):
+    def test_strict_mode_column_count_mismatch_error(self):
+        tmpfile = self.create_file_with_data(uneven_ls_output)
+        cmd = './q -m strict "select count(*) from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertTrue("Column Count is expected to identical" in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_strict_mode_too_large_specific_column_count(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , -m strict -c 4 "select count(*) from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertEquals(e[0],"Strict mode. Column count is expected to be 4 but is 3")
+
+        self.cleanup(tmpfile)
+
+    def test_strict_mode_too_small_specific_column_count(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , -m strict -c 2 "select count(*) from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertEquals(e[0],"Strict mode. Column count is expected to be 2 but is 3")
+
+        self.cleanup(tmpfile)
+
+    def test_relaxed_mode_missing_columns_in_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_missing_header_names)
+        cmd = './q -d , -m relaxed "select count(*) from %s" -H -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),4)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'name - text')
+        self.assertEquals(o[2].strip(),'value1 - int')
+        self.assertEquals(o[3].strip(),'c3 - int')
+
+        self.cleanup(tmpfile)
+
+    def test_strict_mode_missing_columns_in_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_missing_header_names)
+        cmd = './q -d , -m strict "select count(*) from %s" -H -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertEquals(e[0],'Strict mode. Header row contains less columns than expected column count(2 vs 3)')
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_with_missing_fields(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , "select * from %s" -D ";"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'a;1;0')
+        self.assertEquals(o[1],'b;2;0')
+        self.assertEquals(o[2],'c;;0')
+
+        self.cleanup(tmpfile)
+
+    def test_handling_of_null_integers(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , "select avg(c2) from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),1)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'1.5')
+
+        self.cleanup(tmpfile)
+    
+    def test_relaxed_mode_detected_columns(self):
+        tmpfile = self.create_file_with_data(uneven_ls_output)
+        cmd = './q -m relaxed "select count(*) from %s" -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+
+        table_name_row = o[0]
+        column_rows = o[1:]
+
+        self.assertEquals(len(column_rows),11)
+        
+        column_tuples = [x.strip().split(" ") for x in column_rows]
+        column_info = [(x[0],x[2]) for x in column_tuples]
+        column_names = [x[0] for x in column_tuples]
+        column_types = [x[2] for x in column_tuples]
+
+        self.assertEquals(column_names,['c%s' % x for x in xrange(1,12)])
+        self.assertEquals(column_types,['text','int','text','text','int','text','int','int','text','text','text'])
+        
+        self.cleanup(tmpfile)
+
+    def test_relaxed_mode_detected_columns_with_specific_column_count(self):
+        tmpfile = self.create_file_with_data(uneven_ls_output)
+        cmd = './q -m relaxed "select count(*) from %s" -A -c 9' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+
+        table_name_row = o[0]
+        column_rows = o[1:]
+
+        self.assertEquals(len(column_rows),9)
+        
+        column_tuples = [x.strip().split(" ") for x in column_rows]
+        column_info = [(x[0],x[2]) for x in column_tuples]
+        column_names = [x[0] for x in column_tuples]
+        column_types = [x[2] for x in column_tuples]
+
+        self.assertEquals(column_names,['c%s' % x for x in xrange(1,10)])
+        self.assertEquals(column_types,['text','int','text','text','int','text','int','int','text'])
+        
+        self.cleanup(tmpfile)
+
+    def test_relaxed_mode_last_column_data_with_specific_column_count(self):
+        tmpfile = self.create_file_with_data(uneven_ls_output)
+        cmd = './q -m relaxed "select c9 from %s" -c 9' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),9)
+        self.assertEquals(len(e),0)
+
+        expected_output = ["/selinux","/mnt","/srv","/lost+found","/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic","/cdrom","/home","/vmlinuz -> boot/vmlinuz-3.8.0-19-generic","/initrd.img -> boot/initrd.img-3.8.0-19-generic"]
+
+        self.assertEquals(o,expected_output)
+        
+        self.cleanup(tmpfile)
+
+    def test_fluffy_mode(self):
+        tmpfile = self.create_file_with_data(uneven_ls_output)
+        cmd = './q -m fluffy "select c9 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),9)
+        self.assertEquals(len(e),0)
+
+        expected_output = ["/selinux","/mnt","/srv","/lost+found","/initrd.img.old","/cdrom","/home","/vmlinuz","/initrd.img"]
+
+        self.assertEquals(o,expected_output)
+        
+        self.cleanup(tmpfile)
+
+class FormattingTests(AbstractQTestCase):
+    def test_column_formatting(self):
+        cmd = 'seq 1 10 | ./q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -"'
+
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),1)
+
+        self.assertEquals(o[0],'55.000 5.500')
+
+class SqlTests(AbstractQTestCase):
+    def test_find_example(self):
+        tmpfile = self.create_file_with_data(find_output)
+        cmd = './q "select c5,c6,sum(c7)/1024.0/1024 as total from %s group by c5,c6 order by total desc"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'mapred mapred 0.93895816803')
+        self.assertEquals(o[1],'root root 0.02734375')
+        self.assertEquals(o[2],'harel harel 0.0108880996704')
+
+        self.cleanup(tmpfile)
+
+    def test_join_example(self):
+        cmd = './q "select myfiles.c8,emails.c2 from exampledatafile myfiles join group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'ppp dip.1@otherdomain.com')
+        self.assertEquals(o[1],'ppp dip.2@otherdomain.com')
+    
+def suite():
+    tl = unittest.TestLoader()
+    basic_stuff = tl.loadTestsFromTestCase(BasicTests)
+    parsing_mode = tl.loadTestsFromTestCase(ParsingModeTests)
+    sql = tl.loadTestsFromTestCase(SqlTests)
+    formatting = tl.loadTestsFromTestCase(FormattingTests)
+    return unittest.TestSuite([basic_stuff,parsing_mode,sql,formatting])
+
+if __name__ == '__main__':
+    unittest.TextTestRunner(verbosity=2).run(suite())
+
+
+

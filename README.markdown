@@ -50,7 +50,7 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Output beautifier
 * man page when installed through the RPM package
 
-* **Column type inference and multiple parsing modes are in testing phase, and will be available soon. Will update on twitter**
+* **Column type inference, multiple parsing modes and important bug fixes are in testing phase, and will be available soon. Will update on twitter**
 
 
 ## Requirements

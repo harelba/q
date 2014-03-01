@@ -13,21 +13,9 @@ The goal of this tool is to provide a bridge between the world of text files and
 ```
 
 -----
-
-**Would appreciate any feedback you might have. I'm trying [this gitter chatroom](https://gitter.im/harelba/q) for that purpose. I'd appreciate any feedback on the following:**
-* A few short words about who you are, so I get to know who my customers are :)
-* What are you using it for?
-* What is the best missing feature?
-* What is the best feature in q?
-* What is your dream installation method for q?
-* How do you install it now?
-* What bugs do you see which prevent you from being fully productive with q?
-* Do you encounter non-intuitive behavior when using q? In what way?
-* Anything else on your mind
-
-**Please write your feedback no that chat room. I'll try to be available there whenever I can, but please drop a line there even if i'm not here, and i'll try to contact you as needed for more details.**
-
-------
+## New BETA version is out - contains column name/type detection and other stuff. Can be downloaded below
+## You can use [this gitter chatroom](https://gitter.im/harelba/q) for any live feedback
+-----
 
 ## Quick examples for the impatient
 
@@ -68,7 +56,7 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Output beautifier
 * man page when installed through the RPM package
 
-* **Column type inference, multiple parsing modes and important bug fixes are in testing phase, and will be available soon. Will update on twitter**
+* **Column name and type detection, multiple parsing modes and important bug fixes are in BETA. You can download the beta version using the link below**
 
 
 ## Requirements
@@ -79,19 +67,19 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * RPM Packaging is beta ready. You can download the beta RPM from the link below.
 * Debian Packaging will come soon.
 
-    __**Current version is `1.2.0`**__
+    __**BETA version `1.3.0b`**__
+    
+    **Contains column type detection, column names using header line, strict and relaxed parsing modes and better error reporting**
+    
+    **Manual installation of the BETA version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0b/q)** into a folder in the path and make the file executable
+
+
+    __**Current stable version is `1.2.0`**__
     
     **RPM of the current version** - RPM package is ready and can be downloaded **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm)**. I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`
 
     **Manual installation of the current version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.2.0/q)** into a folder in the path and make the file executable
 
-    
-    __**Previous version is `1.1.7`**__
-    
-    **RPM of the previous version** - RPM package of previous version is **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.1.7-1.noarch.rpm)**. 
-
-    **Manual installation of previous version** - [here](https://raw.github.com/harelba/q/1.1.7/q) - Just put the file in the path and make it executable
-    
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
@@ -195,7 +183,7 @@ Please note that there is currently no checks and bounds on data size - It's up 
 Please make sure to read the limitations section as well.
 
 ### Limitations
-**Update Feb 26 2014 - Automatic column type detection, is ready and is in testing phase. Once it's released, it'll solve the first two limitations. I'll update on twitter once it's released**
+**Update Mar 1 2014 - Automatic column type detection and column name detection are in BETA. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version**
 
 The following limitations exist in the current implementation:  
 
@@ -209,16 +197,15 @@ The following limitations exist in the current implementation:
 
 ## Future Ideas
 
-* Column name inference for files containing a header line
-* Column type inference according to actual data
+* Column name inference for files containing a header line **(in BETA - Download link in the installation section)**
+* Column type inference according to actual data **(in BETA - Download link in the installation section)**
+* Support semi structured data - e.g. log files, where there are several columns and then free text **(in BETA - Download link in the installation section)**
 * Smarter batch insertion to the database
 * Faster reuse of previous data loading
 * Allow working with external DB
 * Real parsing of the SQL, allowing smarter execution of queries.
 * Full Subquery support (will be possible once real SQL parsing is performed)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
-* Support semi structured data - e.g. log files, where there are several columns and then free text
-* Better error handling
 
 ## Why aren't other Linux tools enough?
 The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.

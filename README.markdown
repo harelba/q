@@ -13,7 +13,11 @@ The goal of this tool is to provide a bridge between the world of text files and
 ```
 
 -----
-## New BETA version is out - contains column name/type detection and other stuff. Can be downloaded below
+## New Release Candidate version is out - contains column name/type detection and other stuff. Can be downloaded below
+
+**Update Mar 2 2014 - Automatic column type detection and column name detection are in The Release Candidate version 1.3.0b. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version, but it has been already been tested and seems fine**
+
+-----
 ## You can use [this gitter chatroom](https://gitter.im/harelba/q) for any live feedback
 -----
 
@@ -56,7 +60,7 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Output beautifier
 * man page when installed through the RPM package
 
-* **Column name and type detection, multiple parsing modes and important bug fixes are in BETA. You can download the beta version using the link below**
+* **Column name and type detection, multiple parsing modes and important bug fixes are in the latest Release Candidate version, and can be downloaded from the installation section below**
 
 
 ## Requirements
@@ -67,11 +71,11 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * RPM Packaging is beta ready. You can download the beta RPM from the link below.
 * Debian Packaging will come soon.
 
-    __**BETA version `1.3.0b`**__
+    __**Release Candidate version `1.3.0b`**__
     
     **Contains column type detection, column names using header line, strict and relaxed parsing modes and better error reporting**
     
-    **Manual installation of the BETA version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0b/q)** into a folder in the path and make the file executable
+    **Manual installation of the Release Candidate version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0b/q)** into a folder in the path and make the file executable
 
 
     __**Current stable version is `1.2.0`**__
@@ -147,7 +151,7 @@ q gets one parameter - An SQL-like query. The following applies:
   * Files with .gz extension are considered to be gzipped and decompressed on the fly.
 * The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
 * Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
-  * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this.
+  * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this. (**Full column name and type inference are in the RC version 1.3.0b**).
 * For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table alias when performing JOINs.
@@ -183,7 +187,7 @@ Please note that there is currently no checks and bounds on data size - It's up 
 Please make sure to read the limitations section as well.
 
 ### Limitations
-**Update Mar 1 2014 - Automatic column type detection and column name detection are in BETA. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version**
+**Update Mar 2 2014 - Automatic column type detection and column name detection are in The Release Candidate version 1.3.0b. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version, but it has been already been tested and seems fine**
 
 The following limitations exist in the current implementation:  
 
@@ -197,9 +201,9 @@ The following limitations exist in the current implementation:
 
 ## Future Ideas
 
-* Column name inference for files containing a header line **(in BETA - Download link in the installation section)**
-* Column type inference according to actual data **(in BETA - Download link in the installation section)**
-* Support semi structured data - e.g. log files, where there are several columns and then free text **(in BETA - Download link in the installation section)**
+* Column name inference for files containing a header line **(in RC version - Download link in the installation section)**
+* Column type inference according to actual data **(in RC version - Download link in the installation section)**
+* Support semi structured data - e.g. log files, where there are several columns and then free text **(in RC version - Download link in the installation section)**
 * Smarter batch insertion to the database
 * Faster reuse of previous data loading
 * Allow working with external DB

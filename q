@@ -90,7 +90,11 @@ parser = OptionParser(usage="""
 	Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 
 	Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-        Columns are named c1..cN and delimiter can be set using the -d (or -t) option.
+        When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+
+	Column types are detected automatically. Use -A in order to see the column name/type analysis.
+
+	Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
 
 	All sqlite3 SQL constructs are supported.
 
@@ -104,6 +108,7 @@ parser = OptionParser(usage="""
 
 	  Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
 	    This example will output the total size in MB per user+group in the /tmp subtree
+
 
         See the help or https://github.com/harelba/q for more details.
 """)

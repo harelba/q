@@ -186,7 +186,7 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
 
 * `-A` - Analyze sample input and provide an analysis of column names and their detected types. Does not run the query itself
-* `-m` - Data parsing mode. fluffy, relaxed or strict. In relaxed mode the -c column-count is optional. In strict mode, it must be provided. See separate section in the documentation about the various modes. Fluffy mode should only be used if backward compatibility (less well defined, but helpful...) to older versions of q is needed.
+* `-m` - Data parsing mode. `relaxed`, `strict`, or `fluffy`. In relaxed mode the -c column-count is optional. In strict mode, it must be provided. See separate section in the documentation about the various modes. Fluffy mode should only be used if backward compatibility (less well defined, but helpful...) to older versions of q is needed.
 * `-c` - Specific column count. This parameter fixes the column count. In relaxed mode, this will cause missing columns to be null, and extra columns to be "merged" into the last column. In strict mode, any deviation from this column count will cause an error.
 * `-k` - Keep leading whitespace. By default leading whitespace is removed from values in order to provide out-of-the-box usability. Using this flag instructs q to leave any leading whitespace in tact, making the output more strictly identical to the input.
 

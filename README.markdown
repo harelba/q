@@ -99,7 +99,6 @@ You can see that the ppp filename appears twice, each time matched to one of the
 
     **Manual installation of the previous version** - If for some reason you need the previous version, you can download the main q executable from **[here](https://raw.github.com/harelba/q/1.2.0/q)** into a folder in the path and make the file executable. Please notify me of any such case, so I can understand the reason and fix things if needed.
 
-
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
 
 q supports an option file in ~/.qrc or in the working directory (with the name .qrc) which provides defaults for some or all of the command line options. A sample .qrc file with commented-out options is included. Just put it in your home folder and modify it according to your needs.

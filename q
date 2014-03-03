@@ -816,7 +816,7 @@ try:
 			print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
 			for k in column_names:
 				column_type = table_creator.column_inferer.get_column_dict()[k]
-				print "  %s - %s" % (k,db.type_names[column_type].lower())
+				print "  `%s` - %s" % (k,db.type_names[column_type].lower())
 		sys.exit(0)
 
 	# Execute the query and fetch the data

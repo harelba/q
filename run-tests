@@ -197,9 +197,9 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(retcode,0)
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'c1 - text')
-        self.assertEquals(o[2].strip(),'c2 - int')
-        self.assertEquals(o[3].strip(),'c3 - int')
+        self.assertEquals(o[1].strip(),'`c1` - text')
+        self.assertEquals(o[2].strip(),'`c2` - int')
+        self.assertEquals(o[3].strip(),'`c3` - int')
 
         self.cleanup(tmpfile)
 
@@ -211,9 +211,9 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(retcode,0)
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'c1 - text')
-        self.assertEquals(o[2].strip(),'c2 - int')
-        self.assertEquals(o[3].strip(),'c3 - int')
+        self.assertEquals(o[1].strip(),'`c1` - text')
+        self.assertEquals(o[2].strip(),'`c2` - int')
+        self.assertEquals(o[3].strip(),'`c3` - int')
 
     def test_header_exception_on_numeric_header_data(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -236,9 +236,9 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(retcode,0)
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'name - text')
-        self.assertEquals(o[2].strip(),'value1 - int')
-        self.assertEquals(o[3].strip(),'value2 - int')
+        self.assertEquals(o[1].strip(),'`name` - text')
+        self.assertEquals(o[2].strip(),'`value1` - int')
+        self.assertEquals(o[3].strip(),'`value2` - int')
 
         self.cleanup(tmpfile)
 
@@ -276,9 +276,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),1)
 
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'c1 - text')
-        self.assertEquals(o[2].strip(),'c2 - text')
-        self.assertEquals(o[3].strip(),'c3 - text')
+        self.assertEquals(o[1].strip(),'`c1` - text')
+        self.assertEquals(o[2].strip(),'`c2` - text')
+        self.assertEquals(o[3].strip(),'`c3` - text')
 
         self.assertEquals(e[0],'Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data')
 
@@ -372,9 +372,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o),4)
 
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'c1 - text')
-        self.assertEquals(o[2].strip(),'c2 - int')
-        self.assertEquals(o[3].strip(),'c3 - int')
+        self.assertEquals(o[1].strip(),'`c1` - text')
+        self.assertEquals(o[2].strip(),'`c2` - int')
+        self.assertEquals(o[3].strip(),'`c3` - int')
 
     def test_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(header_row_with_spaces + "\n" + sample_data_no_header)
@@ -399,9 +399,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o),4)
 
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'name - text')
-        self.assertEquals(o[2].strip(),'value 1 - int')
-        self.assertEquals(o[3].strip(),'value2 - int')
+        self.assertEquals(o[1].strip(),'`name` - text')
+        self.assertEquals(o[2].strip(),'`value 1` - int')
+        self.assertEquals(o[3].strip(),'`value2` - int')
 
 class ParsingModeTests(AbstractQTestCase):
     def test_strict_mode_column_count_mismatch_error(self):
@@ -453,9 +453,9 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
 
         self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(),'name - text')
-        self.assertEquals(o[2].strip(),'value1 - int')
-        self.assertEquals(o[3].strip(),'c3 - int')
+        self.assertEquals(o[1].strip(),'`name` - text')
+        self.assertEquals(o[2].strip(),'`value1` - int')
+        self.assertEquals(o[3].strip(),'`c3` - int')
 
         self.cleanup(tmpfile)
 
@@ -518,7 +518,7 @@ class ParsingModeTests(AbstractQTestCase):
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names,['c%s' % x for x in xrange(1,12)])
+        self.assertEquals(column_names,['`c%s`' % x for x in xrange(1,12)])
         self.assertEquals(column_types,['text','int','text','text','int','text','int','int','text','text','text'])
         
         self.cleanup(tmpfile)
@@ -541,7 +541,7 @@ class ParsingModeTests(AbstractQTestCase):
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names,['c%s' % x for x in xrange(1,10)])
+        self.assertEquals(column_names,['`c%s`' % x for x in xrange(1,10)])
         self.assertEquals(column_types,['text','int','text','text','int','text','int','int','text'])
         
         self.cleanup(tmpfile)

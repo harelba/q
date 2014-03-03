@@ -50,10 +50,16 @@ find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 1
 
 header_row = 'name,value1,value2'
 sample_data_rows = ['a,1,0','b,2,0','c,,0']
-
 sample_data_no_header = "\n".join(sample_data_rows) + "\n"
 sample_data_with_header = header_row + "\n" + sample_data_no_header
 sample_data_with_missing_header_names = "name,value1\n" + sample_data_no_header
+
+# Values with leading whitespace 
+sample_data_rows_with_spaces = ['a,1,0','   b,   2,0','c,,0']
+sample_data_with_spaces_no_header = "\n".join(sample_data_rows_with_spaces) + "\n"
+
+header_row_with_spaces = 'name,value 1,value2'
+sample_data_with_spaces_with_header = header_row_with_spaces + "\n" + sample_data_with_spaces_no_header
 
 def one_column_warning(e):
     return e[0].startswith('Warning: column count is one')
@@ -329,6 +335,73 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue('Warning - data is empty' in e[0])
 
         self.cleanup(tmpfile)
+
+    def test_dont_leading_keep_whitespace_in_values(self):
+        tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
+        cmd = './q -d , "select c1 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),3)
+
+        self.assertEquals(o[0],'a')
+        self.assertEquals(o[1],'b')
+        self.assertEquals(o[2],'c')
+
+    def test_keep_leading_whitespace_in_values(self):
+        tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
+        cmd = './q -d , "select c1 from %s" -k' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),3)
+
+        self.assertEquals(o[0],'a')
+        self.assertEquals(o[1],'   b')
+        self.assertEquals(o[2],'c')
+
+    def test_no_impact_of_keeping_leading_whitespace_on_integers(self):
+        tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
+        cmd = './q -d , "select c2 from %s" -k -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'c1 - text')
+        self.assertEquals(o[2].strip(),'c2 - int')
+        self.assertEquals(o[3].strip(),'c3 - int')
+
+    def test_spaces_in_header_row(self):
+        tmpfile = self.create_file_with_data(header_row_with_spaces + "\n" + sample_data_no_header)
+        cmd = './q -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),3)
+
+        self.assertEquals(o[0],'a,1')
+        self.assertEquals(o[1],'b,2')
+        self.assertEquals(o[2],'c,')
+
+    def test_column_analysis_for_spaces_in_header_row(self):
+        tmpfile = self.create_file_with_data(header_row_with_spaces + "\n" + sample_data_no_header)
+        cmd = './q -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1].strip(),'name - text')
+        self.assertEquals(o[2].strip(),'value 1 - int')
+        self.assertEquals(o[3].strip(),'value2 - int')
 
 class ParsingModeTests(AbstractQTestCase):
     def test_strict_mode_column_count_mismatch_error(self):

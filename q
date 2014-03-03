@@ -131,6 +131,9 @@ parser.add_option("-m","--mode",dest="mode",default="relaxed",
                 help="Data parsing mode. fluffy, relaxed and strict. In relaxed and strict mode, the -c column-count parameter must be supplied as well")
 parser.add_option("-c","--column-count",dest="column_count",default=None,
                 help="Specific column count when using relaxed or strict mode")
+parser.add_option("-k","--keep-leading-whitespace",dest="keep_leading_whitespace_in_values",default=False,action="store_true",
+                help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
+
 
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None
@@ -157,7 +160,7 @@ class Sqlite3DB(object):
 		return result
 
 	def _get_as_list_str(self,l):
-		return ",".join(["%s" % x for x in l])
+		return ",".join(['"%s"' % x.replace('"','""') for x in l])
 
 	def _get_col_values_as_list_str(self,col_vals,col_types):
 		result = []
@@ -191,7 +194,7 @@ class Sqlite3DB(object):
 	def generate_create_table(self,table_name,column_names,column_dict):
 		# Convert dict from python types to db types
 		column_name_to_db_type = dict((n,self.type_names[t]) for n,t in column_dict.iteritems())
-		column_defs = ','.join(['%s %s' % (n,column_name_to_db_type[n]) for n in column_names])
+		column_defs = ','.join(['"%s" %s' % (n.replace('"','""'),column_name_to_db_type[n]) for n in column_names])
 		return 'CREATE TABLE %s (%s)' % (table_name,column_defs)
 
 	def generate_temp_table_name(self):
@@ -764,9 +767,15 @@ if options.tab_delimited:
 if options.delimiter is None:
 	options.delimiter = ' '
 elif len(options.delimiter) != 1:
-	print >>sys.stderr,"Delimiter must be one character only. Add '-E v1' to the command line if you need multi-character delimiters. This will revert to version 1 of the engine which supports that. Please note that v1 does not support quoted fields."
+	print >>sys.stderr,"Delimiter must be one character only"
 	sys.exit(5)
-q_dialect = {'skipinitialspace': True, 'quoting': 0, 'delimiter': options.delimiter, 'quotechar': '"', 'doublequote': False}
+
+if options.keep_leading_whitespace_in_values:
+	skip_initial_space = False
+else:
+	skip_initial_space = True
+
+q_dialect = {'skipinitialspace': skip_initial_space, 'quoting': 0, 'delimiter': options.delimiter, 'quotechar': '"', 'doublequote': False}
 csv.register_dialect('q',**q_dialect)
 file_reading_method = 'csv'
 

@@ -11,11 +11,13 @@ q allows performing SQL-like statements on tabular text data. Its purpose is to 
 
 query should be an SQL-like query which contains filenames instead of table names (or - for stdin).
 
-Columns are named c1..cN and delimiter can be set using the -d (or -t) option.
+If a header row exists (use -H flag to signify that), then column will be named using the header row values. Otherwise, columns will be named c1..cN.
 
-query should be enclosed in quotes, to make it one parameter.
+The delimiter can be set using the -d (or -t) option (use -D for setting the output delimiter).
 
-All sqlite3 SQL constructs are supported.
+query should be enclosed in quotes, to make it one parameter. Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard (e.g. `my column name`).
+
+All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table).
 
 See https://github.com/harelba/q for more details.
 
@@ -38,9 +40,11 @@ Example 3: `sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total fr
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
 * `-b` - Beautify the output. If this flag exists, output will be aligned to the largest actual value of each column. **NOTE:** Use this only if needed, since it is slower and more CPU intensive.
-* `-E <engine-version> - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
 
-
+* `-A` - Analyze sample input and provide an analysis of column names and their detected types. Does not run the query itself
+* `-m` - Data parsing mode. fluffy, relaxed or strict. In relaxed mode the -c column-count is optional. In strict mode, it must be provided. See separate section in the documentation about the various modes. Fluffy mode should only be used if backward compatibility (less well defined, but helpful...) to older versions of q is needed.
+* `-c` - Specific column count. This parameter fixes the column count. In relaxed mode, this will cause missing columns to be null, and extra columns to be "merged" into the last column. In strict mode, any deviation from this column count will cause an error.
+* `-k` - Keep leading whitespace. By default leading whitespace is removed from values in order to provide out-of-the-box usability. Using this flag instructs q to leave any leading whitespace in tact, making the output more strictly identical to the input.
 
 ## FORMATTING OPTIONS
 The format of F is as a list of X=f separated by commas, where X is a SELECTed column number and f is a python format (http://docs.python.org/release/2.4.4/lib/typesseq-strings.html)
@@ -57,22 +61,15 @@ Please make sure to read the limitations section as well.
 ## BUGS AND LIMITATIONS
 The following limitations exist in the current implementation:
 
-* Simplistic Data typing and column inference - All types are strings and columns are determined according to the first line of data, having the names of c1,c2,c3 etc. There's a column count hack, which is meant for tolerating a small variation in the column count
-* In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases it won't. One such example is using numeric conditions a WHERE clause  - such as c5 > 1000. This will not work properly out-of-the-box until we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed by adding 0+ before it. Example: `q "SELECT c5,c9 FROM mydatafile WHERE 0+c5 > 1000"`. This is simple enough, but it kind of breaks the idea of treating data as data. This is the reason why the examples below avoided using a meaningful WHERE clause. Once this is fixed, the examples will be updated
-* Basic error handling only
 * No checks and bounds on data size
 
 ## FUTURE PLANS
-* Column name inference for files containing a header line
-* Column type inference according to actual data
 * Smarter batch insertion to the database
 * Faster reuse of previous data loading
 * Allow working with external DB
 * Real parsing of the SQL, allowing smarter execution of queries.
 * Full Subquery support (will be possible once real SQL parsing is performed)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
-* Support semi structured data - e.g. log files, where there are several columns and then free text
-* Better error handling
 
 ## AUTHOR
 Harel Ben-Attia (harelba@gmail.com)

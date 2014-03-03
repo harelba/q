@@ -32,7 +32,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.3.0b"
+q_version = "1.3.0"
 
 import os,sys
 import random

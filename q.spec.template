@@ -4,15 +4,10 @@ Release:	1%{?dist}
 Summary:	q - Text as a Database.
 
 Group:		Applications/Text
-License:	GPL
+License:	GPLv3
 URL:		https://github.com/harelba/q
-Vendor:		Harel Ben-Attia
-Packager:	Harel Ben-Attia
-Source0:	%{name}-%{version}.tar.gz
-BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+Source0:	https://github.com/harelba/q/archive/VERSION_PLACEHOLDER.tar.gz
 BuildArch:	noarch
-
-Requires:	python-libs
 
 %description
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it?
@@ -23,17 +18,13 @@ q solves this problem by allowing to perform SQL-like statements on tabular text
 %setup  
 
 %install
-rm -rf %{buildroot}
-%{__install} -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
-%{__install} -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
-%{__install} -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
-%{__install} -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
-%{__install} -m 0644 %{name}.1 ${RPM_BUILD_ROOT}%{_mandir}/man1/
+rm -rf ${RPM_BUILD_ROOT}
+install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
+install -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
+install -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
+install -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
+install -m 0644 %{name}.1 ${RPM_BUILD_ROOT}%{_mandir}/man1/
 gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/%{name}.1
-
-%clean
-rm -rf %{buildroot}
-
 
 %files
 %defattr(-,root,root,-)

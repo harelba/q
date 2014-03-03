@@ -12,13 +12,29 @@ The goal of this tool is to provide a bridge between the world of text files and
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
------
-## New Release Candidate version is out - contains column name/type detection and other stuff. Can be downloaded below
+__New version `1.3.0` is out. Contains very significant improvements:__
+* Added column name and type detection (Use -A to see name/type analysis for the specified input)
+* Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)
+* Fixed tab delimition parameter problem
+* More improvements to error reporting
+* Added a test suite, in preparation for refactoring
+* Solves the following bugs/pull-requests:
+  - #7  - Dynamic column count support
+  - #8  - Column name inference from input containing a header row
+  - #9  - Automatic column type inference using sample data
+  - #30 - Header lines option does nothing
+  - #33 - Last column should allow for spaces? 
+  - #35 - Add q.bat
+  - #38 - Problem with whitespace delimiter
+  - #43 - using the -t flag stopped the header flag from working
+  - #44 - Space in column name on TAB separated values break q
+* Breaking changes:
+  - Changed -H behavior so it's now a flag an not a parameter (1 line always)
+  - Removed support for multi-char delimiters
 
-**Update Mar 2 2014 - Automatic column type detection and column name detection are in The Release Candidate version 1.3.0b. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version, but it has been already been tested and seems fine**
 
 -----
-## You can use [this gitter chatroom](https://gitter.im/harelba/q) for any live feedback
+## You can use [this gitter chatroom](https://gitter.im/harelba/q) for any feedback. Please leave the feedback there even if i'm not there at that moment, I promise to read it and respond as soon as I can
 -----
 
 ## Quick examples for the impatient
@@ -52,6 +68,8 @@ You can see that the ppp filename appears twice, each time matched to one of the
 ## Highlights
 
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+* Automatic column name and column type detection (Allows working more naturally with the data)
+* Multiple parsing modes - relaxed and strict. Relaxed mode allows to easily parse semi-structured data, such as log files.
 * Standard installation - RPM, Homebrew (Mac). Debian package coming soon.
 * Support for quoted fields 
 * Full UTF-8 support (and other encodings)
@@ -60,29 +78,26 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Output beautifier
 * man page when installed through the RPM package
 
-* **Column name and type detection, multiple parsing modes and important bug fixes are in the latest Release Candidate version, and can be downloaded from the installation section below**
-
-
 ## Requirements
 * Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
 
 ## Installation
 * Mac users can use homebrew to install q - Just run `brew install q` (Thanks @stuartcarnie)
-* RPM Packaging is beta ready. You can download the beta RPM from the link below.
+* RPM Packaging is ready. You can download the RPM from the link below.
 * Debian Packaging will come soon.
 
-    __**Release Candidate version `1.3.0b`**__
+    __**Latest version `1.3.0`**__
     
-    **Contains column type detection, column names using header line, strict and relaxed parsing modes and better error reporting**
-    
-    **Manual installation of the Release Candidate version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0b/q)** into a folder in the path and make the file executable
+    **RPM of the latest version** - Can be downloaded **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.3.0-1.noarch.rpm)**. The RPM package also includes a man page. Just enter `man q`
+
+    **Manual installation of the latest version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0/q)** into a folder in the path and make the file executable
 
 
-    __**Current stable version is `1.2.0`**__
+    __**Previous version is `1.2.0`**__
     
-    **RPM of the current version** - RPM package is ready and can be downloaded **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm)**. I'm hardly an RPM expert, so any feedback on the RPM packaging would be greatly appreciated. The RPM package also includes a man page. Just enter `man q`
+    **RPM of the previous version** - Can be downloaded **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.2.0-1.noarch.rpm)**. Includes man page. Just enter `man q`
 
-    **Manual installation of the current version** - Download the main q executable from **[here](https://raw.github.com/harelba/q/1.2.0/q)** into a folder in the path and make the file executable
+    **Manual installation of the previous version** - If for some reason you need the previous version, you can download the main q executable from **[here](https://raw.github.com/harelba/q/1.2.0/q)** into a folder in the path and make the file executable. Please notify me of any such case, so I can understand the reason and fix things if needed.
 
 
 **NOTE:** If you're using Python 2.4, then you will have to install the sqlite3 package for q to work.
@@ -149,10 +164,10 @@ q gets one parameter - An SQL-like query. The following applies:
      * By separating the filenames with a + sign: `SELECT * FROM datafile1+datafile2+datefile3`.
      * By using glob matching: `SELECT * FROM mydata*.dat`
   * Files with .gz extension are considered to be gzipped and decompressed on the fly.
-* The column names are in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
-* Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
-  * **NOTE:** Type inference is rudimentary for now (see Limitations and Future below), so sometimes casting would be required (e.g. for inequality conditions on numbers). Once type inference is complete, this won't be necessary. See Limitations for details on working around this. (**Full column name and type inference are in the RC version 1.3.0b**).
-* For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes.
+* Use `-H` in order to specify that a header row exists. q will read the header row and set the column names accordingly. 
+* If there is no header row, then the column names will be in the format cX where X is the column number starting from **1**. For example, to retrieve the second and fourth columns of the file, use `q "SELECT c2,c4 FROM myfile"`
+* Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed. NOTE: Full type detection is implemented, so there is no need for any casting or anything.
+* For both consistency and for preventing shell expansion conflicts, q currently expects the entire query to be in a single command-line parameter. Here is an example standard usage: ```q "SELECT * FROM datafile"```. Notice that the entire SQL statement is enclosed in double quotes. Flags are obviously outside the quotes.
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table alias when performing JOINs.
 
@@ -170,8 +185,11 @@ q can also get some runtime flags (Linux style, before the parameter). The follo
 * `-t` - Shorthand flag for a tab delimiter, one header line format (Same as `-d $'\t' -H 1` - The $ notation is required so Linux would escape the tab...)
 * `-f <F>` - Output-formatting option. If you don't like the output formatting of a specific column, you can use python formatting in order to change the output format for that column. See below for details
 * `-e <E>` - Specify the text encoding. Defaults to UTF-8. If you have ASCII only text and want a 33% speedup, use `-e none`. Unfortunately, proper encoding/decoding has its price.
-* `-E <engine-version>` - Default engine version is v2. Should not be changed unless you have problems or need multi-character delimiters which have been supported in v1 but are not supported in v2 anymore. v2 supports supports quoted CSVs. Please notify me of any problem that forces you to use v1.
 
+* `-A` - Analyze sample input and provide an analysis of column names and their detected types. Does not run the query itself
+* `-m` - Data parsing mode. fluffy, relaxed or strict. In relaxed mode the -c column-count is optional. In strict mode, it must be provided. See separate section in the documentation about the various modes. Fluffy mode should only be used if backward compatibility (less well defined, but helpful...) to older versions of q is needed.
+* `-c` - Specific column count. This parameter fixes the column count. In relaxed mode, this will cause missing columns to be null, and extra columns to be "merged" into the last column. In strict mode, any deviation from this column count will cause an error.
+* `-k` - Keep leading whitespace. By default leading whitespace is removed from values in order to provide out-of-the-box usability. Using this flag instructs q to leave any leading whitespace in tact, making the output more strictly identical to the input.
 
 ### Output formatting option
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
@@ -179,37 +197,57 @@ The format of F is as a list of X=f separated by commas, where X is a column num
 * f - A python formatting string - See http://docs.python.org/release/2.4.4/lib/typesseq-strings.html for details if needed.
   * Example: `-f 3=%-10s,5=%4.3f,1=%x`
 
+### Parsing Modes
+q supports multiple parsing modes:
+* `relaxed` - This is the default mode. It tries to lean towards simplicity of use. When a row doesn't contains enough columns, they'll be filled with nulls, and when there are too many, the extra values will be merged to the last column. Defining the number of expected columns in this mode is done using the `-c` parameter.
+* `strict` - Strict mode is for hardcode csv parsing. Whenever a row doesn't contain the proper number of columns, processing will stop. 
+* `fluffy` - This mode should not be used, and is just some kind of "backward compatible" parsing mode which was used by q previously. It's left as a separate parsing mode on purpose, in order to accomodate existing users. If you are such a user, please open a bug for your use case, and I'll see how I can incorporate it into the other modes. It is reasonable to say that this mode will be removed in the future.
+
 ## Implementation
-The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself is pretty basic and supports only SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). In addition, error handling is really basic. However, I do believe that it can be of service even at that state.
+The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). 
 
 Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
 
 Please make sure to read the limitations section as well.
 
+Code wise, I'm planning for a big refactoring, and I have added full test suite in the latest version, so it'll be easier to do properly.
+
 ### Limitations
-**Update Mar 2 2014 - Automatic column type detection and column name detection are in The Release Candidate version 1.3.0b. You can download it using the link in the installation section. Will update on twitter once it's moving to an official version, but it has been already been tested and seems fine**
-
-The following limitations exist in the current implementation:  
-
-* Simplistic Data typing and column type detection - All types are strings and columns are determined according to the first line of data, having the names of c1,c2,c3 etc. There's a column count hack, which is meant for tolerating a small variation in the column count. 
-  * In some cases, SQL uses its own type inference (such as treating cX as a number in case there is a SUM(cX) expression), But in other cases it won't. One such example is providing a WHERE clause with inequality - such as c5 > 1000. This will not work properly out-of-the-box until we provide type inference. There is a simple (however not clean) way to get around it - Casting the value where needed. Example:  
-
-        ```q "SELECT c5,c9 FROM mydatafile WHERE 0+c5 > 1000"```  
-
-  * This is simple enough, but it kind of breaks the idea of treating data as data. This is the reason why the examples below avoided using a meaningful WHERE clause. Once this is fixed, the examples will be updated.
 * No checks and bounds on data size
 
 ## Future Ideas
-
-* Column name inference for files containing a header line **(in RC version - Download link in the installation section)**
-* Column type inference according to actual data **(in RC version - Download link in the installation section)**
-* Support semi structured data - e.g. log files, where there are several columns and then free text **(in RC version - Download link in the installation section)**
-* Smarter batch insertion to the database
 * Faster reuse of previous data loading
 * Allow working with external DB
 * Real parsing of the SQL, allowing smarter execution of queries.
+* Smarter batch insertion to the database
 * Full Subquery support (will be possible once real SQL parsing is performed)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
+
+## Change Log
+**Thu Mar 03 2014 Harel Ben-Attia <harelba@gmail.com> 1.3.0-1**
+- Added column name and type detection (Use -A to see name/type analysis for the specified input)
+- Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)
+- Fixed tab delimition parameter problem
+- More improvements to error reporting
+- Added a test suite, in preparation for refactoring
+- Solves the following bugs/pull-requests:
+  - #7  - Dynamic column count support
+  - #8  - Column name inference from input containing a header row
+  - #9  - Automatic column type inference using sample data
+  - #30 - Header lines option does nothing
+  - #33 - Last column should allow for spaces?
+  - #35 - Add q.bat
+  - #38 - Problem with whitespace delimiter
+  - #43 - using the -t flag stopped the header flag from working
+  - #44 - Space in column name on TAB separated values break q
+- Breaking changes:
+  - Changed -H behavior so it's now a flag an not a parameter (1 line always)
+  - Removed support for multi-char delimiters
+
+**Thu Feb 20 2014 Harel Ben-Attia <harelba@gmail.com> 1.1.7-1**
+- Better error reporting
+- Fixed python invocation for non stanard locations
+- Added man page
 
 ## Why aren't other Linux tools enough?
 The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.

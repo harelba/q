@@ -1,4 +1,6 @@
-# q - Treating Text as a Database
+# q - Treating Text as a Database 
+
+(also known as qsql)
 
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.

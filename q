@@ -34,7 +34,8 @@
 #
 q_version = "1.2.0"
 
-import os,sys
+import sys
+import os
 import random
 import sqlite3
 import gzip
@@ -53,9 +54,9 @@ DEBUG = False
 
 # Encode stdout properly,
 if sys.stdout.isatty():
-	STDOUT = codecs.getwriter(sys.stdout.encoding)(sys.stdout)
+  STDOUT = codecs.getwriter(sys.stdout.encoding)(sys.stdout)
 else:
-	STDOUT = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
+  STDOUT = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 
 SHOW_SQL = False
 
@@ -63,87 +64,97 @@ p = ConfigParser()
 p.read([os.path.expanduser('~/.qrc'),'.qrc'])
 
 def get_option_with_default(p,option_type,option,default):
-	if not p.has_option('options',option):
-		return default
-	if option_type == 'boolean':
-		return p.getboolean('options',option)
-	elif option_type == 'int':
-		return p.getint('options',option)
-	elif option_type == 'string' : 
-		return p.get('options',option)
-	elif option_type == 'escaped_string':
-		return p.get('options',option).decode('string-escape')
-	else:
-		raise Exception("Unknown option type")
+    if not p.has_option('options', option):
+        return default
+    if option_type == 'boolean':
+        return p.getboolean('options', option)
+    elif option_type == 'int':
+        return p.getint('options', option)
+    elif option_type == 'string': 
+        return p.get('options', option)
+    elif option_type == 'escaped_string':
+        return p.get('options', option).decode('string-escape')
+    else:
+        raise Exception("Unknown option type")
 
-default_beautify = get_option_with_default(p,'boolean','beautify',False)
-default_gzipped = get_option_with_default(p,'boolean','gzipped',False)
-default_delimiter = get_option_with_default(p,'escaped_string','delimiter',None)
-default_output_delimiter = get_option_with_default(p,'escaped_string','output_delimiter',None)
-default_header_skip = get_option_with_default(p,'int','header_skip',0)
-default_formatting = get_option_with_default(p,'string','formatting',None)
-default_encoding = get_option_with_default(p,'string','encoding','UTF-8')
+default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
+default_gzipped = get_option_with_default(p, 'boolean', 'gzipped',False)
+default_delimiter = get_option_with_default(p, 'escaped_string', 'delimiter',
+    None)
+default_output_delimiter = get_option_with_default(p, 'escaped_string',
+    'output_delimiter', None)
+default_header_skip = get_option_with_default(p, 'int', 'header_skip', 0)
+default_formatting = get_option_with_default(p, 'string', 'formatting', None)
+default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
 
-parser = OptionParser(usage="""
-	q allows performing SQL-like statements on tabular text data.
+parser = OptionParser(usage = """
+    q allows performing SQL-like statements on tabular text data.
 
-	Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+    Its purpose is to bring SQL expressive power to manipulating text data
+    using the Linux command line.
 
-	Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-        Columns are named c1..cN and delimiter can be set using the -d (or -t) option.
+    Basic usage is q "<sql like query>" where table names are just regular file
+    names (Use - to read from standard input)
+    
+    Columns are named c1..cN and delimiter can be set using the -d (or -t)
+    option.
 
-	All sqlite3 SQL constructs are supported.
+    All sqlite3 SQL constructs are supported.
 
-	Examples:
+    Examples:
 
-          Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-	    This example would print a count of each unique permission string in the current folder.
+    Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
+    This example would print a count of each unique permission string in the
+    current folder.
 
-	  Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-	    This example would provide the average and the sum of the numbers in the range 1 to 1000
+    Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
+    This example would provide the average and the sum of the numbers in the
+    range 1 to 1000
 
-	  Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-	    This example will output the total size in MB per user+group in the /tmp subtree
+    Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as
+    total from - group by c5,c6 order by total desc"
+    This example will output the total size in MB per user+group in the /tmp
+    subtree
 
-        See the help or https://github.com/harelba/q for more details.
+    See the help or https://github.com/harelba/q for more details.
 """)
-parser.add_option("-b","--beautify",dest="beautify",default=default_beautify,action="store_true",
-                help="Beautify output according to actual values. Might be slow...")
-parser.add_option("-z","--gzipped",dest="gzipped",default=default_gzipped,action="store_true",
-                help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-parser.add_option("-d","--delimiter",dest="delimiter",default=default_delimiter,
-                help="Field delimiter. If none specified, then space is used as the delimiter. If you need multi-character delimiters, run the tool with engine version 1 by adding '-E v1'. Using v1 will also revert to the old behavior where if no delimiter is provided, then any whitespace will be considered as a delimiter.")
-parser.add_option("-D","--output-delimiter",dest="output_delimiter",default=default_output_delimiter,
-                help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-parser.add_option("-t","--tab-delimited-with-header",dest="tab_delimited_with_header",default=False,action="store_true",
-                help="Same as -d <tab> -H 1. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file")
-parser.add_option("-H","--header-skip",dest="header_skip",default=default_header_skip,
-                help="Skip n lines at the beginning of the data (still takes those lines into account in terms of structure)")
-parser.add_option("-f","--formatting",dest="formatting",default=default_formatting,
-                help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-parser.add_option("-e","--encoding",dest="encoding",default=default_encoding,
-                help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
-parser.add_option("-v","--version",dest="version",default=False,action="store_true",
-                help="Print version")
-parser.add_option("-E","--engine-version",dest="engine_version",default='v2',
-                help="Engine version to use. v2 is the default, and supports quoted CSVs, but requires a specific delimiter (can't use multi-character delimiters). Use v1 if you need multi-char delimiters or if you encounter any problems (and please notify me if you do)")
+parser.add_option("-b", "--beautify", dest="beautify",
+    default=default_beautify, action="store_true", help="Beautify output according to actual values. Might be slow...")
+parser.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
+    help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
+parser.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
+    help = "Field delimiter. If none specified, then space is used as the delimiter. If you need multi-character delimiters, run the tool with engine version 1 by adding '-E v1'. Using v1 will also revert to the old behavior where if no delimiter is provided, then any whitespace will be considered as a delimiter.")
+parser.add_option("-D", "--output-delimiter", dest = "output_delimiter", default = default_output_delimiter,
+                help = "Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+parser.add_option("-t" , "--tab-delimited-with-header", dest = "tab_delimited_with_header", default = False, action = "store_true",
+                help = "Same as -d <tab> -H 1. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file")
+parser.add_option("-H", "--header-skip", dest = "header_skip", default = default_header_skip,
+                help = "Skip n lines at the beginning of the data (still takes those lines into account in terms of structure)")
+parser.add_option("-f", "--formatting", dest = "formatting", default = default_formatting,
+                help = "Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
+parser.add_option("-e", "--encoding", dest = "encoding", default = default_encoding,
+                help = "Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+parser.add_option("-v", "--version", dest = "version", default = False, action = "store_true",
+                help = "Print version")
+parser.add_option("-E", "--engine-version", dest = "engine_version", default = 'v2',
+                help = "Engine version to use. v2 is the default, and supports quoted CSVs, but requires a specific delimiter (can't use multi-character delimiters). Use v1 if you need multi-char delimiters or if you encounter any problems (and please notify me if you do)")
 
 
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None
     
 class Sqlite3DB(object):
-	def __init__(self,show_sql=SHOW_SQL):
+	def __init__(self, show_sql=SHOW_SQL):
 		self.show_sql = show_sql
 		self.conn = sqlite3.connect(':memory:')
 		self.cursor = self.conn.cursor()
-		self.type_names = { str : 'TEXT' , int : 'INT' , float : 'FLOAT' }
+		self.type_names = {str: 'TEXT', int: 'INT', float: 'FLOAT'}
 		self.add_user_functions()
 
 	def add_user_functions(self):
 		self.conn.create_function("regexp", 2, regexp)
 
-	def execute_and_fetch(self,q):
+	def execute_and_fetch(self, q):
 		try:
 			if self.show_sql:
 				print q
@@ -153,7 +164,7 @@ class Sqlite3DB(object):
 			pass#cursor.close()
 		return result
 
-	def _get_as_list_str(self,l,quote=False):
+	def _get_as_list_str(self, l, quote = False):
 		if not quote:
 			return ",".join(["%s" % x for x in l])
 		else:
@@ -161,15 +172,15 @@ class Sqlite3DB(object):
 			# Unfortunately, using list comprehension and performing replace on all elements here slows things down, so this is an optimization
 			def quote_and_escape(x):
 				if "'" in x:
-					x = x.replace("'","''")
+					x = x.replace("'", "''")
 				return "'" + x + "'"
 
-			return ",".join(map(quote_and_escape,l))
+			return ",".join(map(quote_and_escape, l))
 
-	def generate_insert_row(self,table_name,column_names,col_vals):
+	def generate_insert_row(self, table_name, column_names, col_vals):
 		col_names_str = self._get_as_list_str(column_names)
-		col_vals_str = self._get_as_list_str(col_vals,quote=True)
-		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name,col_names_str,col_vals_str)
+		col_vals_str = self._get_as_list_str(col_vals, quote = True)
+		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name, col_names_str, col_vals_str)
 
 	def generate_begin_transaction(self):
 		return "BEGIN TRANSACTION"
@@ -179,17 +190,17 @@ class Sqlite3DB(object):
 
 	# Get a list of column names so order will be preserved (Could have used OrderedDict, but 
         # then we would need python 2.7)
-	def generate_create_table(self,table_name,column_names,column_dict):
+	def generate_create_table(self, table_name, column_names, column_dict):
 		# Convert dict from python types to db types
-		column_name_to_db_type = dict((n,self.type_names[t]) for n,t in column_dict.iteritems())
-		column_defs = ','.join(['%s %s' % (n,column_name_to_db_type[n]) for n in column_names])
-		return 'CREATE TABLE %s (%s)' % (table_name,column_defs)
+		column_name_to_db_type = dict((n, self.type_names[t]) for n,t in column_dict.iteritems())
+		column_defs = ','.join(['%s %s' % (n, column_name_to_db_type[n]) for n in column_names])
+		return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
 
-	def generate_insert_row(self,table_name,column_names,col_vals):
+	def generate_insert_row(self, table_name, column_names, col_vals):
 		col_names_str = self._get_as_list_str(column_names)
-		col_vals_str = self._get_as_list_str(col_vals,quote=True)
-		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name,col_names_str,col_vals_str)
+		col_vals_str = self._get_as_list_str(col_vals, quote = True)
+		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name, col_names_str, col_vals_str)
 
 	def generate_begin_transaction(self):
 		return "BEGIN TRANSACTION"
@@ -199,23 +210,23 @@ class Sqlite3DB(object):
 
 	# Get a list of column names so order will be preserved (Could have used OrderedDict, but 
         # then we would need python 2.7)
-	def generate_create_table(self,table_name,column_names,column_dict):
+	def generate_create_table(self, table_name, column_names, column_dict):
 		# Convert dict from python types to db types
-		column_name_to_db_type = dict((n,self.type_names[t]) for n,t in column_dict.iteritems())
-		column_defs = ','.join(['%s %s' % (n,column_name_to_db_type[n]) for n in column_names])
-		return 'CREATE TABLE %s (%s)' % (table_name,column_defs)
+		column_name_to_db_type = dict((n, self.type_names[t]) for n,t in column_dict.iteritems())
+		column_defs = ','.join(['%s %s' % (n, column_name_to_db_type[n]) for n in column_names])
+		return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
 	def generate_temp_table_name(self):
-		return "temp_table_%s" % random.randint(0,1000000000)
+		return "temp_table_%s" % random.randint(0, 1000000000)
 
-	def generate_drop_table(self,table_name):
+	def generate_drop_table(self, table_name):
 		return "DROP TABLE %s" % table_name
 
-	def drop_table(self,table_name):
+	def drop_table(self, table_name):
 		return self.execute_and_fetch(self.generate_drop_table(table_name))	
 
 class ColumnCountMismatchException(Exception):
-	def __init__(self,msg):
+	def __init__(self, msg):
 		self.msg = msg
 
 	def __str(self):
@@ -226,7 +237,7 @@ class ColumnCountMismatchException(Exception):
 # A "qtable" is a filename which behaves like an SQL table...
 class Sql(object):
 
-	def __init__(self,sql):
+	def __init__(self, sql):
 		# Currently supports only standard SELECT statements
 
 		# Holds original SQL
@@ -249,23 +260,23 @@ class Sql(object):
 			# Get the part string
 			part = self.sql_parts[idx]
 			# If it's a FROM or a JOIN
-			if part.upper() in ['FROM','JOIN']:
+			if part.upper() in ['FROM', 'JOIN']:
 				# and there is nothing after it,
 				if idx == len(self.sql_parts)-1:
 					# Just fail
 					raise Exception('FROM/JOIN is missing a table name after it')
 				
 				
-				qtable_name = self.sql_parts[idx+1]
+				qtable_name = self.sql_parts[idx + 1]
 				# Otherwise, the next part contains the qtable name. In most cases the next part will be only the qtable name.
 				# We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...". 
 				# In that case, there will be an ending paranthesis as part of the name, and we want to handle this case gracefully.
 				# This is obviously a hack of a hack :) Just until we have complete parsing capabilities
 				if ')' in qtable_name:
 					leftover = qtable_name[qtable_name.index(')'):]
-					self.sql_parts.insert(idx+2,leftover)
+					self.sql_parts.insert(idx + 2, leftover)
 					qtable_name = qtable_name[:qtable_name.index(')')]
-					self.sql_parts[idx+1] = qtable_name
+					self.sql_parts[idx + 1] = qtable_name
 					
 
 				self.qtable_names.add(qtable_name)
@@ -273,12 +284,12 @@ class Sql(object):
 				if qtable_name not in self.qtable_name_positions.keys():
 					self.qtable_name_positions[qtable_name] = []
 				
-				self.qtable_name_positions[qtable_name].append(idx+1)
+				self.qtable_name_positions[qtable_name].append(idx + 1)
 				idx += 2
 			else:
 				idx += 1
 
-	def set_effective_table_name(self,qtable_name,effective_table_name):
+	def set_effective_table_name(self, qtable_name, effective_table_name):
 		if qtable_name not in self.qtable_names:
 			raise Exception("Unknown qtable %s" % qtable_name)
 		if qtable_name in self.qtable_name_effective_table_names.keys():
@@ -298,11 +309,11 @@ class Sql(object):
 
 		return " ".join(effective_sql)
 		
-	def execute_and_fetch(self,db):
+	def execute_and_fetch(self, db):
 		return db.execute_and_fetch(self.get_effective_sql())
 
 class LineSplitter(object):
-	def __init__(self,delimiter):
+	def __init__(self, delimiter):
 		self.delimiter = delimiter
 		if options.delimiter is not None:
 			escaped_delimiter = re.escape(delimiter)
@@ -310,7 +321,7 @@ class LineSplitter(object):
 		else:
 			self.split_regexp = re.compile(r'\s+')
 
-	def split(self,line):
+	def split(self, line):
 		if line and line[-1] == '\n':
 			line = line[:-1]
 		return self.split_regexp.split(line)
@@ -320,7 +331,7 @@ class TableColumnInferer(object):
 		self.inferred = False
 		self.example_col_vals = []
 
-	def analyze(self,example_col_vals):
+	def analyze(self, example_col_vals):
 		if self.inferred:
 			raise Exception("Already inferred columns")
 
@@ -358,17 +369,17 @@ class TableColumnInferer(object):
 	def get_column_types(self):
 		return self.column_types
 
-def encoded_csv_reader(encoding,f,dialect,**kwargs):
-	csv_reader = csv.reader(f,dialect,**kwargs)
+def encoded_csv_reader(encoding, f, dialect, **kwargs):
+	csv_reader = csv.reader(f, dialect, **kwargs)
 	if encoding is not None and encoding != 'none':
 		for row in csv_reader:
-			yield [unicode(x,encoding) for x in row]
+			yield [unicode(x, encoding) for x in row]
 	else:
 		for row in csv_reader:
 			yield row
 
 class TableCreator(object):
-	def __init__(self,db,filenames_str,line_splitter,header_skip=0,gzipped=False,encoding='UTF-8',file_reading_method='manual'):
+	def __init__(self, db, filenames_str, line_splitter, header_skip=0, gzipped=False, encoding='UTF-8', file_reading_method='manual'):
 		self.db = db
 		self.filenames_str = filenames_str
 		self.header_skip = header_skip
@@ -427,7 +438,7 @@ class TableCreator(object):
 				if not self.table_created:
 					raise Exception('Table should have already been created for file %s' % filename)
 
-	def read_file_manually(self,f):
+	def read_file_manually(self, f):
 		# Wrap in encoder if needed
 		if self.encoding != 'none' and self.encoding is not None:
 			encoder = codecs.getreader(self.encoding)
@@ -445,8 +456,8 @@ class TableCreator(object):
 				f.close()
 			self._flush_inserts()
 
-	def read_file_using_csv(self,f):
-		csv_reader = encoded_csv_reader(self.encoding,f,dialect='q')
+	def read_file_using_csv(self, f):
+		csv_reader = encoded_csv_reader(self.encoding, f, dialect='q')
 		try:
 			for col_vals in csv_reader:
 				self._insert_row(col_vals)
@@ -455,7 +466,7 @@ class TableCreator(object):
 				f.close()
 			self._flush_inserts()
 
-	def _insert_row(self,col_vals):
+	def _insert_row(self, col_vals):
 		# If table has not been created yet
 		if not self.table_created:
 			# Try to create it along with another "example" line of data
@@ -467,17 +478,17 @@ class TableCreator(object):
 		# The table already exists, so we can just add a new row
 		self._insert_row_i(col_vals)
 
-	def _insert_row_i(self,col_vals):
+	def _insert_row_i(self, col_vals):
 		# If we have more columns than we inferred
 		if len(col_vals) > len(self.column_inferer.column_names):
-			raise ColumnCountMismatchException('Encountered a line in an invalid format %s:%s - %s columns instead of %s. Did you make sure to set the correct delimiter?' % (self.current_filename,self.lines_read,len(col_vals),len(self.column_inferer.column_names)))
+			raise ColumnCountMismatchException('Encountered a line in an invalid format %s:%s - %s columns instead of %s. Did you make sure to set the correct delimiter?' % (self.current_filename, self.lines_read, len(col_vals), len(self.column_inferer.column_names)))
 
 		effective_column_names = self.column_inferer.column_names[:len(col_vals)]
 
 		if len(effective_column_names) > 0:
 			self.buffered_inserts.append((effective_column_names,col_vals))
 		else:
-			self.buffered_inserts.append((["c1"],[""]))
+			self.buffered_inserts.append((["c1"], [""]))
 
 		if len(self.buffered_inserts) < 1000:
 			return
@@ -486,15 +497,15 @@ class TableCreator(object):
 	def _flush_inserts(self):
 		#print self.db.execute_and_fetch(self.db.generate_begin_transaction())
 
-		for col_names,col_vals in self.buffered_inserts:
-			insert_row_stmt = self.db.generate_insert_row(self.table_name,col_names,col_vals)
+		for col_names, col_vals in self.buffered_inserts:
+			insert_row_stmt = self.db.generate_insert_row(self.table_name, col_names, col_vals)
 			self.db.execute_and_fetch(insert_row_stmt)
 
 		#print self.db.execute_and_fetch(self.db.generate_end_transaction())
 		self.buffered_inserts = []
 
 
-	def try_to_create_table(self,col_vals):
+	def try_to_create_table(self, col_vals):
 		if self.table_created:
 			raise Exception('Table is already created')
 
@@ -526,15 +537,15 @@ class TableCreator(object):
 def determine_max_col_lengths(m):
 	if len(m) == 0:
 		return []
-	max_lengths = [0 for x in xrange(0,len(m[0]))]
-	for row_index in xrange(0,len(m)):
-		for col_index in xrange(0,len(m[0])):
+	max_lengths = [0 for x in xrange(0, len(m[0]))]
+	for row_index in xrange(0, len(m)):
+		for col_index in xrange(0, len(m[0])):
 			new_len = len(unicode(m[row_index][col_index]))
 			if new_len > max_lengths[col_index]:
 				max_lengths[col_index] = new_len
 	return max_lengths
 		
-(options,args) = parser.parse_args()
+(options, args) = parser.parse_args()
 
 if options.version:
 	print "q version %s" % q_version
@@ -544,8 +555,8 @@ if len(args) != 1:
     parser.print_help()
     sys.exit(1)
 	
-if options.engine_version not in ['v1','v2']:
-	print >>sys.stderr,"Engine version must be either v1 or v2"
+if options.engine_version not in ['v1', 'v2']:
+	print >>sys.stderr, "Engine version must be either v1 or v2"
 	sys.exit(2)
 
 # Create DB object
@@ -563,10 +574,10 @@ if options.engine_version == 'v2':
 	if options.delimiter is None:
 		options.delimiter = ' '
 	elif len(options.delimiter) != 1:
-		print >>sys.stderr,"Delimiter must be one character only. Add '-E v1' to the command line if you need multi-character delimiters. This will revert to version 1 of the engine which supports that. Please note that v1 does not support quoted fields."
+		print >>sys.stderr, "Delimiter must be one character only. Add '-E v1' to the command line if you need multi-character delimiters. This will revert to version 1 of the engine which supports that. Please note that v1 does not support quoted fields."
 		sys.exit(5)
 	q_dialect = {'skipinitialspace': True, 'quoting': 0, 'delimiter': options.delimiter, 'quotechar': '"', 'doublequote': False}
-	csv.register_dialect('q',**q_dialect)
+	csv.register_dialect('q', **q_dialect)
 	file_reading_method = 'csv'
 else:
 	file_reading_method = 'manual'
@@ -578,35 +589,35 @@ if options.encoding != 'none':
 	try:
 		codecs.lookup(options.encoding)
 	except LookupError:
-		print >>sys.stderr,"Encoding %s could not be found" % options.encoding
+		print >>sys.stderr, "Encoding %s could not be found" % options.encoding
 		sys.exit(10)
 
 try:
 	# Get each "table name" which is actually the file name
 	for filename in sql_object.qtable_names:
 		# Create the matching database table and populate it
-		table_creator = TableCreator(db,filename,line_splitter,int(options.header_skip),options.gzipped,options.encoding,file_reading_method)
+		table_creator = TableCreator(db, filename, line_splitter, int(options.header_skip), options.gzipped, options.encoding, file_reading_method)
 		start_time = time.time()
 		table_creator.populate()
 		if DEBUG:
-			print >>sys.stderr,"TIMING - populate time is %4.3f" % (time.time() - start_time)
+			print >>sys.stderr, "TIMING - populate time is %4.3f" % (time.time() - start_time)
 
 		# Replace the logical table name with the real table name
-		sql_object.set_effective_table_name(filename,table_creator.table_name)
+		sql_object.set_effective_table_name(filename, table_creator.table_name)
 
 	# Execute the query and fetch the data
 	m = sql_object.execute_and_fetch(db)
-except sqlite3.OperationalError,e:
-	print >>sys.stderr,"query error: %s" % e
+except sqlite3.OperationalError, e:
+	print >>sys.stderr, "query error: %s" % e
 	sys.exit(1)
-except ColumnCountMismatchException,e:
-	print >>sys.stderr,e.msg
+except ColumnCountMismatchException, e:
+	print >>sys.stderr, e.msg
 	sys.exit(2)
-except (UnicodeDecodeError,UnicodeError),e:
-	print >>sys.stderr,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
+except (UnicodeDecodeError, UnicodeError), e:
+	print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
 	sys.exit(3)
 except KeyboardInterrupt:
-	print >>sys.stderr,"Interrupted"
+	print >>sys.stderr, "Interrupted"
 	sys.exit(0)
 
 # If the user requested beautifying the output
@@ -627,16 +638,16 @@ else:
 		output_delimiter = " "
 
 if options.formatting:
-	formatting_dict = dict([(x.split("=")[0],x.split("=")[1]) for x in options.formatting.split(",")])
+	formatting_dict = dict([(x.split("=")[0], x.split("=")[1]) for x in options.formatting.split(",")])
 else:
 	formatting_dict = None
 
 try:
 	for rownum,row in enumerate(m):
 		row_str = []
-		for i,col in enumerate(row):
-			if formatting_dict is not None and str(i+1) in formatting_dict.keys():
-				fmt_str = formatting_dict[str(i+1)]
+		for i, col in enumerate(row):
+			if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
+				fmt_str = formatting_dict[str(i + 1)]
 			else:
 				if options.beautify:
 					fmt_str = "%%-%ss" % max_lengths[i]
@@ -648,7 +659,7 @@ try:
 			else:
 				row_str.append(fmt_str % "")
 
-		STDOUT.write(output_delimiter.join(row_str)+"\n")
+		STDOUT.write(output_delimiter.join(row_str) + "\n")
 except KeyboardInterrupt:
 	pass
 

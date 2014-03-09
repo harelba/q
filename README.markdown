@@ -35,7 +35,12 @@ Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
 ## Installation
 Current stable version is `1.3.0`. 
 
-RPM + Manual installation exist. Debian packaging is in progress.
+Three installation options:
+* Homebrew for mac
+* RPM
+* Manual installation
+
+Debian packaging is in progress.
 
 Installation instructions can be found [here](INSTALL.markdown)
 

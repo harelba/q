@@ -22,15 +22,17 @@
   - Changed -H behavior so it's now a flag an not a parameter (1 line always)
   - Removed support for multi-char delimiters
 
-**                Harel Ben-Attia <harelba@gmail.com> 1.2.0-1**
-- TBF
+**Sat Feb 22 2014 Harel Ben-Attia <harelba@gmail.com> 1.2.0-1**
+- Support for quoted fields in CSVs
+- Some bug fixes
+- Improved error reporting
 
 **Thu Feb 20 2014 Harel Ben-Attia <harelba@gmail.com> 1.1.7-1**
 - Better error reporting
 - Fixed python invocation for non stanard locations
 - Added man page
 
-**Initial version Harel Ben-Attia <harelba@gmail.com> 1.0.0-1**
+**Tue Jan 7 2014 Harel Ben-Attia <harelba@gmail.com> 1.0.0-1**
 - Initial version - tag was needed for homebrew formula
 
 ## Contact

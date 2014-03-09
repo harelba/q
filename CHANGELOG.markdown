@@ -9,15 +9,15 @@
 - More improvements to error reporting
 - Added a test suite, in preparation for refactoring
 - Solves the following bugs/pull-requests:
-  - #7  - Dynamic column count support
-  - #8  - Column name inference from input containing a header row
-  - #9  - Automatic column type inference using sample data
-  - #30 - Header lines option does nothing
-  - #33 - Last column should allow for spaces?
-  - #35 - Add q.bat
-  - #38 - Problem with whitespace delimiter
-  - #43 - using the -t flag stopped the header flag from working
-  - #44 - Space in column name on TAB separated values break q
+  - [#7](../../issues/7)  - Dynamic column count support
+  - [#8](../../issues/8)  - Column name inference from input containing a header row
+  - [#9](../../issues/9)  - Automatic column type inference using sample data
+  - [#30](../../issues/30) - Header lines option does nothing
+  - [#33](../../issues/33) - Last column should allow for spaces?
+  - [#35](../../issues/35) - Add q.bat
+  - [#38](../../issues/38) - Problem with whitespace delimiter
+  - [#43](../../issues/43) - using the -t flag stopped the header flag from working
+  - [#44](../../issues/44) - Space in column name on TAB separated values break q
 - Breaking changes:
   - Changed -H behavior so it's now a flag an not a parameter (1 line always)
   - Removed support for multi-char delimiters

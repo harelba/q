@@ -45,7 +45,11 @@ Debian packaging is in progress.
 Installation instructions can be found [here](INSTALL.markdown)
 
 ## Usage
-q's usage is very simple. More information can be found [here](USAGE.markdown)
+q's basic usage is very simple:`q <flags> <query>`, but it has lots of features under the hood and in the flags that can be passed to the command.
+
+Simplest execution is q "SELECT * FROM myfile" which prints the entire file.
+
+Complete information can be found [here](USAGE.markdown)
 
 ## Implementation
 Some implementation details can be found [here](IMPLEMENTATION.markdown)

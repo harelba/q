@@ -67,8 +67,9 @@ q's usage is very simple. More information can be found [here](USAGE.markdown)
 ## Implementation
 Some implementation details can be found [here](IMPLEMENTATION.markdown)
 
-### Limitations
+## Limitations
 * No checks and bounds on data size
+* Spaces in file names are not supported yet. I'm working on it.
 
 ## Future Ideas
 * Faster reuse of previous data loading

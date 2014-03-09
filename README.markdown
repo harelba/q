@@ -12,34 +12,8 @@ The goal of this tool is to provide a bridge between the world of text files and
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
-## Quick examples for the impatient
+You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
-__Command 1:__
-```bash
-sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-```
-
-__Output 1 (total size per user/group in the /tmp subtree):__
-```bash
-mapred hadoop   304.00390625
-root   root     8.0431451797485
-smith  smith    4.34389972687
-```
-
-__Command 2:__
-The following command _joins_ an ls output (`exampledatafile`) and a file containing rows of **group-name,email**  (`group-emails-example`) and provides a row of **filename,email** for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called `ppp` which is achieved using a WHERE clause.
-```bash
-q "select myfiles.c8,emails.c2 from exampledatafile myfiles join group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = 'ppp'"
-```
-
-__Output 2: (rows of filename,email):__
-```bash
-ppp dip.1@otherdomain.com
-ppp dip.2@otherdomain.com
-```
-
-You can see that the ppp filename appears twice, each time matched to one of the emails of the group `dip` to which it belongs. Take a look at the files [`exampledatafile`](exampledatafile) and [`group-emails-example`](group-emails-example) for the data.
-        
 ## Highlights
 
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
@@ -53,13 +27,13 @@ You can see that the ppp filename appears twice, each time matched to one of the
 * Output beautifier
 * man page when installed through the RPM package
 
+## Examples and Tutorial
+Examples can be found [here](EXAMPLES.markdown)
+
 ## Installation
 Current stable version is `1.3.0`. RPM + Manual installation exist.
 
 Installation instructions can be found [here](INSTALL.markdown)
-
-## Examples and Tutorial
-Some more examples can be found [here](EXAMPLES.markdown)
 
 ## Usage
 q's usage is very simple. More information can be found [here](USAGE.markdown)

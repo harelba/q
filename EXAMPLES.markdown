@@ -77,6 +77,9 @@ Let's postpone the official usage (See below). Look at the examples, and you'll 
    * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
 
+## Installation
+Installation instructions can be found [here](INSATLL.markdown)
+
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 

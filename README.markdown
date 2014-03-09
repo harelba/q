@@ -33,7 +33,9 @@ Quick usage example: ```sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024
 Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
 
 ## Installation
-Current stable version is `1.3.0`. RPM + Manual installation exist.
+Current stable version is `1.3.0`. 
+
+RPM + Manual installation exist. Debian packaging is in progress.
 
 Installation instructions can be found [here](INSTALL.markdown)
 

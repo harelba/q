@@ -58,7 +58,7 @@ Current stable version is `1.3.0`. RPM + Manual installation exist.
 
 Installation instructions can be found [here](INSTALL.markdown)
 
-## Examples
+## Examples and Tutorial
 Some more examples can be found [here](EXAMPLES.markdown)
 
 ## Usage

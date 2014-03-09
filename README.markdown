@@ -56,7 +56,7 @@ You can see that the ppp filename appears twice, each time matched to one of the
 ## Installation
 Current stable version is `1.3.0`. RPM + Manual installation exist.
 
-Installation instructions can be found [here](INSTALLATION.markdown)
+Installation instructions can be found [here](INSTALL.markdown)
 
 ## Examples
 Some more examples can be found [here](EXAMPLES.markdown)

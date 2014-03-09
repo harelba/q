@@ -12,13 +12,11 @@ Just run `brew install q`.
 Thanks @stuartcarnie for the initial homebrew formula
 
 ### RPM-Base Linux distributions
-RPM Releases also contain a man page. Just enter `man q`.
-
-**Latest version `1.3.0`
-
 Download the RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.3.0-1.noarch.rpm)**. 
 
 Install using `rpm -ivh <rpm-name>`.
+
+RPM Releases also contain a man page. Just enter `man q`.
 
 ### Debian-based Linux distributions
 Debian packaing is in progress. In the mean time install manually. See the section below.

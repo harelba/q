@@ -35,14 +35,29 @@ Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
 ## Installation
 Current stable version is `1.3.0`. 
 
-Three installation options:
-* Homebrew for mac
-* RPM
-* Manual installation
+No special requirements other than python >= 2.5 are needed.
 
-Debian packaging is in progress.
+### Mac Users
+Just run `brew install q`. 
 
-Installation instructions can be found [here](INSTALL.markdown)
+Thanks @stuartcarnie for the initial homebrew formula
+
+### Manual installation (very simple, since there are no dependencies)
+
+1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0/q)** into a folder in the PATH.
+2. Make the file executable.
+
+For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.3.0/q.bat)** into the same folder and use it to run q.
+
+### RPM-Base Linux distributions
+Download the RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.3.0-1.noarch.rpm)**. 
+
+Install using `rpm -ivh <rpm-name>`.
+
+RPM Releases also contain a man page. Just enter `man q`.
+
+### Debian-based Linux distributions
+Debian packaing is in progress. In the mean time install manually. See the section below.
 
 ## Usage
 q's basic usage is very simple:`q <flags> <query>`, but it has lots of features under the hood and in the flags that can be passed to the command.

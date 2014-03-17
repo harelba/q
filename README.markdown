@@ -1,5 +1,5 @@
 # q - Text as a Database 
-q allows direct SQL-like queries on text files, including joins and any other SQL construct, and supports automatic detection of column types and names.
+q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files), including joins and any other SQL construct, and supports automatic detection of column types and names.
 
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.

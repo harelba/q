@@ -138,7 +138,8 @@ parser.add_option("-c","--column-count",dest="column_count",default=None,
                 help="Specific column count when using relaxed or strict mode")
 parser.add_option("-k","--keep-leading-whitespace",dest="keep_leading_whitespace_in_values",default=False,action="store_true",
                 help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-
+parser.add_option("-j","--output-header",dest="output_header",default=False,action="store_true",
+                help="Output a header line before the content gets printed, separated by the output delimiter")
 
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None
@@ -153,6 +154,16 @@ class Sqlite3DB(object):
 
 	def add_user_functions(self):
 		self.conn.create_function("regexp", 2, regexp)
+
+	def execute(self,q):
+		try:
+			if self.show_sql:
+				print q
+			self.cursor.execute(q)
+			return self.cursor
+		finally:
+			pass#cursor.close()
+		return None
 
 	def execute_and_fetch(self,q):
 		try:
@@ -316,6 +327,9 @@ class Sql(object):
 		
 	def execute_and_fetch(self,db):
 		return db.execute_and_fetch(self.get_effective_sql())
+
+        def execute(self,db):
+		return db.execute(self.get_effective_sql())
 
 class LineSplitter(object):
 	def __init__(self,delimiter,expected_column_count):
@@ -825,7 +839,7 @@ try:
 		sys.exit(0)
 
 	# Execute the query and fetch the data
-	m = sql_object.execute_and_fetch(db)
+	m = sql_object.execute(db)
 except EmptyDataException:
 	print >>sys.stderr,"Warning - data is empty"
 	sys.exit(0)
@@ -875,6 +889,9 @@ else:
 	formatting_dict = None
 
 try:
+        if(options.output_header):
+            STDOUT.write(output_delimiter.join(map(lambda x: x[0], m.description))+"\n")
+
 	for rownum,row in enumerate(m):
 		row_str = []
 		for i,col in enumerate(row):

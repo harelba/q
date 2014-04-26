@@ -15,6 +15,13 @@ The goal of this tool is to provide a bridge between the world of text files and
 
 You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
+## Examples and Tutorial
+Quick usage example: 
+
+    sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+
+Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
+
 ## Highlights
 
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
@@ -27,11 +34,6 @@ You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting 
 * Output delimiter matching and selection
 * Output beautifier
 * man page when installed through the RPM package
-
-## Examples and Tutorial
-Quick usage example: ```sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"```
-
-Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
 
 ## Installation
 Current stable version is `1.3.0`. 

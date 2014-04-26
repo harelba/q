@@ -17,17 +17,15 @@ root   root     8.0431451797485
 smith  smith    4.34389972687
 ```
 
-__Usage Example 2 with autodetected column names (top 3 user ids with the largest number of owned processes):__
+__Usage Example 2 with autodetected column names (top 3 user ids with the largest number of owned processes, sorted in descending order):__
 
     ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
     
 __Output 2:__
 ```bash
-colord 1
-daemon 1
-harel 118
-lp 1
 root 152
+harel 119
+avahi 2
 ```
 
 A beginner's tutorial can be found [here](EXAMPLES.markdown)

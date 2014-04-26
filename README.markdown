@@ -1,6 +1,37 @@
 # q - Text as a Database 
 q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files), including joins and any other SQL construct, and supports automatic detection of column types and names.
 
+```bash
+"q allows performing SQL-like statements on tabular text data, including joins and subqueries"
+```
+
+## Examples
+__Usage Example 1 (total size per user/group in the /tmp subtree):__
+
+    sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+
+__Output 1:__
+```bash
+mapred hadoop   304.00390625
+root   root     8.0431451797485
+smith  smith    4.34389972687
+```
+
+__Usage Example 2 with autodetected column names (top 3 user ids with the largest number of owned processes):__
+
+    ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
+    
+__Output 2:__
+```bash
+colord 1
+daemon 1
+harel 118
+lp 1
+root 152
+```
+
+A beginner's tutorial can be found [here](EXAMPLES.markdown)
+
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.
 
@@ -8,19 +39,7 @@ SQL is a declarative language for data, and as such it allows me to define what 
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
-
-```bash
-"q allows performing SQL-like statements on tabular text data, including joins and subqueries"
-```
-
 You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
-
-## Examples and Tutorial
-Quick usage example: 
-
-    sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-
-Full examples and a beginner's tutorial can be found [here](EXAMPLES.markdown)
 
 ## Highlights
 

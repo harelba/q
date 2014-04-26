@@ -17,7 +17,9 @@ root   root     8.0431451797485
 smith  smith    4.34389972687
 ```
 
-__Usage Example 2 with autodetected column names (top 3 user ids with the largest number of owned processes, sorted in descending order):__
+__Usage Example 2 (top 3 user ids with the largest number of owned processes, sorted in descending order):__
+
+Note the usage of the autodetected column name UID in the query.
 
     ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
     

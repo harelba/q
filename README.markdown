@@ -5,6 +5,19 @@ q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files)
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
+## Highlights
+
+* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+* Automatic column name and column type detection (Allows working more naturally with the data)
+* Multiple parsing modes - relaxed and strict. Relaxed mode allows to easily parse semi-structured data, such as log files.
+* Standard installation - RPM, Homebrew (Mac). Debian package coming soon.
+* Support for quoted fields 
+* Full UTF-8 support (and other encodings)
+* Handling of gzipped files
+* Output delimiter matching and selection
+* Output beautifier
+* man page when installed through the RPM package
+
 ## Examples
 __Usage Example 1 (total size per user/group in the /tmp subtree):__
 
@@ -32,28 +45,6 @@ avahi 2
 
 A beginner's tutorial can be found [here](EXAMPLES.markdown)
 
-## Overview
-Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.
-
-SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).
-
-The goal of this tool is to provide a bridge between the world of text files and of SQL.
-
-You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
-
-## Highlights
-
-* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
-* Automatic column name and column type detection (Allows working more naturally with the data)
-* Multiple parsing modes - relaxed and strict. Relaxed mode allows to easily parse semi-structured data, such as log files.
-* Standard installation - RPM, Homebrew (Mac). Debian package coming soon.
-* Support for quoted fields 
-* Full UTF-8 support (and other encodings)
-* Handling of gzipped files
-* Output delimiter matching and selection
-* Output beautifier
-* man page when installed through the RPM package
-
 ## Installation
 Current stable version is `1.3.0`. 
 
@@ -80,6 +71,15 @@ RPM Releases also contain a man page. Just enter `man q`.
 
 ### Debian-based Linux distributions
 Debian packaing is in progress. In the mean time install manually. See the section below.
+
+## Overview
+Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.
+
+SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).
+
+The goal of this tool is to provide a bridge between the world of text files and of SQL.
+
+You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
 ## Usage
 q's basic usage is very simple:`q <flags> <query>`, but it has lots of features under the hood and in the flags that can be passed to the command.

@@ -94,13 +94,13 @@ Some implementation details can be found [here](IMPLEMENTATION.markdown)
 ## Limitations
 * No checks and bounds on data size
 * Spaces in file names are not supported yet. I'm working on it.
+* It is possible that some rare cases of subqueries are not supported yet. Please open an issue if you find such a case. This will be fixed once the tool performs its own full-blown SQL parsing.
 
 ## Future Ideas
 * Faster reuse of previous data loading
 * Allow working with external DB
 * Real parsing of the SQL, allowing smarter execution of queries.
 * Smarter batch insertion to the database
-* Full Subquery support (will be possible once real SQL parsing is performed)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
 
 ## Rationale

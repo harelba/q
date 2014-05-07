@@ -154,6 +154,14 @@ class Sqlite3DB(object):
 	def add_user_functions(self):
 		self.conn.create_function("regexp", 2, regexp)
 
+	def update_many(self, sql, params):
+		try:
+			if self.show_sql:
+				print sql
+			self.cursor.executemany(sql, params)
+		finally:
+			pass#cursor.close()
+
 	def execute_and_fetch(self,q):
 		try:
 			if self.show_sql:
@@ -183,10 +191,10 @@ class Sqlite3DB(object):
 			result.append(col_val)
 		return ",".join(result)
 			
-	def generate_insert_row(self,table_name,column_names,column_types,col_vals):
+	def generate_insert_row(self,table_name,column_names):
 		col_names_str = self._get_as_list_str(column_names)
-		col_vals_str = self._get_col_values_as_list_str(col_vals,column_types)
-		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name,col_names_str,col_vals_str)
+		question_marks = ", ".join(["?" for i in range(0, len(column_names))])
+		return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name,col_names_str,question_marks)
 
 	def generate_begin_transaction(self):
 		return "BEGIN TRANSACTION"
@@ -684,7 +692,7 @@ class TableCreator(object):
 		else:
 			self.buffered_inserts.append((["c1"],[""]))
 
-		if len(self.buffered_inserts) < 1000:
+		if len(self.buffered_inserts) < 5000:
 			return
 		self._flush_inserts()
 
@@ -695,12 +703,10 @@ class TableCreator(object):
 		if not self.table_created:
 			return
 
-		col_types = self.column_inferer.get_column_types()
+		insert_row_stmt = self.db.generate_insert_row(self.table_name,self.buffered_inserts[0][0])
+		params = [col_vals for col_names, col_vals in self.buffered_inserts]
 
-		for col_names,col_vals in self.buffered_inserts:
-			insert_row_stmt = self.db.generate_insert_row(self.table_name,col_names,col_types,col_vals)
-			self.db.execute_and_fetch(insert_row_stmt)
-
+		self.db.update_many(insert_row_stmt, params)
 		#print self.db.execute_and_fetch(self.db.generate_end_transaction())
 		self.buffered_inserts = []
 

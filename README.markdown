@@ -1,4 +1,4 @@
-# q - Text as a Database 
+# q - Text as Data
 q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files), including joins and any other SQL construct, and supports automatic detection of column types and names.
 
 ```bash

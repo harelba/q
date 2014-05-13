@@ -655,6 +655,7 @@ class TableCreator(object):
 		self._insert_row_i(col_vals)
 
 	def normalize_col_vals(self,col_vals):
+		col_vals = map(lambda val: None if val == '' else val, col_vals)
 		expected_col_count = self.column_inferer.get_column_count()
 		actual_col_count = len(col_vals)
 		if self.mode == 'strict':

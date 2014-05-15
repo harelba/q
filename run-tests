@@ -50,7 +50,9 @@ find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 1
 
 header_row = 'name,value1,value2'
 sample_data_rows = ['a,1,0','b,2,0','c,,0']
+sample_data_rows_with_empty_string = ['a,aaa,0','b,bbb,0','c,,0']
 sample_data_no_header = "\n".join(sample_data_rows) + "\n"
+sample_data_with_empty_string_no_header = "\n".join(sample_data_rows_with_empty_string) + "\n"
 sample_data_with_header = header_row + "\n" + sample_data_no_header
 sample_data_with_missing_header_names = "name,value1\n" + sample_data_no_header
 
@@ -497,6 +499,32 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
 
         self.assertEquals(o[0],'1.5')
+
+        self.cleanup(tmpfile)
+
+    def test_empty_integer_values_converted_to_null(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , "select * from %s where c2 is null"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),1)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'c,,0')
+
+        self.cleanup(tmpfile)
+
+    def test_empty_string_values_not_converted_to_null(self):
+        tmpfile = self.create_file_with_data(sample_data_with_empty_string_no_header)
+        cmd = './q -d , "select * from %s where c2 == %s"' % (tmpfile.name,"''")
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),1)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],'c,,0')
 
         self.cleanup(tmpfile)
     

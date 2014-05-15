@@ -32,7 +32,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.3.0"
+q_version = "1.4.0" #Not released yet
 
 import os,sys
 import random
@@ -149,10 +149,14 @@ class Sqlite3DB(object):
 		self.conn = sqlite3.connect(':memory:')
 		self.cursor = self.conn.cursor()
 		self.type_names = { str : 'TEXT' , int : 'INT' , float : 'FLOAT' , None : 'TEXT' }
+		self.numeric_column_types = set([int,float])
 		self.add_user_functions()
 
 	def add_user_functions(self):
 		self.conn.create_function("regexp", 2, regexp)
+
+	def is_numeric_type(self,column_type):
+		return column_type in self.numeric_column_types
 
 	def update_many(self, sql, params):
 		try:
@@ -577,6 +581,10 @@ class TableCreator(object):
 		self.pre_creation_rows = []
 		self.buffered_inserts = []
 
+		# Column type indices for columns that contain numeric types. Lazily initialized
+		# so column inferer can do its work before this information is needed
+		self.numeric_column_indices = None
+
 	def get_table_name(self):
 		return self.table_name
 
@@ -654,7 +662,26 @@ class TableCreator(object):
 		# The table already exists, so we can just add a new row
 		self._insert_row_i(col_vals)
 
+	def initialize_numeric_column_indices_if_needed(self):
+		# Lazy initialization of numeric column indices
+		if self.numeric_column_indices is None:
+			column_types = self.column_inferer.get_column_types()
+			self.numeric_column_indices = [idx for idx,column_type in enumerate(column_types) if self.db.is_numeric_type(column_type)]
+
+	def nullify_values_if_needed(self,col_vals):
+		new_vals = col_vals[:]
+		for i in self.numeric_column_indices:
+			v = col_vals[i]
+			if v == '':
+				new_vals[i] = None
+		return new_vals
+
 	def normalize_col_vals(self,col_vals):
+		# Make sure that numeric column indices are initializd
+		self.initialize_numeric_column_indices_if_needed()
+
+		col_vals = self.nullify_values_if_needed(col_vals)
+
 		expected_col_count = self.column_inferer.get_column_count()
 		actual_col_count = len(col_vals)
 		if self.mode == 'strict':

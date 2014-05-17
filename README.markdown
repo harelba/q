@@ -42,7 +42,7 @@ f6de737b5aa2c46a3db3208413a54d64	0.986665809568
 
 __Example 3:__
 
-    q -t -H "select strftime('%H:%M',date_time),count(*) from ./clicks.csv group by strftime('%H:%M',date_time)"
+    q -t -H "select strftime('%H:%M',date_time) hour_and_minute,count(*) from ./clicks.csv group by hour_and_minute"
 
 __Output 3:__
 ```bash

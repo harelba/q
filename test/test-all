@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -e
+
+function return_to_original_folder() {
+	popd
+}
+trap return_to_original_folder EXIT
+
+pushd $(dirname $0)/
+
+./test-suite
+
+set +e

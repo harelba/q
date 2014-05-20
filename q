@@ -122,6 +122,8 @@ parser.add_option("-D","--output-delimiter",dest="output_delimiter",default=defa
                 help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
 parser.add_option("-t","--tab-delimited",dest="tab_delimited",default=False,action="store_true",
                 help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file. You can use -d $'\t' if you want.")
+parser.add_option("-T","--tab-delimited-output",dest="tab_delimited_output",default=False,action="store_true",
+                help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\t' if you want.")
 parser.add_option("-H","--skip-header",dest="skip_header",default=default_skip_header,action="store_true",
                 help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
 parser.add_option("-f","--formatting",dest="formatting",default=default_formatting,
@@ -801,6 +803,9 @@ sql_object = Sql('%s' % args[0])
 # If the user flagged for a tab-delimited file then set the delimiter to tab
 if options.tab_delimited:
 	options.delimiter = '\t'
+
+if options.tab_delimited_output:
+	options.output_delimiter = '\t'
 
 if options.delimiter is None:
 	options.delimiter = ' '

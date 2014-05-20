@@ -149,6 +149,20 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_tab_delimition_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header.replace(",","\t"))
+        cmd = './q -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+	
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+        self.assertEquals(o[0],sample_data_rows[0].replace(",","\t"))
+        self.assertEquals(o[1],sample_data_rows[1].replace(",","\t"))
+        self.assertEquals(o[2],sample_data_rows[2].replace(",","\t"))
+
+        self.cleanup(tmpfile)
+
     def test_output_delimiter(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
         cmd = './q -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
@@ -161,6 +175,36 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0],sample_data_rows[0].replace(",","|"))
         self.assertEquals(o[1],sample_data_rows[1].replace(",","|"))
         self.assertEquals(o[2],sample_data_rows[2].replace(",","|"))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_tab_parameter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],sample_data_rows[0].replace(",","\t"))
+        self.assertEquals(o[1],sample_data_rows[1].replace(",","\t"))
+        self.assertEquals(o[2],sample_data_rows[2].replace(",","\t"))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_tab_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = './q -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode,o,e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),3)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0],sample_data_rows[0].replace(",","\t"))
+        self.assertEquals(o[1],sample_data_rows[1].replace(",","\t"))
+        self.assertEquals(o[2],sample_data_rows[2].replace(",","\t"))
 
         self.cleanup(tmpfile)
 

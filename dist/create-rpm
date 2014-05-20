@@ -12,6 +12,10 @@
 # Output rpm is generated inside build/rpm/RPMS/noarch/
 #
 
+echo Broken for now - fixing for version 1.4.0
+
+exit 5
+
 if [ $# -ne 1 ];
 then
 	echo 'create-rpm <version>'
@@ -40,6 +44,8 @@ ronn ${REAL_PACKAGE_NAME}.manpage.1.ronn
 rm ${REAL_PACKAGE_NAME}.1.html
 
 cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$1/" > ${RPM_PACKAGE_NAME}.spec
+
+wget "https://github.com/harelba/${REAL_PACKAGE_NAME}/archive/${VERSION}.tar.gz"
 
 tar --create --transform s,^,${RPM_PACKAGE_NAME}-$1/, --exclude ${RPM_PACKAGE_NAME}.spec.template -f ${TAR_NAME} *
 

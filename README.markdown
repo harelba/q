@@ -127,10 +127,10 @@ q's basic usage is very simple:`q <flags> <query>`, but it has lots of features 
 
 Simplest execution is q "SELECT * FROM myfile" which prints the entire file.
 
-Complete information can be found [here](USAGE.markdown)
+Complete information can be found [here](doc/USAGE.markdown)
 
 ## Implementation
-Some implementation details can be found [here](IMPLEMENTATION.markdown)
+Some implementation details can be found [here](doc/IMPLEMENTATION.markdown)
 
 ## Limitations
 * No checks and bounds on data size
@@ -145,10 +145,10 @@ Some implementation details can be found [here](IMPLEMENTATION.markdown)
 * Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.
 
 ## Rationale
-Some information regarding the rationale for this tool and related philosophy can be found [here](RATIONALE.markdown)
+Some information regarding the rationale for this tool and related philosophy can be found [here](doc/RATIONALE.markdown)
 
 ## Change log
-History of changes can be found [here](CHANGELOG.markdown)
+History of changes can be found [here](doc/CHANGELOG.markdown)
 
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.

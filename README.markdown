@@ -13,6 +13,10 @@ Main features:
 
 Please download the official `1.3.0` below according to instructions. Version `1.4.0` will be out soon.
 
+I would love to get any requests and comments you have on the tool.
+
+You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
+
 ## Examples
 __Example 1:__
 
@@ -114,8 +118,6 @@ Have you ever stared at a text file on the screen, hoping it would have been a d
 SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).
 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
-
-You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
 ## Usage
 q's basic usage is very simple:`q <flags> <query>`, but it has lots of features under the hood and in the flags that can be passed to the command.

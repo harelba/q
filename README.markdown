@@ -79,7 +79,7 @@ harel 119
 avahi 2
 ```
 
-A beginner's tutorial can be found [here](EXAMPLES.markdown)
+A beginner's tutorial can be found [here](examples/EXAMPLES.markdown)
 
 ## Installation
 Current stable version is `1.3.0`. 

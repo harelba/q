@@ -84,7 +84,7 @@ A beginner's tutorial can be found [here](examples/EXAMPLES.markdown)
 ## Installation
 Current stable version is `1.3.0`. 
 
-No special requirements other than python >= 2.5 are needed.
+No special requirements other than python >= 2.5 are needed. Python 3.x is not supported for now.
 
 ### Mac Users
 Just run `brew install q`. 

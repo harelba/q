@@ -10,6 +10,10 @@ Please make sure to read the limitations section as well.
 
 Code wise, I'm planning for a big refactoring, and I have added full test suite in the latest version, so it'll be easier to do properly.
 
+## Tests
+
+The code includes a test suite runnable through `test/test-all`. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. Additional ideas related to testing are most welcome.
+
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 

@@ -5,18 +5,13 @@ q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files)
 "q allows performing SQL-like statements on tabular text data, including joins and subqueries"
 ```
 
-## Highlights
-
-* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+Main features:
 * Automatic column name and column type detection (Allows working more naturally with the data)
-* Multiple parsing modes - relaxed and strict. Relaxed mode allows to easily parse semi-structured data, such as log files.
-* Standard installation - RPM, Homebrew (Mac). Debian package coming soon.
-* Support for quoted fields 
-* Full UTF-8 support (and other encodings)
-* Handling of gzipped files
-* Output delimiter matching and selection
-* Output beautifier
-* man page when installed through the RPM package
+* Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
+* Support for quoted fields
+* Full encoding support, including UTF-8
+
+Please download the official `1.3.0` below according to instructions. Version `1.4.0` will be out soon.
 
 ## Examples
 __Example 1:__

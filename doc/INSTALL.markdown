@@ -1,7 +1,7 @@
 # q - Treating Text as a Database 
 
 ## Requirements
-* Just Python 2.5 and up or Python 2.4 with sqlite3 module installed.
+* Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
 
 ## Installation
 Current stable release is `1.3.0`.

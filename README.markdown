@@ -88,7 +88,7 @@ A beginner's tutorial can be found [here](examples/EXAMPLES.markdown)
 ## Installation
 Current stable version is `1.3.0`. 
 
-Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
+Requirements: Python 3.x 
 
 ### Mac Users
 Just run `brew install q`. 

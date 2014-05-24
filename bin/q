@@ -41,7 +41,7 @@ import codecs
 import locale
 import time
 import re
-from configparser import ConfigParser
+from ConfigParser import ConfigParser
 import traceback
 import csv
 import uuid
@@ -166,7 +166,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print(sql)
+                print sql
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()
@@ -174,7 +174,7 @@ class Sqlite3DB(object):
     def execute_and_fetch(self, q):
         try:
             if self.show_sql:
-                print(q)
+                print q
             self.cursor.execute(q)
             result = self.cursor.fetchall()
         finally:
@@ -216,13 +216,13 @@ class Sqlite3DB(object):
     def generate_create_table(self, table_name, column_names, column_dict):
         # Convert dict from python types to db types
         column_name_to_db_type = dict(
-            (n, self.type_names[t]) for n, t in column_dict.items())
+            (n, self.type_names[t]) for n, t in column_dict.iteritems())
         column_defs = ','.join(['"%s" %s' % (
             n.replace('"', '""'), column_name_to_db_type[n]) for n in column_names])
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
     def generate_temp_table_name(self):
-        return "temp_table_%s" % uuid.uuid4().__str__().replace("-", "")
+        return "temp_table_%s" % str(uuid.uuid4()).replace("-", "")
 
     def generate_drop_table(self, table_name):
         return "DROP TABLE %s" % table_name
@@ -335,12 +335,12 @@ class Sql(object):
             qtable_name] = effective_table_name
 
     def get_effective_sql(self):
-        if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
+        if len(filter(lambda x: x is None, self.qtable_name_effective_table_names)) != 0:
             raise Exception('There are qtables without effective tables')
 
         effective_sql = [x for x in self.sql_parts]
 
-        for qtable_name, positions in self.qtable_name_positions.items():
+        for qtable_name, positions in self.qtable_name_positions.iteritems():
             for pos in positions:
                 effective_sql[pos] = self.qtable_name_effective_table_names[
                     qtable_name]
@@ -449,7 +449,7 @@ class TableColumnInferer(object):
             raise Exception('Unknown parsing mode %s' % self.mode)
 
         if self.column_count == 1:
-            print("Warning: column count is one - did you provide the correct delimiter?", file=sys.stderr)
+            print >>sys.stderr, "Warning: column count is one - did you provide the correct delimiter?"
         if self.column_count == 0:
             raise Exception("Detected a column count of zero... Failing")
 
@@ -512,7 +512,7 @@ class TableColumnInferer(object):
                     # in relaxed mode, add columns to fill the missing ones
                     self.header_row = self.header_row + \
                         ['c%s' % (x + len(self.header_row) + 1)
-                         for x in range(self.column_count - len(self.header_row))]
+                         for x in xrange(self.column_count - len(self.header_row))]
             elif len(self.header_row) > self.column_count:
                 if self.mode == 'strict':
                     raise ColumnCountMismatchException("Strict mode. Header row contains more columns than expected column count (%s vs %s)" % (
@@ -539,7 +539,7 @@ class TableColumnInferer(object):
         counts = {}
         for column_count in column_count_list:
             counts[column_count] = counts.get(column_count, 0) + 1
-        return ", ".join(["%s rows with %s columns" % (v, k) for k, v in counts.items()])
+        return ", ".join(["%s rows with %s columns" % (v, k) for k, v in counts.iteritems()])
 
     def _do_strict_analysis(self):
         column_count_list = [len(col_vals) for col_vals in self.rows]
@@ -559,7 +559,7 @@ class TableColumnInferer(object):
     def infer_column_types(self):
         self.column_types = []
         self.column_types2 = []
-        for column_number in range(self.column_count):
+        for column_number in xrange(self.column_count):
             column_value_list = [
                 row[column_number] if column_number < len(row) else None for row in self.rows]
             column_type = self.determine_type_of_value_list(column_value_list)
@@ -576,7 +576,7 @@ class TableColumnInferer(object):
         if False in comparison and not self.skip_header:
             number_of_column_types = len(set(self.column_types))
             if number_of_column_types == 1 and list(set(self.column_types))[0] == str:
-                print('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data', file=sys.stderr)
+                print >>sys.stderr, 'Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'
 
     def get_column_dict(self):
         return dict(zip(self.column_names, self.column_types))
@@ -595,7 +595,7 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
     csv_reader = csv.reader(f, dialect, **kwargs)
     if encoding is not None and encoding != 'none':
         for row in csv_reader:
-            yield [x for x in row]
+            yield [unicode(x, encoding) for x in row]
     else:
         for row in csv_reader:
             yield row
@@ -663,7 +663,7 @@ class TableCreator(object):
                 if filename == '-':
                     f = sys.stdin
                 else:
-                    f = open(filename, 'rt')
+                    f = file(filename, 'rb')
 
                 # Wrap it with gzip decompression if needed
                 if self.gzipped or filename.endswith('.gz'):
@@ -746,7 +746,7 @@ class TableCreator(object):
 
         if actual_col_count < expected_col_count:
             col_vals = col_vals + \
-                [None for x in range(expected_col_count - actual_col_count)]
+                [None for x in xrange(expected_col_count - actual_col_count)]
 
         # in relaxed mode, we merge all extra columns to the last column value
         if self.mode == 'relaxed':
@@ -829,10 +829,10 @@ class TableCreator(object):
 def determine_max_col_lengths(m):
     if len(m) == 0:
         return []
-    max_lengths = [0 for x in range(0, len(m[0]))]
-    for row_index in range(0, len(m)):
-        for col_index in range(0, len(m[0])):
-            new_len = len(m[row_index][col_index])
+    max_lengths = [0 for x in xrange(0, len(m[0]))]
+    for row_index in xrange(0, len(m)):
+        for col_index in xrange(0, len(m[0])):
+            new_len = len(unicode(m[row_index][col_index]))
             if new_len > max_lengths[col_index]:
                 max_lengths[col_index] = new_len
     return max_lengths
@@ -840,7 +840,7 @@ def determine_max_col_lengths(m):
 (options, args) = parser.parse_args()
 
 if options.version:
-    print("q version %s" % q_version)
+    print "q version %s" % q_version
     sys.exit(0)
 
 if len(args) != 1:
@@ -848,7 +848,7 @@ if len(args) != 1:
     sys.exit(1)
 
 if options.mode not in ['fluffy', 'relaxed', 'strict']:
-    print("Parsing mode can be one of fluffy, relaxed or strict", file=sys.stderr)
+    print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
     sys.exit(13)
 
 # Create DB object
@@ -867,7 +867,7 @@ if options.tab_delimited_output:
 if options.delimiter is None:
     options.delimiter = ' '
 elif len(options.delimiter) != 1:
-    print("Delimiter must be one character only", file=sys.stderr)
+    print >>sys.stderr, "Delimiter must be one character only"
     sys.exit(5)
 
 if options.keep_leading_whitespace_in_values:
@@ -893,7 +893,7 @@ if options.encoding != 'none':
     try:
         codecs.lookup(options.encoding)
     except LookupError:
-        print("Encoding %s could not be found" % options.encoding, file=sys.stderr)
+        print >>sys.stderr, "Encoding %s could not be found" % options.encoding
         sys.exit(10)
 
 try:
@@ -907,8 +907,8 @@ try:
         table_creator.populate(options.analyze_only)
         table_creators.append(table_creator)
         if DEBUG:
-            print("TIMING - populate time is %4.3f" % (
-                time.time() - start_time), file=sys.stderr)
+            print >>sys.stderr, "TIMING - populate time is %4.3f" % (
+                time.time() - start_time)
 
         # Replace the logical table name with the real table name
         sql_object.set_effective_table_name(filename, table_creator.table_name)
@@ -916,37 +916,37 @@ try:
     if options.analyze_only:
         for table_creator in table_creators:
             column_names = table_creator.column_inferer.get_column_names()
-            print("Table for file: %s" % normalized_filename(table_creator.filenames_str))
+            print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
             for k in column_names:
                 column_type = table_creator.column_inferer.get_column_dict()[k]
-                print("  `%s` - %s" % (k, db.type_names[column_type].lower()))
+                print "  `%s` - %s" % (k, db.type_names[column_type].lower())
         sys.exit(0)
 
     # Execute the query and fetch the data
     m = sql_object.execute_and_fetch(db)
 except EmptyDataException:
-    print("Warning - data is empty", file=sys.stderr)
+    print >>sys.stderr, "Warning - data is empty"
     sys.exit(0)
-except FileNotFoundException as e:
-    print(e.msg, file=sys.stderr)
+except FileNotFoundException, e:
+    print >>sys.stderr, e.msg
     sys.exit(30)
-except sqlite3.OperationalError as e:
+except sqlite3.OperationalError, e:
     msg = str(e)
-    print("query error: %s" % msg, file=sys.stderr)
+    print >>sys.stderr, "query error: %s" % msg
     if "no such column" in msg and options.skip_header:
-        print('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names', file=sys.stderr)
+        print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
     sys.exit(1)
-except ColumnCountMismatchException as e:
-    print(e.msg, file=sys.stderr)
+except ColumnCountMismatchException, e:
+    print >>sys.stderr, e.msg
     sys.exit(2)
-except (UnicodeDecodeError, UnicodeError) as e:
-    print("Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e, file=sys.stderr)
+except (UnicodeDecodeError, UnicodeError), e:
+    print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
     sys.exit(3)
-except BadHeaderException as e:
-    print("Bad header row: %s" % e.msg, file=sys.stderr)
+except BadHeaderException, e:
+    print >>sys.stderr, "Bad header row: %s" % e.msg
     sys.exit(35)
 except KeyboardInterrupt:
-    print("Interrupted", file=sys.stderr)
+    print >>sys.stderr, "Interrupted"
     sys.exit(0)
 
 
@@ -992,7 +992,7 @@ try:
                 row_str.append(fmt_str % "")
 
         STDOUT.write(output_delimiter.join(row_str) + "\n")
-except IOError as e:
+except IOError, e:
     if e.errno == 32:
         # broken pipe, that's ok
         pass
@@ -1005,7 +1005,7 @@ except KeyboardInterrupt:
 try:
     # Prevent python bug when order of pipe shutdowns is reversed
     sys.stdout.flush()
-except IOError as e:
+except IOError, e:
     pass
 
 

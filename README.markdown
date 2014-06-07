@@ -11,7 +11,15 @@ Main features:
 * Support for quoted fields
 * Full encoding support, including UTF-8
 
-Please download the official `1.3.0` below according to instructions. Version `1.4.0` will be out soon.
+Please download the official `1.3.0` below according to instructions. 
+
+Version `1.4.0` is now in beta and will be the official version soon. It contains the following:
+* 2.5x speed increase for large files - Thanks @Gasol !
+* Output header support (based on the query's SELECTed columns/aliases)
+* Additional control over query and output encodings
+* Bug fixes
+
+If you want to download the new version, just download the main q executable from the master branch.
 
 I would love to get any requests and comments you have on the tool.
 

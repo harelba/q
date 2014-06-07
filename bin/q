@@ -152,8 +152,8 @@ class Sqlite3DB(object):
         self.conn = sqlite3.connect(':memory:')
         self.cursor = self.conn.cursor()
         self.type_names = {
-            str: 'TEXT', int: 'INT', float: 'FLOAT', None: 'TEXT'}
-        self.numeric_column_types = set([int, float])
+            str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
+        self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
     def add_user_functions(self):

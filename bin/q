@@ -44,6 +44,7 @@ import re
 from ConfigParser import ConfigParser
 import traceback
 import csv
+import uuid
 
 DEBUG = False
 
@@ -232,7 +233,7 @@ class Sqlite3DB(object):
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
     def generate_temp_table_name(self):
-        return "temp_table_%s" % random.randint(0, 1000000000)
+        return "temp_table_%s" % str(uuid.uuid4()).replace("-", "")
 
     def generate_drop_table(self, table_name):
         return "DROP TABLE %s" % table_name

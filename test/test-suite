@@ -330,6 +330,20 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_output_header_when_input_header_exists(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = '../bin/q -d , "select name from %s" -H -O' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 4)
+        self.assertEquals(o[0],'name')
+        self.assertEquals(o[1],'a')
+        self.assertEquals(o[2],'b')
+        self.assertEquals(o[3],'c')
+
+        self.cleanup(tmpfile)
+
     def test_generated_column_name_warning_when_header_line_exists(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
         cmd = '../bin/q -d , "select c3 from %s" -H' % tmpfile.name
@@ -554,6 +568,25 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),1)
 
         self.assertTrue(e[0].startswith('Could not decode query using the provided query encoding'))
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_output_header_with_non_ascii_names(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select name,'Hr\xc3\xa1\xc4\x8d' Hr\xc3\xa1\xc4\x8d from %s" % tmp_data_file.name,encoding=None)
+
+        cmd = '../bin/q -d , -q %s -H -Q utf-8 -O' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(o),4)
+        self.assertEquals(len(e),0)
+
+        self.assertEquals(o[0].decode(SYSTEM_ENCODING), u'name,Hr\xe1\u010d')
+        self.assertEquals(o[1].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEquals(o[2].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEquals(o[3].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -907,6 +940,16 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(o[0], 'ppp dip.1@otherdomain.com')
         self.assertEquals(o[1], 'ppp dip.2@otherdomain.com')
 
+    def test_join_example_with_output_header(self):
+        cmd = '../bin/q -O "select myfiles.c8 aaa,emails.c2 bbb from ../examples/exampledatafile myfiles join ../examples/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 3)
+
+        self.assertEquals(o[0], 'aaa bbb')
+        self.assertEquals(o[1], 'ppp dip.1@otherdomain.com')
+        self.assertEquals(o[2], 'ppp dip.2@otherdomain.com')
 
 def suite():
     tl = unittest.TestLoader()

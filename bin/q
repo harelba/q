@@ -87,6 +87,7 @@ default_formatting = get_option_with_default(p, 'string', 'formatting', None)
 default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
 default_output_encoding = get_option_with_default(p, 'string', 'encoding', None)
 default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+default_output_header = get_option_with_default(p, 'string', 'output_header', False)
 
 parser = OptionParser(usage="""
 	q allows performing SQL-like statements on tabular text data.
@@ -130,6 +131,7 @@ parser.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", d
                   help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\t' if you want.")
 parser.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
                   help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
+parser.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
 parser.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
                   help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
 parser.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
@@ -155,6 +157,10 @@ parser.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespa
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None
 
+class Sqlite3DBResults(object):
+    def __init__(self,query_column_names,results):
+        self.query_column_names = query_column_names
+        self.results = results
 
 class Sqlite3DB(object):
 
@@ -184,12 +190,17 @@ class Sqlite3DB(object):
     def execute_and_fetch(self, q):
         try:
             if self.show_sql:
-                print q
+                print repr(q)
             self.cursor.execute(q)
+            if self.cursor.description is not None:
+                # we decode the column names, so they can be encoded to any output format later on
+                query_column_names = [c[0].decode('utf-8') for c in self.cursor.description]
+            else:
+                query_column_names = None
             result = self.cursor.fetchall()
         finally:
             pass  # cursor.close()
-        return result
+        return Sqlite3DBResults(query_column_names,result)
 
     def _get_as_list_str(self, l):
         return ",".join(['"%s"' % x.replace('"', '""') for x in l])
@@ -299,6 +310,8 @@ class Sql(object):
         # names
         self.qtable_name_effective_table_names = {}
 
+        self.query_column_names = None
+
         # Go over all sql parts
         idx = 0
         while idx < len(self.sql_parts):
@@ -358,7 +371,8 @@ class Sql(object):
         return " ".join(effective_sql)
 
     def execute_and_fetch(self, db):
-        return db.execute_and_fetch(self.get_effective_sql())
+        db_results_obj = db.execute_and_fetch(self.get_effective_sql())
+        return db_results_obj
 
 
 class LineSplitter(object):
@@ -971,7 +985,9 @@ try:
         sys.exit(0)
 
     # Execute the query and fetch the data
-    m = sql_object.execute_and_fetch(db)
+    db_results_obj = sql_object.execute_and_fetch(db)
+    m = db_results_obj.results
+    output_column_name_list = db_results_obj.query_column_names
 except EmptyDataException:
     print >>sys.stderr, "Warning - data is empty"
     sys.exit(0)
@@ -1023,6 +1039,8 @@ else:
     formatting_dict = None
 
 try:
+    if options.output_header and output_column_name_list is not None:
+        m.insert(0,output_column_name_list)
     for rownum, row in enumerate(m):
         row_str = []
         for i, col in enumerate(row):

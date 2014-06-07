@@ -17,7 +17,11 @@ import sys
 import os
 import time
 from tempfile import NamedTemporaryFile
+import locale
 
+# q uses this encoding as the default output encoding. Some of the tests use it in order to 
+# make sure that the output is correctly encoded
+SYSTEM_ENCODING = locale.getpreferredencoding()
 
 def run_command(cmd_to_run):
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
@@ -77,6 +81,9 @@ header_row_with_spaces = 'name,value 1,value2'
 sample_data_with_spaces_with_header = header_row_with_spaces + \
     "\n" + sample_data_with_spaces_no_header
 
+long_value1 = "23683289372328372328373"
+int_value = "2328372328373"
+sample_data_with_long_values = "%s\n%s\n%s" % (long_value1,int_value,int_value)
 
 def one_column_warning(e):
     return e[0].startswith('Warning: column count is one')
@@ -421,6 +428,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[1], 'b')
         self.assertEquals(o[2], 'c')
 
+        self.cleanup(tmpfile)
+
     def test_keep_leading_whitespace_in_values(self):
         tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
         cmd = '../bin/q -d , "select c1 from %s" -k' % tmpfile.name
@@ -433,6 +442,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0], 'a')
         self.assertEquals(o[1], '   b')
         self.assertEquals(o[2], 'c')
+
+        self.cleanup(tmpfile)
 
     def test_no_impact_of_keeping_leading_whitespace_on_integers(self):
         tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
@@ -448,6 +459,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[2].strip(), '`c2` - int')
         self.assertEquals(o[3].strip(), '`c3` - int')
 
+        self.cleanup(tmpfile)
+
     def test_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
             header_row_with_spaces + "\n" + sample_data_no_header)
@@ -461,6 +474,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0], 'a,1')
         self.assertEquals(o[1], 'b,2')
         self.assertEquals(o[2], 'c,')
+
+        self.cleanup(tmpfile)
 
     def test_column_analysis_for_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
@@ -476,6 +491,168 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[1].strip(), '`name` - text')
         self.assertEquals(o[2].strip(), '`value 1` - int')
         self.assertEquals(o[3].strip(), '`value2` - int')
+
+        self.cleanup(tmpfile)
+
+    def test_no_query_in_command_line(self):
+        cmd = '../bin/q -d , ""'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertEquals(e[0],'Query cannot be empty')
+
+    def test_empty_query_in_command_line(self):
+        cmd = '../bin/q -d , "  "'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertEquals(e[0],'Query cannot be empty')
+
+    def test_too_many_command_line_parameters(self):
+        cmd = '../bin/q -d , select *'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertTrue(e[0].startswith('Must provide query as one parameter'))
+
+    def test_use_query_file(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select name from %s" % tmp_data_file.name)
+
+        cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 3)
+
+        self.assertEquals(o[0], 'a')
+        self.assertEquals(o[1], 'b')
+        self.assertEquals(o[2], 'c')
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_use_query_file_with_incorrect_query_encoding(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+
+        cmd = '../bin/q -d , -q %s -H -Q ascii' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,3)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+
+        self.assertTrue(e[0].startswith('Could not decode query using the provided query encoding'))
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_use_query_file_with_query_encoding(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+
+        cmd = '../bin/q -d , -q %s -H -Q utf-8' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 3)
+
+        self.assertEquals(o[0].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEquals(o[1].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEquals(o[2].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_use_query_file_and_command_line(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select name from %s" % tmp_data_file.name)
+
+        cmd = '../bin/q -d , -q %s -H "select * from ppp"' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertTrue(e[0].startswith("Can't provide both a query file and a query on the command line"))
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_select_output_encoding(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+
+        for target_encoding in ['utf-8','ibm852']:
+            cmd = '../bin/q -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,target_encoding)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEquals(retcode, 0)
+            self.assertEquals(len(e), 0)
+            self.assertEquals(len(o), 3)
+
+            self.assertEquals(o[0].decode(target_encoding), u'Hr\xe1\u010d')
+            self.assertEquals(o[1].decode(target_encoding), u'Hr\xe1\u010d')
+            self.assertEquals(o[2].decode(target_encoding), u'Hr\xe1\u010d')
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+    def test_select_failed_output_encoding(self):
+        tmp_data_file = self.create_file_with_data(sample_data_with_header)
+        tmp_query_file = self.create_file_with_data("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+
+        cmd = '../bin/q -d , -q %s -H -Q utf-8 -E ascii' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 3)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertTrue(e[0].startswith('Cannot encode data'))
+
+        self.cleanup(tmp_data_file)
+        self.cleanup(tmp_query_file)
+
+
+    def test_use_query_file_with_empty_query(self):
+        tmp_query_file = self.create_file_with_data("   ")
+
+        cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertTrue(e[0].startswith("Query cannot be empty"))
+
+        self.cleanup(tmp_query_file)
+
+    def test_use_non_existent_query_file(self):
+        cmd = '../bin/q -d , -q non-existent-query-file -H'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 1)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o), 0)
+
+        self.assertTrue(e[0].startswith("Could not read query from file"))
+
+         
 
 
 class ParsingModeTests(AbstractQTestCase):

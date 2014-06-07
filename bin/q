@@ -47,11 +47,14 @@ import csv
 
 DEBUG = False
 
-# Encode stdout properly,
-if sys.stdout.isatty():
-    STDOUT = codecs.getwriter(sys.stdout.encoding)(sys.stdout)
-else:
-    STDOUT = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
+def get_stdout_encoding(encoding_override=None):
+    if encoding_override is not None and encoding_override != 'none':
+       return encoding_override
+
+    if sys.stdout.isatty():
+        return sys.stdout.encoding
+    else:
+        return locale.getpreferredencoding()
 
 SHOW_SQL = False
 
@@ -82,6 +85,8 @@ default_output_delimiter = get_option_with_default(
 default_skip_header = get_option_with_default(p, 'int', 'skip_header', 0)
 default_formatting = get_option_with_default(p, 'string', 'formatting', None)
 default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
+default_output_encoding = get_option_with_default(p, 'string', 'encoding', None)
+default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
 
 parser = OptionParser(usage="""
 	q allows performing SQL-like statements on tabular text data.
@@ -116,7 +121,7 @@ parser.add_option("-b", "--beautify", dest="beautify", default=default_beautify,
 parser.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
                   help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
 parser.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
-                  help="Field delimiter. If none specified, then space is used as the delimiter. If you need multi-character delimiters, run the tool with engine version 1 by adding '-E v1'. Using v1 will also revert to the old behavior where if no delimiter is provided, then any whitespace will be considered as a delimiter.")
+                  help="Field delimiter. If none specified, then space is used as the delimiter.")
 parser.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
                   help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
 parser.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
@@ -129,6 +134,12 @@ parser.add_option("-f", "--formatting", dest="formatting", default=default_forma
                   help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
 parser.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
                   help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+parser.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
+                  help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+parser.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
+                  help="query text encoding. Experimental. Please send your feedback on this")
+parser.add_option("-q", "--query-filename", dest="query_filename", default=None,
+                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
 parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                   help="Print version")
 parser.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
@@ -165,7 +176,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print sql
+                print sql, " params: " + str(params)
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()
@@ -842,19 +853,57 @@ if options.version:
     print "q version %s" % q_version
     sys.exit(0)
 
-if len(args) != 1:
-    parser.print_help()
+if len(args) > 1:
+    print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
+    sys.exit(1)
+
+if len(args) == 0 and options.query_filename is None:
+    print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
+    sys.exit(1)
+
+if options.query_filename is not None:
+    if len(args) != 0:
+        print >>sys.stderr,"Can't provide both a query file and a query on the command line"
+        sys.exit(1)
+    try:
+        f = file(options.query_filename)
+        query_str = f.read()
+        f.close()
+    except:
+        print >>sys.stderr,"Could not read query from file %s" % options.query_filename
+        sys.exit(1)
+else:
+    query_str = args[0]
+
+if options.query_encoding is not None and options.query_encoding != 'none':
+    try:
+        query_str = query_str.decode(options.query_encoding)
+    except:
+        print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
+        sys.exit(3)
+
+query_str = query_str.strip()
+
+if len(query_str) == 0:
+    print >>sys.stderr,"Query cannot be empty"   
     sys.exit(1)
 
 if options.mode not in ['fluffy', 'relaxed', 'strict']:
     print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
     sys.exit(13)
 
+output_encoding = get_stdout_encoding(options.output_encoding)
+try:
+    STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+except:
+    print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
+    sys.exit(200)
+
 # Create DB object
 db = Sqlite3DB()
 
 # Create SQL statment
-sql_object = Sql('%s' % args[0])
+sql_object = Sql('%s' % query_str)
 
 # If the user flagged for a tab-delimited file then set the delimiter to tab
 if options.tab_delimited:
@@ -991,6 +1040,9 @@ try:
                 row_str.append(fmt_str % "")
 
         STDOUT.write(output_delimiter.join(row_str) + "\n")
+except (UnicodeEncodeError, UnicodeError), e:
+    print >>sys.stderr, "Cannot encode data. Error:%s" % e
+    sys.exit(3)
 except IOError, e:
     if e.errno == 32:
         # broken pipe, that's ok

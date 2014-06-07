@@ -31,7 +31,6 @@ q_version = "1.4.0"  # Not released yet
 
 import os
 import sys
-import random
 import sqlite3
 import gzip
 import glob
@@ -167,6 +166,7 @@ class Sqlite3DB(object):
     def __init__(self, show_sql=SHOW_SQL):
         self.show_sql = show_sql
         self.conn = sqlite3.connect(':memory:')
+        self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
         self.type_names = {
             str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
@@ -243,7 +243,8 @@ class Sqlite3DB(object):
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
     def generate_temp_table_name(self):
-        return "temp_table_%s" % random.randint(0, 1000000000)
+        self.last_temp_table_id += 1
+        return "temp_table_%s" % self.last_temp_table_id
 
     def generate_drop_table(self, table_name):
         return "DROP TABLE %s" % table_name

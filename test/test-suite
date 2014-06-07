@@ -951,6 +951,54 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(o[1], 'ppp dip.1@otherdomain.com')
         self.assertEquals(o[2], 'ppp dip.2@otherdomain.com')
 
+    def test_self_join1(self):
+        tmpfile = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)"' % (tmpfile.name,tmpfile.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 10)
+
+        self.cleanup(tmpfile)
+
+    def test_self_join_reuses_table(self):
+        tmpfile = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)" -A' % (tmpfile.name,tmpfile.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 3)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1],'  `c1` - int')
+        self.assertEquals(o[2],'  `c2` - int')
+
+        self.cleanup(tmpfile)
+
+    def test_self_join2(self):
+        tmpfile1 = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2)"' % (tmpfile1.name,tmpfile1.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 10*10)
+
+        self.cleanup(tmpfile1)
+
+        tmpfile2 = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2) join %s a3 on (a1.c2 = a3.c2)"' % (tmpfile2.name,tmpfile2.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 10*10*10)
+
+        self.cleanup(tmpfile2)
+        
+
 def suite():
     tl = unittest.TestLoader()
     basic_stuff = tl.loadTestsFromTestCase(BasicTests)

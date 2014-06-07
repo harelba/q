@@ -14,7 +14,7 @@ Main features:
 Please download the official `1.3.0` below according to instructions. 
 
 Version `1.4.0` is now in beta and will be the official version soon. It contains the following:
-* 2.5x speed increase for large files - Thanks @Gasol !
+* 2.5x speed increase for large files - Thanks [@Gasol](https://github.com/Gasol)!
 * Output header support (based on the query's SELECTed columns/aliases)
 * Additional control over query and output encodings
 * Bug fixes

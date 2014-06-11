@@ -99,11 +99,9 @@ Current stable version is `1.3.0`.
 Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
 
 ### Mac Users
-**Just got word that for some reason the latest version in brew is not updated. Fixing that, in the mean time, just install manually, it's very very simple. See below**
+Make sure you run `brew update` first and then just run `brew install q`. 
 
-Just run `brew install q`. 
-
-Thanks @stuartcarnie for the initial homebrew formula
+Thanks [@stuartcarnie](https://github.com/stuartcarnie) for the initial homebrew formula
 
 ### Manual installation (very simple, since there are no dependencies)
 

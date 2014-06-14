@@ -1,6 +1,23 @@
 # q - Treating Text as a Database
 
 ## Change log
+**Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1**
+- 2.5x Speed improvement due to better bulk loading
+- Output header support
+- Additional control over query and output encodings
+- Solved the following bugs/pull-requests:
+  - [#52](../../issues/52) - Bulk insert for better performance
+  - [#55](../../issues/55) - Use UUID to ensure temporary table names don't clash
+  - [#53](../../issues/53) - Allow easier tab-delimited output
+  - [#51](../../issues/51) - Ensure that generated temp tables are uniquely named
+  - [#50](../../issues/50) - Copyright peculiarities
+  - [#49](../../issues/49) - Add option to output fieldnames as headers
+  - [#48](../../issues/48) - PEP 8
+  - [#47](../../issues/47) - Prevent regexp from failing when field value is null
+  - [#41](../../issues/41) - Fix project folder structure
+  - [#32](../../issues/32) - Remove duplicated definitions, and PEP8-ing (tabs to spaces, etc.)
+  - [#29](../../issues/29) - RPM: Source0 should be a URL
+  - [#54](../../issues/54) - Fix query encoding (data encoding works well)
 
 **Thu Mar 03 2014 Harel Ben-Attia <harelba@gmail.com> 1.3.0-1**
 - Added column name and type detection (Use -A to see name/type analysis for the specified input)

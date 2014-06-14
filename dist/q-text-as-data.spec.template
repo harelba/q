@@ -31,28 +31,15 @@ gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 %doc %_mandir/man1/q.1.gz
 
 %changelog
+*Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1
+- Changed RPM package name to q-text-as-data
+- Fixed RPM creation logic after folder restructuring
+- Man page is now taken directly from USAGE.markdown
+
 * Mon Mar 03 2014 Harel Ben-Attia <harelba@gmail.com> 1.3.0-1
-- Added column name and type detection (Use -A to see name/type analysis for the specified input)
-- Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)
-- Fixed tab delimition parameter problem
-- More improvements to error reporting
-- Added a test suite, in preparation for refactoring
--   #7  - Dynamic column count support
--   #8  - Column name inference from input containing a header row
--   #9  - Automatic column type inference using sample data
--   #30 - Header lines option does nothing
--   #33 - Last column should allow for spaces?
--   #35 - Add q.bat
--   #38 - Problem with whitespace delimiter
--   #43 - using the -t flag stopped the header flag from working
--   #44 - Space in column name on TAB separated values break q
-- Breaking changes:
--   Changed -H behavior so it's now a flag an not a parameter (1 line always)
--   Removed support for multi-char delimiters
+- Version 1.3.0 packaging
 
 * Thu Feb 20 2014 Harel Ben-Attia <harelba@gmail.com> 1.1.7-1
-- Better error reporting
-- Fixed python invocation for non stanard locations
 - Added man page
 
 * Wed Feb 19 2014 Jens Neu <jens@zeeroos.de> 1.1.5-1

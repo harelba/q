@@ -27,7 +27,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.4.0"  # Not released yet
+q_version = "1.4.0"
 
 import os
 import sys

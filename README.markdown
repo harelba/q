@@ -1,15 +1,10 @@
 # q - Text as Data
-q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files), including joins and any other SQL construct, and supports automatic detection of column types and names.
-
-```bash
-"q allows performing SQL-like statements on tabular text data, including joins and subqueries"
-```
+q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files).
 
 Main features:
-* Automatic column name and column type detection (Allows working more naturally with the data)
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
-* Support for quoted fields
-* Full encoding support, including UTF-8
+* Automatic column name and column type detection (Allows working more naturally with the data)
+* Full encoding support (input, output and query)
 
 Version `1.4.0` is out and contains the following improvements:
 * 2.5x speed increase for large files - Thanks [@Gasol](https://github.com/Gasol)!

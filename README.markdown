@@ -115,7 +115,7 @@ Install using `rpm -ivh <rpm-name>`.
 
 RPM Releases also contain a man page. Just enter `man q`.
 
-**NOTE** In Version `1.4.0`, the RPM package name has been changed. If you already have the old version, just remove it with `rpm -e q` before installing.
+**NOTE** In Version `1.4.0`, the RPM package name has been changed to `q-text-as-data`. If you already have the old version, just remove it with `rpm -e q` before installing.
 
 ### Debian-based Linux distributions
 Debian packaing is in progress. In the mean time install manually. See the section above.

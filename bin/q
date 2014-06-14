@@ -165,7 +165,12 @@ parser.add_option_group(query_option_group)
 #-----------------------------------------------
 
 def regexp(regular_expression, data):
-    return re.search(regular_expression, data) is not None
+    if data is not None:
+        if type(data) is not str:
+            data = str(data)
+        return re.search(regular_expression, data) is not None
+    else:
+        return False
 
 class Sqlite3DBResults(object):
     def __init__(self,query_column_names,results):

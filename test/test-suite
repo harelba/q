@@ -149,6 +149,36 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(e[1].startswith("Bad header row"))
         self.assertTrue("Column name cannot contain commas" in e[2])
 
+        self.cleanup(tmpfile)
+
+    def test_regexp_int_data_handling(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = '../bin/q -d , "select c2 from %s where regexp(\'^1\',c2)"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 1)
+        self.assertEquals(len(e), 0)
+
+        self.assertEquals(o[0],"1")
+
+        self.cleanup(tmpfile)
+
+    def test_regexp_null_data_handling(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = '../bin/q -d , "select count(*) from %s where regexp(\'^\',c2)"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 1)
+        self.assertEquals(len(e), 0)
+
+        self.assertEquals(o[0],"2")
+
+        self.cleanup(tmpfile)
+
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 

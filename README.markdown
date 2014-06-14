@@ -118,7 +118,7 @@ RPM Releases also contain a man page. Just enter `man q`.
 **NOTE** In Version `1.4.0`, the RPM package name has been changed to `q-text-as-data`. If you already have the old version, just remove it with `rpm -e q` before installing.
 
 ### Debian-based Linux distributions
-Debian packaing is in progress. In the mean time install manually. See the section above.
+If you're interested in Debian packaing, please drop me a line to harelba@gmail.com.
 
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.

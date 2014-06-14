@@ -12,10 +12,6 @@
 # Output rpm is generated inside build/rpm/RPMS/noarch/
 #
 
-echo Broken for now - fixing for version 1.4.0
-
-exit 5
-
 if [ $# -ne 1 ];
 then
 	echo 'create-rpm <version>'
@@ -25,34 +21,56 @@ fi
 command -v ronn &>/dev/null || { echo >&2 "ronn needs to be installed."; exit 1; }
 command -v rpmbuild &>/dev/null || { echo >&2 "rpmbuild needs to be installed."; exit 1; }
 
+set -e 
+
 base_folder=$(dirname $0)
 
 pushd ${base_folder}
 
 VERSION=$1
+LOCAL=yes
 REAL_PACKAGE_NAME=q
-RPM_PACKAGE_NAME=q
-MAN_PAGE_SRC=${RPM_PACKAGE_NAME}.manpage.1.ronn
+RPM_PACKAGE_NAME=q-text-as-data
+
+FULL_NAME_FOLDER=${RPM_PACKAGE_NAME}-${VERSION}
 
 rm -rf build/
+rm -rf ${FULL_NAME_FOLDER}
+rm -rf tmp.tar.gz
 
 mkdir -p build/rpm
+mkdir ${FULL_NAME_FOLDER}
 
-TAR_NAME=${RPM_PACKAGE_NAME}-${VERSION}.tar.gz
+if [ ! -e ${RPM_PACKAGE_NAME}.spec.template ];
+then
+	echo "spec template does not exist. can't continue"
+	exit 1
+fi
 
-ronn ${REAL_PACKAGE_NAME}.manpage.1.ronn
-rm ${REAL_PACKAGE_NAME}.1.html
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$1/" > ${FULL_NAME_FOLDER}/${RPM_PACKAGE_NAME}.spec
 
-cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$1/" > ${RPM_PACKAGE_NAME}.spec
+if [ "$LOCAL" == "yes" ];
+then
+	echo "Creating source codebase version ${VERSION} from local copy"
+	cp -r `ls -d1 ../* | egrep -v "dist|test"` ${FULL_NAME_FOLDER}/
+else
+	echo "Creating source codebase version ${VERSION} from github archive"
+	wget -O tmp.tar.gz "https://github.com/harelba/${REAL_PACKAGE_NAME}/archive/${VERSION}.tar.gz" 
+	tar xvzf tmp.tar.gz --strip-components=1 -C ${FULL_NAME_FOLDER}/
+	rm -f tmp.tar.gz
+fi
 
-wget "https://github.com/harelba/${REAL_PACKAGE_NAME}/archive/${VERSION}.tar.gz"
+ronn ${FULL_NAME_FOLDER}/doc/USAGE.markdown
+rm -f ${FULL_NAME_FOLDER}/doc/USAGE.html
+rm -rf ${FULL_NAME_FOLDER}/dist ${FULL_NAME_FOLDER}/test
 
-tar --create --transform s,^,${RPM_PACKAGE_NAME}-$1/, --exclude ${RPM_PACKAGE_NAME}.spec.template -f ${TAR_NAME} *
+echo "Creating tar file"
+TAR_FILE_NAME=${RPM_PACKAGE_NAME}-${VERSION}.tar.gz
+tar cvfz ${TAR_FILE_NAME} ${FULL_NAME_FOLDER}/*
 
-rpmbuild --define "_topdir `pwd`/build/rpm" -ta ${TAR_NAME}
+rpmbuild --define "_topdir `pwd`/build/rpm" -ta ${TAR_FILE_NAME}
 
-rm ${RPM_PACKAGE_NAME}.spec
-rm ${TAR_NAME}
-rm ${REAL_PACKAGE_NAME}.1
+rm -f ${TAR_FILE_NAME}
+rm -rf ${FULL_NAME_FOLDER}
 
 popd

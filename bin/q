@@ -34,7 +34,7 @@ import sys
 import sqlite3
 import gzip
 import glob
-from optparse import OptionParser
+from optparse import OptionParser,OptionGroup
 import traceback as tb
 import codecs
 import locale
@@ -116,42 +116,53 @@ parser = OptionParser(usage="""
 
         See the help or https://github.com/harelba/q for more details.
 """)
-parser.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
-                  help="Beautify output according to actual values. Might be slow...")
-parser.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
-                  help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-parser.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
-                  help="Field delimiter. If none specified, then space is used as the delimiter.")
-parser.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
-                  help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-parser.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
-                  help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file with one header line at the beginning of the file. You can use -d $'\t' if you want.")
-parser.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
-                  help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\t' if you want.")
-parser.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
-                  help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
-parser.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
-parser.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
-                  help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-parser.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
-                  help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
-parser.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
-                  help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-parser.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
-                  help="query text encoding. Experimental. Please send your feedback on this")
-parser.add_option("-q", "--query-filename", dest="query_filename", default=None,
-                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
+
+#-----------------------------------------------
 parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                   help="Print version")
-parser.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
+#-----------------------------------------------
+input_data_option_group = OptionGroup(parser,"Input Data Options")
+input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
+                  help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
+input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
+                  help="Field delimiter. If none specified, then space is used as the delimiter.")
+input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
+                  help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
+input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
+                  help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
+                  help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
+input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
                   help="Analyze sample input and provide information about data types")
-parser.add_option("-m", "--mode", dest="mode", default="relaxed",
-                  help="Data parsing mode. fluffy, relaxed and strict. In relaxed and strict mode, the -c column-count parameter must be supplied as well")
-parser.add_option("-c", "--column-count", dest="column_count", default=None,
+input_data_option_group.add_option("-m", "--mode", dest="mode", default="relaxed",
+                  help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
+input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=None,
                   help="Specific column count when using relaxed or strict mode")
-parser.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
+input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
                   help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-
+parser.add_option_group(input_data_option_group)
+#-----------------------------------------------
+output_data_option_group = OptionGroup(parser,"Output Options") 
+output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
+                  help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
+                  help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
+output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
+output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
+                  help="Beautify output according to actual values. Might be slow...")
+output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
+                  help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
+output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
+                  help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+parser.add_option_group(output_data_option_group)
+#-----------------------------------------------
+query_option_group = OptionGroup(parser,"Query Related Options") 
+query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=None,
+                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
+query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
+                  help="query text encoding. Experimental. Please send your feedback on this")
+parser.add_option_group(query_option_group)
+#-----------------------------------------------
 
 def regexp(regular_expression, data):
     return re.search(regular_expression, data) is not None

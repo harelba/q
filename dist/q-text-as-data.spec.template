@@ -1,7 +1,7 @@
-Name:		q
+Name:		q-text-as-data
 Version:	VERSION_PLACEHOLDER
 Release:	1%{?dist}
-Summary:	q - Text as a Database.
+Summary:	q - Text as Data
 
 Group:		Applications/Text
 License:	GPLv3
@@ -10,9 +10,7 @@ Source0:	%{name}-%{version}.tar.gz
 BuildArch:	noarch
 
 %description
-Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it?
-
-q solves this problem by allowing to perform SQL-like statements on tabular text data.
+q allows to perform SQL-like statements on tabular text data.
 
 %prep
 %setup  
@@ -20,17 +18,17 @@ q solves this problem by allowing to perform SQL-like statements on tabular text
 %install
 rm -rf ${RPM_BUILD_ROOT}
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
-install -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
-install -Dm 755 q ${RPM_BUILD_ROOT}%{_bindir}/
+install -Dm 755 bin/q ${RPM_BUILD_ROOT}%{_bindir}/
+install -Dm 755 bin/q ${RPM_BUILD_ROOT}%{_bindir}/
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
-install -m 0644 %{name}.1 ${RPM_BUILD_ROOT}%{_mandir}/man1/
-gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/%{name}.1
+install -m 0644 doc/USAGE ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
+gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 
 %files
 %defattr(-,root,root,-)
-%doc README.markdown exampledatafile LICENSE THANKS AUTHORS
+%doc README.markdown doc/*
 %{_bindir}/q
-%doc %_mandir/man1/%{name}.1.gz
+%doc %_mandir/man1/q.1.gz
 
 %changelog
 * Mon Mar 03 2014 Harel Ben-Attia <harelba@gmail.com> 1.3.0-1

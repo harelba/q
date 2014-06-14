@@ -4,30 +4,33 @@
 * Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
 
 ## Installation
-Current stable release is `1.3.0`.
+Current stable version is `1.4.0`. 
+
+Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
 
 ### Mac Users
-Just run `brew install q`. 
+Make sure you run `brew update` first and then just run `brew install q`. 
 
-Thanks @stuartcarnie for the initial homebrew formula
+Thanks [@stuartcarnie](https://github.com/stuartcarnie) for the initial homebrew formula
+
+### Manual installation (very simple, since there are no dependencies)
+
+1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.4.0/bin/q)** into a folder in the PATH.
+2. Make the file executable.
+
+For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.4.0/bin/q.bat)** into the same folder and use it to run q.
 
 ### RPM-Base Linux distributions
-Download the RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.3.0-1.noarch.rpm)**. 
+Download the version `1.4.0` RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm)**. 
 
 Install using `rpm -ivh <rpm-name>`.
 
 RPM Releases also contain a man page. Just enter `man q`.
 
+**NOTE** In Version `1.4.0`, the RPM package name has been changed. If you already have the old version, just remove it with `rpm -e q` before installing.
+
 ### Debian-based Linux distributions
-Debian packaing is in progress. In the mean time install manually. See the section below.
-
-### Manual installation
-
-Download the main q executable from [here](https://raw.github.com/harelba/q/1.3.0/q) into a folder in the PATH.
-
-Make the file executable.
-
-For `Windows` machines, also download q.bat [here](https://raw.github.com/harelba/q/1.3.0/q.bat) into the same folder and use it to run q.
+Debian packaing is in progress. In the mean time install manually. See the section above.
 
 ## Default settings file
 q supports an option file in ~/.qrc or in the working directory (with the name .qrc) which provides defaults for some or all of the command line options. A sample .qrc file with commented-out options is included. Just put it in your home folder and modify it according to your needs.

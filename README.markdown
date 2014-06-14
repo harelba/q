@@ -20,12 +20,16 @@ You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting 
 
 **Recurring visitors**
 ````
-Recurring visitors - I would love it if you can drop me a line on gitter or through email with the reasons for your recurring visits. 
+Recurring visitors, I'm really glad you come back here :) 
+
+I would love it if you can drop me a line on gitter or through email with the reasons for your recurring visits. It will help me with improving the tool.
 
 Any requests for features would be greatly appreciated as well.
 ````
 
 ## Examples
+A beginner's tutorial can be found [here](examples/EXAMPLES.markdown).
+
 __Example 1:__
 
     q -H -t "select count(distinct(uuid)) from ./clicks.csv"
@@ -90,8 +94,6 @@ root 152
 harel 119
 avahi 2
 ```
-
-A beginner's tutorial can be found [here](examples/EXAMPLES.markdown)
 
 ## Installation
 Current stable version is `1.4.0`. 

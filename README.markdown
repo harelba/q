@@ -18,6 +18,13 @@ I would love to get any requests and comments you have on the tool.
 
 You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
+**Recurring visitors**
+````
+Recurring visitors - I would love it if you can drop me a line on gitter or through email with the reasons for your recurring visits. 
+
+Any requests for features would be greatly appreciated as well.
+````
+
 ## Examples
 __Example 1:__
 

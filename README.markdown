@@ -11,15 +11,13 @@ Main features:
 * Support for quoted fields
 * Full encoding support, including UTF-8
 
-Please download the official `1.3.0` below according to instructions. 
-
-Version `1.4.0` is now in beta and will be the official version soon. It contains the following:
+Version `1.4.0` is out and contains the following improvements:
 * 2.5x speed increase for large files - Thanks [@Gasol](https://github.com/Gasol)!
 * Output header support (based on the query's SELECTed columns/aliases)
 * Additional control over query and output encodings
-* Bug fixes
+* Bug fixes (see [change log](doc/CHANGELOG.markdown) for full details)
 
-If you want to download the new version, just download the main q executable from the master branch.
+Please send any feedback you have on the new version and open new issues as needed.
 
 I would love to get any requests and comments you have on the tool.
 
@@ -94,7 +92,7 @@ avahi 2
 A beginner's tutorial can be found [here](examples/EXAMPLES.markdown)
 
 ## Installation
-Current stable version is `1.3.0`. 
+Current stable version is `1.4.0`. 
 
 Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.
 
@@ -105,20 +103,22 @@ Thanks [@stuartcarnie](https://github.com/stuartcarnie) for the initial homebrew
 
 ### Manual installation (very simple, since there are no dependencies)
 
-1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.3.0/q)** into a folder in the PATH.
+1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.4.0/bin/q)** into a folder in the PATH.
 2. Make the file executable.
 
-For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.3.0/q.bat)** into the same folder and use it to run q.
+For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.4.0/bin/q.bat)** into the same folder and use it to run q.
 
 ### RPM-Base Linux distributions
-Download the RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-1.3.0-1.noarch.rpm)**. 
+Download the version `1.4.0` RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm)**. 
 
 Install using `rpm -ivh <rpm-name>`.
 
 RPM Releases also contain a man page. Just enter `man q`.
 
+**NOTE** In Version `1.4.0`, the RPM package name has been changed. If you already have the old version, just remove it with `rpm -e q` before installing.
+
 ### Debian-based Linux distributions
-Debian packaing is in progress. In the mean time install manually. See the section below.
+Debian packaing is in progress. In the mean time install manually. See the section above.
 
 ## Overview
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the _database_ that I want. It's the language - SQL.

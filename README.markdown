@@ -1,5 +1,5 @@
 # q - Text as Data
-q allows direct SQL-like queries on CSVs/TSVs (and any other tabular text files).
+q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
 
 Main features:
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)

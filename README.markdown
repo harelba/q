@@ -12,12 +12,6 @@ Version `1.4.0` is out and contains the following improvements:
 * Additional control over query and output encodings
 * Bug fixes (see [change log](doc/CHANGELOG.markdown) for full details)
 
-Please send any feedback you have on the new version and open new issues as needed.
-
-I would love to get any requests and comments you have on the tool.
-
-You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
-
 **Recurring visitors**
 ````
 Recurring visitors, I'm really glad you come back here :) 
@@ -26,6 +20,12 @@ I would love it if you can drop me a line on gitter or through email with the re
 
 Any requests for features would be greatly appreciated as well.
 ````
+
+Please send any feedback you have on the new version and open new issues as needed.
+
+I would love to get any requests and comments you have on the tool.
+
+You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
 ## Examples
 A beginner's tutorial can be found [here](examples/EXAMPLES.markdown).

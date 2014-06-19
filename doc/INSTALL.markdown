@@ -32,6 +32,12 @@ RPM Releases also contain a man page. Just enter `man q`.
 ### Debian-based Linux distributions
 Debian packaing is in progress. In the mean time install manually. See the section above.
 
+### Arch Linux
+
+A `PKGBUILD` is [available](https://aur.archlinux.org/packages/q/) in AUR for Arch Linux users. See [installing packages](https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages) in the wiki or use your favorite [AUR helper](https://wiki.archlinux.org/index.php/Aur_helpers).
+
+The man page is also provided (extracted _as is_ from the RPM): `man q`
+
 ## Default settings file
 q supports an option file in ~/.qrc or in the working directory (with the name .qrc) which provides defaults for some or all of the command line options. A sample .qrc file with commented-out options is included. Just put it in your home folder and modify it according to your needs.
 

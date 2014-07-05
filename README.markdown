@@ -103,8 +103,6 @@ Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed
 ### Mac Users
 Make sure you run `brew update` first and then just run `brew install q`. 
 
-Version 1.4.0 has been committed to homebrew and is pending their confirmation (usually in a couple of hours).
-
 Thanks [@stuartcarnie](https://github.com/stuartcarnie) for the initial homebrew formula
 
 ### Manual installation (very simple, since there are no dependencies)

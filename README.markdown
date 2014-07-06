@@ -12,15 +12,6 @@ Version `1.4.0` is out and contains the following improvements:
 * Additional control over query and output encodings
 * Bug fixes (see [change log](doc/CHANGELOG.markdown) for full details)
 
-**Recurring visitors**
-````
-Recurring visitors, I'm really glad you come back here :) 
-
-I would love it if you can drop me a line on gitter or through email with the reasons for your recurring visits. It will help me with improving the tool.
-
-Any requests for features would be greatly appreciated as well.
-````
-
 Please send any feedback you have on the new version and open new issues as needed.
 
 I would love to get any requests and comments you have on the tool.
@@ -163,4 +154,7 @@ History of changes can be found [here](doc/CHANGELOG.markdown)
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 
 Harel Ben-Attia, harelba@gmail.com, [@harelba](https://twitter.com/harelba) on Twitter
+
+q on twitter: #qtextasdata
+
 

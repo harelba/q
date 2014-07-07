@@ -32,106 +32,187 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a name="q---treating-text-as-a-database" class="anchor" href="#q---treating-text-as-a-database"><span class="octicon octicon-link"></span></a>q - Treating Text as a Database</h1>
+<a name="q---text-as-data" class="anchor" href="#q---text-as-data"><span class="octicon octicon-link"></span></a>q - Text as Data</h1>
+
+<p>q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).</p>
+
+<p>Main features:</p>
+
+<ul>
+<li>Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)</li>
+<li>Automatic column name and column type detection (Allows working more naturally with the data)</li>
+<li>Full encoding support (input, output and query)</li>
+</ul><h2>
+<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
+
+<p>A beginner's tutorial can be found <a href="examples/EXAMPLES.markdown">here</a>.</p>
+
+<p><strong>Example 1:</strong></p>
+
+<pre><code>q -H -t "select count(distinct(uuid)) from ./clicks.csv"
+</code></pre>
+
+<p><strong>Output 1:</strong></p>
+
+<div class="highlight highlight-bash"><pre>229
+</pre></div>
+
+<p><strong>Example 2:</strong></p>
+
+<pre><code>q -H -t "select request_id,score from ./clicks.csv where score &gt; 0.7 order by score desc limit 5"
+</code></pre>
+
+<p><strong>Output 2:</strong></p>
+
+<div class="highlight highlight-bash"><pre>2cfab5ceca922a1a2179dc4687a3b26e    1.0
+f6de737b5aa2c46a3db3208413a54d64    0.986665809568
+766025d25479b95a224bd614141feee5    0.977105183282
+2c09058a1b82c6dbcf9dc463e73eddd2    0.703255121794
+</pre></div>
+
+<p><strong>Example 3:</strong></p>
+
+<pre><code>q -t -H "select strftime('%H:%M',date_time) hour_and_minute,count(*) from ./clicks.csv group by hour_and_minute"
+</code></pre>
+
+<p><strong>Output 3:</strong></p>
+
+<div class="highlight highlight-bash"><pre>07:00   138148
+07:01   140026
+07:02   121826
+</pre></div>
+
+<p><strong>Usage Example 4:</strong></p>
+
+<pre><code>q -t -H "select hashed_source_machine,count(*) from ./clicks.csv group by hashed_source_machine"
+</code></pre>
+
+<p><strong>Output 4:</strong></p>
+
+<div class="highlight highlight-bash"><pre>47d9087db433b9ba.domain.com 400000
+</pre></div>
+
+<p><strong>Example 5 (total size per user/group in the /tmp subtree):</strong></p>
+
+<pre><code>sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+</code></pre>
+
+<p><strong>Output 5:</strong></p>
+
+<div class="highlight highlight-bash"><pre>mapred hadoop   304.00390625
+root   root     8.0431451797485
+smith  smith    4.34389972687
+</pre></div>
+
+<p><strong>Example 6 (top 3 user ids with the largest number of owned processes, sorted in descending order):</strong></p>
+
+<p>Note the usage of the autodetected column name UID in the query.</p>
+
+<pre><code>ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
+</code></pre>
+
+<p><strong>Output 6:</strong></p>
+
+<div class="highlight highlight-bash"><pre>root 152
+harel 119
+avahi 2
+</pre></div>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Current stable version is <code>1.4.0</code>. </p>
+
+<p>Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.</p>
+
+<h3>
+<a name="mac-users" class="anchor" href="#mac-users"><span class="octicon octicon-link"></span></a>Mac Users</h3>
+
+<p>Make sure you run <code>brew update</code> first and then just run <code>brew install q</code>. </p>
+
+<p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula</p>
+
+<h3>
+<a name="rpm-base-linux-distributions" class="anchor" href="#rpm-base-linux-distributions"><span class="octicon octicon-link"></span></a>RPM-Base Linux distributions</h3>
+
+<p>Download the version <code>1.4.0</code> RPM here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm">here</a></strong>. </p>
+
+<p>Install using <code>rpm -ivh &lt;rpm-name&gt;</code>.</p>
+
+<p>RPM Releases also contain a man page. Just enter <code>man q</code>.</p>
+
+<p><strong>NOTE</strong> In Version <code>1.4.0</code>, the RPM package name has been changed to <code>q-text-as-data</code>. If you already have the old version, just remove it with <code>rpm -e q</code> before installing.</p>
+
+<h3>
+<a name="manual-installation-very-simple-since-there-are-no-dependencies" class="anchor" href="#manual-installation-very-simple-since-there-are-no-dependencies"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
+
+<ol>
+<li>Download the main q executable from <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q">here</a></strong> into a folder in the PATH.</li>
+<li>Make the file executable.</li>
+</ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q.bat">here</a></strong> into the same folder and use it to run q.</p>
+
+<h3>
+<a name="debian-based-linux-distributions" class="anchor" href="#debian-based-linux-distributions"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
+
+<p>If you're interested in Debian packaing, please drop me a line to <a href="mailto:harelba@gmail.com">harelba@gmail.com</a>.</p>
+
+<h2>
+<a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h2>
+
+<p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the <em>database</em> that I want. It's the language - SQL.</p>
+
+<p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
+
+<p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
+
+<h2>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>q's basic usage is very simple:<code>q &lt;flags&gt; &lt;query&gt;</code>, but it has lots of features under the hood and in the flags that can be passed to the command.</p>
+
+<p>Simplest execution is q "SELECT * FROM myfile" which prints the entire file.</p>
+
+<p>Complete information can be found <a href="doc/USAGE.markdown">here</a></p>
+
+<h2>
+<a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>Implementation</h2>
+
+<p>Some implementation details can be found <a href="doc/IMPLEMENTATION.markdown">here</a></p>
+
+<h2>
+<a name="limitations" class="anchor" href="#limitations"><span class="octicon octicon-link"></span></a>Limitations</h2>
+
+<ul>
+<li>No checks and bounds on data size</li>
+<li>Spaces in file names are not supported yet. I'm working on it.</li>
+<li>It is possible that some rare cases of subqueries are not supported yet. Please open an issue if you find such a case. This will be fixed once the tool performs its own full-blown SQL parsing.</li>
+</ul><h2>
+<a name="future-ideas" class="anchor" href="#future-ideas"><span class="octicon octicon-link"></span></a>Future Ideas</h2>
+
+<ul>
+<li>Faster reuse of previous data loading</li>
+<li>Allow working with external DB</li>
+<li>Real parsing of the SQL, allowing smarter execution of queries.</li>
+<li>Smarter batch insertion to the database</li>
+<li>Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.</li>
+</ul><h2>
+<a name="rationale" class="anchor" href="#rationale"><span class="octicon octicon-link"></span></a>Rationale</h2>
+
+<p>Some information regarding the rationale for this tool and related philosophy can be found <a href="doc/RATIONALE.markdown">here</a></p>
 
 <h2>
 <a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
 
-<p><strong>Sat Jun 14 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.4.0-1</strong></p>
+<p>History of changes can be found <a href="doc/CHANGELOG.markdown">here</a></p>
 
-<ul>
-<li>2.5x Speed improvement due to better bulk loading</li>
-<li>Output header support</li>
-<li>Additional control over query and output encodings</li>
-<li>Solved the following bugs/pull-requests:
-
-<ul>
-<li>
-<a href="../../../issues/52">#52</a> - Bulk insert for better performance</li>
-<li>
-<a href="../../../issues/55">#55</a> - Use UUID to ensure temporary table names don't clash</li>
-<li>
-<a href="../../../issues/53">#53</a> - Allow easier tab-delimited output</li>
-<li>
-<a href="../../../issues/51">#51</a> - Ensure that generated temp tables are uniquely named</li>
-<li>
-<a href="../../../issues/50">#50</a> - Copyright peculiarities</li>
-<li>
-<a href="../../../issues/49">#49</a> - Add option to output fieldnames as headers</li>
-<li>
-<a href="../../../issues/48">#48</a> - PEP 8</li>
-<li>
-<a href="../../../issues/47">#47</a> - Prevent regexp from failing when field value is null</li>
-<li>
-<a href="../../../issues/41">#41</a> - Fix project folder structure</li>
-<li>
-<a href="../../../issues/32">#32</a> - Remove duplicated definitions, and PEP8-ing (tabs to spaces, etc.)</li>
-<li>
-<a href="../../../issues/29">#29</a> - RPM: Source0 should be a URL</li>
-<li>
-<a href="../../../issues/54">#54</a> - Fix query encoding (data encoding works well)</li>
-</ul>
-</li>
-</ul><p><strong>Thu Mar 03 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.3.0-1</strong></p>
-
-<ul>
-<li>Added column name and type detection (Use -A to see name/type analysis for the specified input)</li>
-<li>Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)</li>
-<li>Fixed tab delimition parameter problem</li>
-<li>More improvements to error reporting</li>
-<li>Added a test suite, in preparation for refactoring</li>
-<li>Solves the following bugs/pull-requests:
-
-<ul>
-<li>
-<a href="../../../issues/7">#7</a>  - Dynamic column count support</li>
-<li>
-<a href="../../../issues/8">#8</a>  - Column name inference from input containing a header row</li>
-<li>
-<a href="../../../issues/9">#9</a>  - Automatic column type inference using sample data</li>
-<li>
-<a href="../../../issues/30">#30</a> - Header lines option does nothing</li>
-<li>
-<a href="../../../issues/33">#33</a> - Last column should allow for spaces?</li>
-<li>
-<a href="../../../issues/35">#35</a> - Add q.bat</li>
-<li>
-<a href="../../../issues/38">#38</a> - Problem with whitespace delimiter</li>
-<li>
-<a href="../../../issues/43">#43</a> - using the -t flag stopped the header flag from working</li>
-<li>
-<a href="../../../issues/44">#44</a> - Space in column name on TAB separated values break q</li>
-</ul>
-</li>
-<li>Breaking changes:
-
-<ul>
-<li>Changed -H behavior so it's now a flag an not a parameter (1 line always)</li>
-<li>Removed support for multi-char delimiters</li>
-</ul>
-</li>
-</ul><p><strong>Sat Feb 22 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.2.0-1</strong></p>
-
-<ul>
-<li>Support for quoted fields in CSVs</li>
-<li>Some bug fixes</li>
-<li>Improved error reporting</li>
-</ul><p><strong>Thu Feb 20 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.1.7-1</strong></p>
-
-<ul>
-<li>Better error reporting</li>
-<li>Fixed python invocation for non stanard locations</li>
-<li>Added man page</li>
-</ul><p><strong>Tue Jan 7 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.0.0-1</strong></p>
-
-<ul>
-<li>Initial version - tag was needed for homebrew formula</li>
-</ul><h2>
+<h2>
 <a name="contact" class="anchor" href="#contact"><span class="octicon octicon-link"></span></a>Contact</h2>
 
 <p>Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.</p>
 
 <p>Harel Ben-Attia, <a href="mailto:harelba@gmail.com">harelba@gmail.com</a>, <a href="https://twitter.com/harelba">@harelba</a> on Twitter</p>
+
+<p>q on twitter: #qtextasdata</p>
       </section>
     </div>
 

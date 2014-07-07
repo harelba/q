@@ -1,6 +1,8 @@
 # q - Text as Data
 q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
 
+The q website is [here](http://harelba.github.io/q).
+
 Main features:
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
 * Automatic column name and column type detection (Allows working more naturally with the data)

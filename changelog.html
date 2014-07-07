@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="q : q - Text as Data" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>q</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+
+          <h1 id="project_title">q</h1>
+          <h2 id="project_tagline">q - Text as Data</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/harelba/q/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/harelba/q/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="q---treating-text-as-a-database" class="anchor" href="#q---treating-text-as-a-database"><span class="octicon octicon-link"></span></a>q - Text as Data</h1>
+
+<h2>
+<a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
+
+<p><strong>Sat Jun 14 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.4.0-1</strong></p>
+
+<ul>
+<li>2.5x Speed improvement due to better bulk loading</li>
+<li>Output header support</li>
+<li>Additional control over query and output encodings</li>
+<li>Solved the following bugs/pull-requests:
+
+<ul>
+<li>
+<a href="../../../issues/52">#52</a> - Bulk insert for better performance</li>
+<li>
+<a href="../../../issues/55">#55</a> - Use UUID to ensure temporary table names don't clash</li>
+<li>
+<a href="../../../issues/53">#53</a> - Allow easier tab-delimited output</li>
+<li>
+<a href="../../../issues/51">#51</a> - Ensure that generated temp tables are uniquely named</li>
+<li>
+<a href="../../../issues/50">#50</a> - Copyright peculiarities</li>
+<li>
+<a href="../../../issues/49">#49</a> - Add option to output fieldnames as headers</li>
+<li>
+<a href="../../../issues/48">#48</a> - PEP 8</li>
+<li>
+<a href="../../../issues/47">#47</a> - Prevent regexp from failing when field value is null</li>
+<li>
+<a href="../../../issues/41">#41</a> - Fix project folder structure</li>
+<li>
+<a href="../../../issues/32">#32</a> - Remove duplicated definitions, and PEP8-ing (tabs to spaces, etc.)</li>
+<li>
+<a href="../../../issues/29">#29</a> - RPM: Source0 should be a URL</li>
+<li>
+<a href="../../../issues/54">#54</a> - Fix query encoding (data encoding works well)</li>
+</ul>
+</li>
+</ul><p><strong>Thu Mar 03 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.3.0-1</strong></p>
+
+<ul>
+<li>Added column name and type detection (Use -A to see name/type analysis for the specified input)</li>
+<li>Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)</li>
+<li>Fixed tab delimition parameter problem</li>
+<li>More improvements to error reporting</li>
+<li>Added a test suite, in preparation for refactoring</li>
+<li>Solves the following bugs/pull-requests:
+
+<ul>
+<li>
+<a href="../../../issues/7">#7</a>  - Dynamic column count support</li>
+<li>
+<a href="../../../issues/8">#8</a>  - Column name inference from input containing a header row</li>
+<li>
+<a href="../../../issues/9">#9</a>  - Automatic column type inference using sample data</li>
+<li>
+<a href="../../../issues/30">#30</a> - Header lines option does nothing</li>
+<li>
+<a href="../../../issues/33">#33</a> - Last column should allow for spaces?</li>
+<li>
+<a href="../../../issues/35">#35</a> - Add q.bat</li>
+<li>
+<a href="../../../issues/38">#38</a> - Problem with whitespace delimiter</li>
+<li>
+<a href="../../../issues/43">#43</a> - using the -t flag stopped the header flag from working</li>
+<li>
+<a href="../../../issues/44">#44</a> - Space in column name on TAB separated values break q</li>
+</ul>
+</li>
+<li>Breaking changes:
+
+<ul>
+<li>Changed -H behavior so it's now a flag an not a parameter (1 line always)</li>
+<li>Removed support for multi-char delimiters</li>
+</ul>
+</li>
+</ul><p><strong>Sat Feb 22 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.2.0-1</strong></p>
+
+<ul>
+<li>Support for quoted fields in CSVs</li>
+<li>Some bug fixes</li>
+<li>Improved error reporting</li>
+</ul><p><strong>Thu Feb 20 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.1.7-1</strong></p>
+
+<ul>
+<li>Better error reporting</li>
+<li>Fixed python invocation for non stanard locations</li>
+<li>Added man page</li>
+</ul><p><strong>Tue Jan 7 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.0.0-1</strong></p>
+
+<ul>
+<li>Initial version - tag was needed for homebrew formula</li>
+</ul><h2>
+<a name="contact" class="anchor" href="#contact"><span class="octicon octicon-link"></span></a>Contact</h2>
+
+<p>Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.</p>
+
+<p>Harel Ben-Attia, <a href="mailto:harelba@gmail.com">harelba@gmail.com</a>, <a href="https://twitter.com/harelba">@harelba</a> on Twitter</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">q maintained by <a href="https://github.com/harelba">harelba</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-48316355-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+
+  </body>
+</html>

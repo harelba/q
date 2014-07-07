@@ -42,10 +42,23 @@
 <li>Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)</li>
 <li>Automatic column name and column type detection (Allows working more naturally with the data)</li>
 <li>Full encoding support (input, output and query)</li>
-</ul><h2>
+</ul><p>Version <code>1.4.0</code> is out and contains the following improvements:</p>
+
+<ul>
+<li>2.5x speed increase for large files - Thanks <a href="https://github.com/Gasol">@Gasol</a>!</li>
+<li>Output header support (based on the query's SELECTed columns/aliases)</li>
+<li>Additional control over query and output encodings</li>
+<li>Bug fixes (see <a href="doc/CHANGELOG.markdown">change log</a> for full details)</li>
+</ul><p>Please send any feedback you have on the new version and open new issues as needed.</p>
+
+<p>I would love to get any requests and comments you have on the tool.</p>
+
+<p>You can use this <a href="https://gitter.im/harelba/q">gitter chat room</a> for contacting me directly. I'm trying to be available at the chat room as much as possible.</p>
+
+<h2>
 <a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
 
-<p>A beginner's tutorial can be found <a href="examples.html">here</a>.</p>
+<p>A beginner's tutorial can be found <a href="examples/EXAMPLES.markdown">here</a>.</p>
 
 <p><strong>Example 1:</strong></p>
 
@@ -133,6 +146,14 @@ avahi 2
 <p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula</p>
 
 <h3>
+<a name="manual-installation-very-simple-since-there-are-no-dependencies" class="anchor" href="#manual-installation-very-simple-since-there-are-no-dependencies"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
+
+<ol>
+<li>Download the main q executable from <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q">here</a></strong> into a folder in the PATH.</li>
+<li>Make the file executable.</li>
+</ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q.bat">here</a></strong> into the same folder and use it to run q.</p>
+
+<h3>
 <a name="rpm-base-linux-distributions" class="anchor" href="#rpm-base-linux-distributions"><span class="octicon octicon-link"></span></a>RPM-Base Linux distributions</h3>
 
 <p>Download the version <code>1.4.0</code> RPM here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm">here</a></strong>. </p>
@@ -142,14 +163,6 @@ avahi 2
 <p>RPM Releases also contain a man page. Just enter <code>man q</code>.</p>
 
 <p><strong>NOTE</strong> In Version <code>1.4.0</code>, the RPM package name has been changed to <code>q-text-as-data</code>. If you already have the old version, just remove it with <code>rpm -e q</code> before installing.</p>
-
-<h3>
-<a name="manual-installation-very-simple-since-there-are-no-dependencies" class="anchor" href="#manual-installation-very-simple-since-there-are-no-dependencies"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
-
-<ol>
-<li>Download the main q executable from <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q">here</a></strong> into a folder in the PATH.</li>
-<li>Make the file executable.</li>
-</ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q.bat">here</a></strong> into the same folder and use it to run q.</p>
 
 <h3>
 <a name="debian-based-linux-distributions" class="anchor" href="#debian-based-linux-distributions"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
@@ -172,12 +185,12 @@ avahi 2
 
 <p>Simplest execution is q "SELECT * FROM myfile" which prints the entire file.</p>
 
-<p>Complete information can be found <a href="usage.html">here</a></p>
+<p>Complete information can be found <a href="doc/USAGE.markdown">here</a></p>
 
 <h2>
 <a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>Implementation</h2>
 
-<p>Some implementation details can be found <a href="implementation.html">here</a></p>
+<p>Some implementation details can be found <a href="doc/IMPLEMENTATION.markdown">here</a></p>
 
 <h2>
 <a name="limitations" class="anchor" href="#limitations"><span class="octicon octicon-link"></span></a>Limitations</h2>
@@ -198,12 +211,12 @@ avahi 2
 </ul><h2>
 <a name="rationale" class="anchor" href="#rationale"><span class="octicon octicon-link"></span></a>Rationale</h2>
 
-<p>Some information regarding the rationale for this tool and related philosophy can be found <a href="rationale.html">here</a></p>
+<p>Some information regarding the rationale for this tool and related philosophy can be found <a href="doc/RATIONALE.markdown">here</a></p>
 
 <h2>
 <a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
 
-<p>History of changes can be found <a href="changelog.html">here</a></p>
+<p>History of changes can be found <a href="doc/CHANGELOG.markdown">here</a></p>
 
 <h2>
 <a name="contact" class="anchor" href="#contact"><span class="octicon octicon-link"></span></a>Contact</h2>

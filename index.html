@@ -32,178 +32,110 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a name="q---text-as-data" class="anchor" href="#q---text-as-data"><span class="octicon octicon-link"></span></a>q - Text as Data</h1>
+<a name="q---treating-text-as-a-database" class="anchor" href="#q---treating-text-as-a-database"><span class="octicon octicon-link"></span></a>q - Treating Text as a Database</h1>
 
-<p>q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).</p>
+<p>See below for a JOIN example.</p>
 
-<p>Main features:</p>
+<h2>
+<a name="tutorial" class="anchor" href="#tutorial"><span class="octicon octicon-link"></span></a>Tutorial</h2>
+
+<p>This is a tutorial for beginners. If you're familiar with the concept and just wanna see some full fledged examples, take a look <a href="README.markdown#examples">here</a> in the main page.</p>
+
+<p>Tutorial steps:</p>
+
+<ol>
+<li>
+<p>We'll start with a simple example and work from there. The file <code>exampledatafile</code> contains the output of an <code>ls -l</code> command, a list of files in some directory. In this example we'll do some calculations on this file list.</p>
 
 <ul>
-<li>Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)</li>
-<li>Automatic column name and column type detection (Allows working more naturally with the data)</li>
-<li>Full encoding support (input, output and query)</li>
-</ul><h2>
-<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>Examples</h2>
+<li>
+<p>The following commands will count the lines in the file <em>exampledatafile</em>, effectively getting the number of files in the directory. The output will be exactly as if we ran the <code>wc -l</code> command.  </p>
 
-<p>A beginner's tutorial can be found <a href="examples/EXAMPLES.markdown">here</a>.</p>
+<pre><code>  q "SELECT COUNT(1) FROM exampledatafile"    
 
-<p><strong>Example 1:</strong></p>
+  cat exampledatafile | q "SELECT COUNT(1) FROM -"   
+</code></pre>
+</li>
+<li>
+<p>Now, let's assume we want to know the number of files per date in the directory. Notice that the date is in column 6.</p>
 
-<pre><code>q -H -t "select count(distinct(uuid)) from ./clicks.csv"
+<pre><code>  q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"   
+</code></pre>
+</li>
+<li>
+<p>The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's leave only the ones which have 3 files or more:  </p>
+
+<pre><code>  q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt &gt;= 3"   
+</code></pre>
+</li>
+<li>
+<p>Now, let's see if we can get something more interesting. The following command will provide the <strong>total size</strong> of the files for each date. Notice that the file size is in c5.  </p>
+
+<pre><code>  q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"   
+</code></pre>
+</li>
+<li>
+<p>We can see the results. However, the sums are in bytes. Let's show the same results but in KB:  </p>
+
+<pre><code>  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"  
+</code></pre>
+</li>
+<li>
+<p>The last command provided us with a list of results, but there is no order and the list is too long. Let's get the Top 5 dates:  </p>
+
+<pre><code>  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"   
+</code></pre>
+</li>
+<li>
+<p>Now we'll see how we can format the output itself, so it looks better:  </p>
+
+<pre><code>  q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"  
+</code></pre>
+</li>
+<li><p>(An example of using JOIN will be added here - In the mean time just remember you have to use table alias for JOINed "tables")</p></li>
+</ul>
+</li>
+</ol><ol>
+<li>
+<p>A more complicated example, showing time manipulation. Let's assume that we have a file with a timestamp as its first column. We'll show how it's possible to get the number of rows per full minute:  </p>
+
+<pre><code>q "SELECT DATETIME(ROUND(c1/60000)*60000/1000,'unixepoch','-05:00') as min, COUNT(1) FROM datafile*.gz GROUP BY min"  
 </code></pre>
 
-<p><strong>Output 1:</strong></p>
+<p>There are several things to notice here:</p>
 
-<div class="highlight highlight-bash"><pre>229
+<ul>
+<li>The timestamp value is in the first column, hence c1.</li>
+<li>The timestamp is assumed to be a unix epoch timestamp, but in ms, and DATETIME accepts seconds, so we need to divide by 1000</li>
+<li>The full-minute rounding is done by dividing by 60000 (ms), rounding and then multiplying by the same amount. Rounding to an hour, for example, would be the same except for having 3600000 instead of 60000.</li>
+<li>We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)</li>
+<li>The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.</li>
+<li>
+<strong>NOTE:</strong> For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.</li>
+</ul>
+</li>
+</ol><h2>
+<a name="join-example" class="anchor" href="#join-example"><span class="octicon octicon-link"></span></a>JOIN example</h2>
+
+<p><strong>Command 1 (Join data from two files):</strong></p>
+
+<p>The following command <em>joins</em> an ls output (<code>exampledatafile</code>) and a file containing rows of <strong>group-name,email</strong>  (<code>group-emails-example</code>) and provides a row of <strong>filename,email</strong> for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called <code>ppp</code> which is achieved using a WHERE clause.</p>
+
+<div class="highlight highlight-bash"><pre>q <span class="s2">"select myfiles.c8,emails.c2 from exampledatafile myfiles join group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = 'ppp'"</span>
 </pre></div>
 
-<p><strong>Example 2:</strong></p>
+<p><strong>Output 1: (rows of filename,email):</strong></p>
 
-<pre><code>q -H -t "select request_id,score from ./clicks.csv where score &gt; 0.7 order by score desc limit 5"
-</code></pre>
-
-<p><strong>Output 2:</strong></p>
-
-<div class="highlight highlight-bash"><pre>2cfab5ceca922a1a2179dc4687a3b26e    1.0
-f6de737b5aa2c46a3db3208413a54d64    0.986665809568
-766025d25479b95a224bd614141feee5    0.977105183282
-2c09058a1b82c6dbcf9dc463e73eddd2    0.703255121794
+<div class="highlight highlight-bash"><pre>ppp dip.1@otherdomain.com
+ppp dip.2@otherdomain.com
 </pre></div>
 
-<p><strong>Example 3:</strong></p>
-
-<pre><code>q -t -H "select strftime('%H:%M',date_time) hour_and_minute,count(*) from ./clicks.csv group by hour_and_minute"
-</code></pre>
-
-<p><strong>Output 3:</strong></p>
-
-<div class="highlight highlight-bash"><pre>07:00   138148
-07:01   140026
-07:02   121826
-</pre></div>
-
-<p><strong>Usage Example 4:</strong></p>
-
-<pre><code>q -t -H "select hashed_source_machine,count(*) from ./clicks.csv group by hashed_source_machine"
-</code></pre>
-
-<p><strong>Output 4:</strong></p>
-
-<div class="highlight highlight-bash"><pre>47d9087db433b9ba.domain.com 400000
-</pre></div>
-
-<p><strong>Example 5 (total size per user/group in the /tmp subtree):</strong></p>
-
-<pre><code>sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-</code></pre>
-
-<p><strong>Output 5:</strong></p>
-
-<div class="highlight highlight-bash"><pre>mapred hadoop   304.00390625
-root   root     8.0431451797485
-smith  smith    4.34389972687
-</pre></div>
-
-<p><strong>Example 6 (top 3 user ids with the largest number of owned processes, sorted in descending order):</strong></p>
-
-<p>Note the usage of the autodetected column name UID in the query.</p>
-
-<pre><code>ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
-</code></pre>
-
-<p><strong>Output 6:</strong></p>
-
-<div class="highlight highlight-bash"><pre>root 152
-harel 119
-avahi 2
-</pre></div>
+<p>You can see that the ppp filename appears twice, each time matched to one of the emails of the group <code>dip</code> to which it belongs. Take a look at the files <a href="exampledatafile"><code>exampledatafile</code></a> and <a href="group-emails-example"><code>group-emails-example</code></a> for the data.</p>
 
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>Current stable version is <code>1.4.0</code>. </p>
-
-<p>Requirements: Just Python 2.5 and up or Python 2.4 with sqlite3 module installed. Python 3.x is not supported yet.</p>
-
-<h3>
-<a name="mac-users" class="anchor" href="#mac-users"><span class="octicon octicon-link"></span></a>Mac Users</h3>
-
-<p>Make sure you run <code>brew update</code> first and then just run <code>brew install q</code>. </p>
-
-<p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula</p>
-
-<h3>
-<a name="rpm-base-linux-distributions" class="anchor" href="#rpm-base-linux-distributions"><span class="octicon octicon-link"></span></a>RPM-Base Linux distributions</h3>
-
-<p>Download the version <code>1.4.0</code> RPM here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm">here</a></strong>. </p>
-
-<p>Install using <code>rpm -ivh &lt;rpm-name&gt;</code>.</p>
-
-<p>RPM Releases also contain a man page. Just enter <code>man q</code>.</p>
-
-<p><strong>NOTE</strong> In Version <code>1.4.0</code>, the RPM package name has been changed to <code>q-text-as-data</code>. If you already have the old version, just remove it with <code>rpm -e q</code> before installing.</p>
-
-<h3>
-<a name="manual-installation-very-simple-since-there-are-no-dependencies" class="anchor" href="#manual-installation-very-simple-since-there-are-no-dependencies"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
-
-<ol>
-<li>Download the main q executable from <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q">here</a></strong> into a folder in the PATH.</li>
-<li>Make the file executable.</li>
-</ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://raw.github.com/harelba/q/1.4.0/bin/q.bat">here</a></strong> into the same folder and use it to run q.</p>
-
-<h3>
-<a name="debian-based-linux-distributions" class="anchor" href="#debian-based-linux-distributions"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
-
-<p>If you're interested in Debian packaing, please drop me a line to <a href="mailto:harelba@gmail.com">harelba@gmail.com</a>.</p>
-
-<h2>
-<a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h2>
-
-<p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the <em>database</em> that I want. It's the language - SQL.</p>
-
-<p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
-
-<p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
-
-<h2>
-<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
-
-<p>q's basic usage is very simple:<code>q &lt;flags&gt; &lt;query&gt;</code>, but it has lots of features under the hood and in the flags that can be passed to the command.</p>
-
-<p>Simplest execution is q "SELECT * FROM myfile" which prints the entire file.</p>
-
-<p>Complete information can be found <a href="doc/USAGE.markdown">here</a></p>
-
-<h2>
-<a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>Implementation</h2>
-
-<p>Some implementation details can be found <a href="doc/IMPLEMENTATION.markdown">here</a></p>
-
-<h2>
-<a name="limitations" class="anchor" href="#limitations"><span class="octicon octicon-link"></span></a>Limitations</h2>
-
-<ul>
-<li>No checks and bounds on data size</li>
-<li>Spaces in file names are not supported yet. I'm working on it.</li>
-<li>It is possible that some rare cases of subqueries are not supported yet. Please open an issue if you find such a case. This will be fixed once the tool performs its own full-blown SQL parsing.</li>
-</ul><h2>
-<a name="future-ideas" class="anchor" href="#future-ideas"><span class="octicon octicon-link"></span></a>Future Ideas</h2>
-
-<ul>
-<li>Faster reuse of previous data loading</li>
-<li>Allow working with external DB</li>
-<li>Real parsing of the SQL, allowing smarter execution of queries.</li>
-<li>Smarter batch insertion to the database</li>
-<li>Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.</li>
-</ul><h2>
-<a name="rationale" class="anchor" href="#rationale"><span class="octicon octicon-link"></span></a>Rationale</h2>
-
-<p>Some information regarding the rationale for this tool and related philosophy can be found <a href="doc/RATIONALE.markdown">here</a></p>
-
-<h2>
-<a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
-
-<p>History of changes can be found <a href="doc/CHANGELOG.markdown">here</a></p>
+<p>Installation instructions can be found <a href="../doc/INSTALL.markdown">here</a></p>
 
 <h2>
 <a name="contact" class="anchor" href="#contact"><span class="octicon octicon-link"></span></a>Contact</h2>
@@ -211,8 +143,6 @@ avahi 2
 <p>Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.</p>
 
 <p>Harel Ben-Attia, <a href="mailto:harelba@gmail.com">harelba@gmail.com</a>, <a href="https://twitter.com/harelba">@harelba</a> on Twitter</p>
-
-<p>q on twitter: #qtextasdata</p>
       </section>
     </div>
 

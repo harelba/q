@@ -1,24 +1,12 @@
 # q - Text as Data
 q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
 
-The q website is [here](http://harelba.github.io/q).
+Access the q website [here](http://harelba.github.io/q).
 
 Main features:
 * Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)
 * Automatic column name and column type detection (Allows working more naturally with the data)
 * Full encoding support (input, output and query)
-
-Version `1.4.0` is out and contains the following improvements:
-* 2.5x speed increase for large files - Thanks [@Gasol](https://github.com/Gasol)!
-* Output header support (based on the query's SELECTed columns/aliases)
-* Additional control over query and output encodings
-* Bug fixes (see [change log](doc/CHANGELOG.markdown) for full details)
-
-Please send any feedback you have on the new version and open new issues as needed.
-
-I would love to get any requests and comments you have on the tool.
-
-You can use this [gitter chat room](https://gitter.im/harelba/q) for contacting me directly. I'm trying to be available at the chat room as much as possible.
 
 ## Examples
 A beginner's tutorial can be found [here](examples/EXAMPLES.markdown).
@@ -98,13 +86,6 @@ Make sure you run `brew update` first and then just run `brew install q`.
 
 Thanks [@stuartcarnie](https://github.com/stuartcarnie) for the initial homebrew formula
 
-### Manual installation (very simple, since there are no dependencies)
-
-1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.4.0/bin/q)** into a folder in the PATH.
-2. Make the file executable.
-
-For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.4.0/bin/q.bat)** into the same folder and use it to run q.
-
 ### RPM-Base Linux distributions
 Download the version `1.4.0` RPM here **[here](https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm)**. 
 
@@ -113,6 +94,13 @@ Install using `rpm -ivh <rpm-name>`.
 RPM Releases also contain a man page. Just enter `man q`.
 
 **NOTE** In Version `1.4.0`, the RPM package name has been changed to `q-text-as-data`. If you already have the old version, just remove it with `rpm -e q` before installing.
+
+### Manual installation (very simple, since there are no dependencies)
+
+1. Download the main q executable from **[here](https://raw.github.com/harelba/q/1.4.0/bin/q)** into a folder in the PATH.
+2. Make the file executable.
+
+For `Windows` machines, also download q.bat **[here](https://raw.github.com/harelba/q/1.4.0/bin/q.bat)** into the same folder and use it to run q.
 
 ### Debian-based Linux distributions
 If you're interested in Debian packaing, please drop me a line to harelba@gmail.com.

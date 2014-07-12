@@ -170,6 +170,31 @@ pre, code {
   -webkit-border-radius: 2px;
 }
 
+.main_example_wrapper {
+	background-color: black;
+        color : #00ff00;
+}
+
+.main_example {
+	font-size: 1.5em;
+	background-color: black;
+        color : #00ff00;
+	font-weight: bold;
+	text-align: center;
+}
+
+.code_example_wrapper {
+	background-color: black;
+        color : #00D000;
+}
+
+.code_example {
+	background-color: black;
+        color : #00D000;
+	font-weight: bold;
+	text-align: left;
+}
+
 pre {
   width: 100%;
   padding: 0px;

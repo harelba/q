@@ -7,6 +7,7 @@
     <meta name="description" content="q : q - Text as Data" />
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 
     <title>q</title>
   </head>
@@ -49,30 +50,17 @@
 
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
+      <div id="main_content" class="inner">
+<h2>Main features:</h2>
 
-<h2>
-<a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h2>
+<ul>
+<li>Seamless multi-table SQL support, including joins. filenames are just used instead of table names (use - for stdin)</li>
+<li>Automatic column name and column type detection (Allows working more naturally with the data)</li>
+<li>Full encoding support (input, output and query)</li>
+</ul>
 
-<p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the <em>database</em> that I want. It's the language - SQL.</p>
 
-<p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
-
-<p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
-
-<h2>
-<a name="why-arent-other-linux-tools-enough" class="anchor" href="#why-arent-other-linux-tools-enough"><span class="octicon octicon-link"></span></a>Why aren't other Linux tools enough?</h2>
-
-<p>The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.</p>
-
-<p>One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).</p>
-
-<h2>
-<a name="philosophy" class="anchor" href="#philosophy"><span class="octicon octicon-link"></span></a>Philosophy</h2>
-
-<p>This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read the amazing book <a href="http://catb.org/%7Eesr/writings/taoup/">http://catb.org/~esr/writings/taoup/</a> and specifically <a href="http://catb.org/%7Eesr/writings/taoup/html/ch01s06.html">http://catb.org/~esr/writings/taoup/html/ch01s06.html</a>. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.</p>
-
-              <script type="text/javascript">
+             <script type="text/javascript">
             var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
             document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
           </script>

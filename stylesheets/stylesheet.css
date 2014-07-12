@@ -421,6 +421,17 @@ Full-Width Styles
   padding-top: 40px;
 }
 
+#q-logo {
+	float:right;
+	border: none;
+	padding: 0px;
+	margin: 10px 0 10px 0;
+	border: none;
+	box-shadow: 0 0;
+	width:10%;
+	height:auto;
+}
+
 #sidenav {
   background: #f2f2f2;
   float:left;

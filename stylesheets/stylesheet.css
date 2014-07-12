@@ -51,7 +51,7 @@ Theme Styles
 body {
   box-sizing: border-box;
   color:#373737;
-  background: #212121;
+  background: #f2f2f2;
   font-size: 16px;
   font-family: 'Myriad Pro', Calibri, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -172,7 +172,7 @@ pre, code {
 
 pre {
   width: 100%;
-  padding: 10px;
+  padding: 0px;
   box-shadow: 0 0 10px rgba(0,0,0,.1);
   overflow: auto;
 }
@@ -386,12 +386,58 @@ Full-Width Styles
 
 #main_content_wrap {
   background: #f2f2f2;
-  border-top: 1px solid #111;
+  border-top: 0px solid #111;
   border-bottom: 1px solid #111;
+  float: left;
+  width: 75%;
 }
 
 #main_content {
   padding-top: 40px;
+}
+
+#sidenav {
+  background: #f2f2f2;
+  float:left;
+  width: 25%;
+  font-size: 0.9em;
+  color: #003;
+  float: left;
+  padding: 15px 15px 5px 25px;
+  width: 180px;
+  #background: none repeat scroll 0 0 #f5f8fa;
+  margin: 0 0 20px 0;
+}
+
+#sidenav h1 {
+  color: #000;
+  font-size: 1em;
+  padding: 0;
+  margin-top: 0.8em;
+  margin-bottom: 0;
+  border-bottom: 1px solid #a3afb6;
+}
+
+#sidenav ul {
+  margin: 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#sidenav li {
+  border-bottom: 1px solid #e6ebed; 
+  margin: 0.2em 0;
+  padding: 0;
+}
+
+#sidenav li a {
+  margin: 0;
+  text-decoration:none;
+}
+
+#sidenav li a:hover {
+  color: #193240;
+  background: none;
 }
 
 #footer_wrap {

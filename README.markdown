@@ -3,5 +3,8 @@ q is a command line tool that allows direct execution of SQL-like queries on CSV
 
 q's web site is [here](http://harelba.github.io/q/). It contains everything you need to download and use q in no time.
 
+[http://harelba.github.io/q/](http://harelba.github.io/q/)
+
+
 
 

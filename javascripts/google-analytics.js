@@ -5,7 +5,7 @@
 
   ga('create', 'UA-48316355-1', 'auto');
   ga('require', 'displayfeatures');
-  ga('require', 'linkid', 'linkid.js');
+  //ga('require', 'linkid', 'linkid.js');
   ga('send', 'pageview');
 
 // Monitor all download links in GA

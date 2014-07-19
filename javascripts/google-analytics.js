@@ -11,8 +11,15 @@
 // Monitor all download links in GA
 window.onload = function() {
   var a = document.getElementsByTagName('a');
+  var cnt = 0;
   for (i = 0; i < a.length; i++) {
-      if (a[i].href.match(/^https?:\/\/.+(\.rpm|\/q|\.tar\.gz|\.zip)$/i)) {
+      var url = a[i].href;
+      var x = url.indexOf("?");
+      if (x != -1) {
+        url = url.substr(0,x);
+      }
+      if (url.match(/^https?:\/\/.+(\.rpm|\/q|\.tar\.gz|\.zip|\.bat)$/i)) {
+        cnt = cnt + 1;
         a[i].onclick = function() {
 		  var that = this;
           ga('send', 'event', 'Downloads', 'Click', this.getAttribute('href'));
@@ -23,5 +30,6 @@ window.onload = function() {
         };
       }
   }
+  console.log("Converted " + cnt + " links to be GA aware");
 }
 

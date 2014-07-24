@@ -183,6 +183,14 @@ pre, code {
 	text-align: center;
 }
 
+.main_example2 {
+	font-size: 1.2em;
+	background-color: black;
+        color : #00ff00;
+	font-weight: bold;
+	text-align: center;
+}
+
 .code_example_wrapper {
 	background-color: black;
         color : #00D000;
@@ -428,7 +436,7 @@ Full-Width Styles
 	margin: 10px 0 10px 0;
 	border: none;
 	box-shadow: 0 0;
-	width:10%;
+	width:15%;
 	height:auto;
 }
 

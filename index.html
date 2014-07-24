@@ -69,9 +69,13 @@
 <p>q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.</p>
 
 <pre class="main_example_wrapper">
-	<code class="main_example">q "select count(*) from myfile where myfield1 &gt; 3000"</code>
+	<code class="main_example">q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 &gt; 32.3"</code>
 </pre>
-<p>Look at the <a href="examples.html">examples</a> page for some examples, or just download the tool using the links above or in the <a href="install.html">installation page</a> and play with it.</p>
+<br/>
+<pre class="main_example_wrapper">
+	<code class="main_example2">ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"</code>
+</pre>
+<p>Look at the <a href="examples.html">examples</a> page for some more examples, or just download the tool using the links above or in the <a href="install.html">installation page</a> and play with it.</p>
 
 
   </body>

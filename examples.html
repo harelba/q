@@ -65,11 +65,29 @@
     <div id="main_content_wrap" class="outer">
       <div id="main_content" class="inner">
 <h2>Examples</h2>
-<p>The <code>-H</code> flag in the examples below signifies that the file has a header row which is used for naming columns, and the <code>-t</code> flag is just a shortcut for saying that the file is a tab-separated file.</p>
+<p>The <code>-H</code> flag in the examples below signifies that the file has a header row which is used for naming columns.</p>
+<p>The <code>-t</code> flag is just a shortcut for saying that the file is a tab-separated file (any delimiter is supported - Use the <code>-d</code> flag.</p>
 
-<p><strong>Example 1:</strong></p>
+<p>Queries are given using upper case for clarity, but actual query keywords such as SELECT and WHERE are not really case sensitive.</p>
 
-<pre class="code_example_wrapper"><code class="code_example">q -H -t "select count(distinct(uuid)) from ./clicks.csv"
+<ul>
+	<li>Examples</li>
+	<ul>
+	<li><a href="#example1">Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)</a></li>
+	<li><a href="#example2">Example 2 - Filter numeric data, controlling ORDERing and LIMITing output</a></li>
+	<li><a href="#example3">Example 3 - Illustrate GROUP BY</a></li>
+	<li><a href="#example4">Example 4 - More complex GROUP BY (group by time expression)</a></li>
+	<li><a href="#example5">Example 5 - Read input from standard input</a></li>
+	<li><a href="#example6">Example 6 - Use column names from header row</a></li>
+	<li><a href="#example7">Example 7 - JOIN two files</a></li>
+	</ul>
+</ul>
+
+<br/><br/>
+
+<p><strong><a name="example1"></a>Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)</strong></p>
+
+<pre class="code_example_wrapper"><code class="code_example">q -H -t "SELECT COUNT(DISTINCT(uuid)) FROM ./clicks.csv"
 </code></pre>
 
 <p><strong>Output 1:</strong></p>
@@ -77,9 +95,13 @@
 <div class="highlight highlight-bash"><pre class="code_example">229
 </pre></div>
 
-<p><strong>Example 2:</strong></p>
+<br/><br/>
 
-<pre class="code_example_wrapper"><code class="code_example">q -H -t "select request_id,score from ./clicks.csv where score &gt; 0.7 order by score desc limit 5"
+<p><strong><a name="example2"></a>Example 2 - Filter numeric data, controlling ORDERing and LIMITing output</strong></p>
+
+<p> Note that <code>q</code> understands that the column is numeric and filters according to its numeric value (real numeric value comparison, not string comparison).</p>
+
+<pre class="code_example_wrapper"><code class="code_example">q -H -t "SELECT request_id,score FROM ./clicks.csv WHERE score &gt; 0.7 ORDER BY score DESC LIMIT 5"
 </code></pre>
 
 <p><strong>Output 2:</strong></p>
@@ -90,31 +112,38 @@ f6de737b5aa2c46a3db3208413a54d64    0.986665809568
 2c09058a1b82c6dbcf9dc463e73eddd2    0.703255121794
 </pre></div>
 
-<p><strong>Example 3:</strong></p>
+<br/><br/>
 
-<pre class="code_example_wrapper"><code class="code_example">q -t -H "select strftime('%H:%M',date_time) hour_and_minute,count(*) from ./clicks.csv group by hour_and_minute"
+<p><strong><a name="example3"></a>Example 3 - Illustrate GROUP BY</strong></p>
+
+<pre class="code_example_wrapper"><code class="code_example">q -t -H "SELECT hashed_source_machine,count(*) FROM ./clicks.csv GROUP BY hashed_source_machine"
 </code></pre>
 
 <p><strong>Output 3:</strong></p>
+
+<div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">47d9087db433b9ba.domain.com 400000
+</pre></div>
+
+<br/><br/>
+
+<p><strong><a name="example4"></a>Example 4 - More complex GROUP BY (group by time expression)</strong></p>
+
+<pre class="code_example_wrapper"><code class="code_example">q -t -H "SELECT strftime('%H:%M',date_time) hour_and_minute,count(*) FROM ./clicks.csv GROUP BY hour_and_minute"
+</code></pre>
+
+<p><strong>Output 4:</strong></p>
 
 <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">07:00   138148
 07:01   140026
 07:02   121826
 </pre></div>
 
-<p><strong>Usage Example 4:</strong></p>
+<br/><br/>
+<p><strong><a name="example5"></a>Example 5 - Read input from standard input</strong></p>
 
-<pre class="code_example_wrapper"><code class="code_example">q -t -H "select hashed_source_machine,count(*) from ./clicks.csv group by hashed_source_machine"
-</code></pre>
+<p>Calculates the total size per user/group in the /tmp subtree.</p>
 
-<p><strong>Output 4:</strong></p>
-
-<div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">47d9087db433b9ba.domain.com 400000
-</pre></div>
-
-<p><strong>Example 5 (total size per user/group in the /tmp subtree):</strong></p>
-
-<pre class="code_example_wrapper"><code class="code_example">sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+<pre class="code_example_wrapper"><code class="code_example">sudo find /tmp -ls | q "SELECT c5,c6,sum(c7)/1024.0/1024 AS total FROM - GROUP BY c5,c6 ORDER BY total desc"
 </code></pre>
 
 <p><strong>Output 5:</strong></p>
@@ -124,11 +153,13 @@ root   root     8.0431451797485
 smith  smith    4.34389972687
 </pre></div>
 
-<p><strong>Example 6 (top 3 user ids with the largest number of owned processes, sorted in descending order):</strong></p>
+<br/><br/>
+<p><strong><a name="example6"></a>Example 6 - Use column names from header row</strong></p>
 
+<p>Calculate the top 3 user ids with the largest number of owned processes, sorted in descending order.</p>
 <p>Note the usage of the autodetected column name UID in the query.</p>
 
-<pre class="code_example_wrapper"><code class="code_example">ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"
+<pre class="code_example_wrapper"><code class="code_example">ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 </code></pre>
 
 <p><strong>Output 6:</strong></p>
@@ -137,6 +168,27 @@ smith  smith    4.34389972687
 harel 119
 avahi 2
 </pre></div>
+
+
+
+<br/><br/>
+<p><strong><a name="example7"></a>Example 7 - JOIN two files</strong></p>
+
+<p>The following command joins an ls output (exampledatafile) and a file containing rows of group-name,email (group-emails-example) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause.
+</p>
+
+<pre class="code_example_wrapper"><code class="code_example">q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"
+</code></pre>
+
+<p><strong>Output 7:</strong></p>
+
+<div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">ppp dip.1@otherdomain.com
+ppp dip.2@otherdomain.com
+</pre></div>
+
+<p>You can see that the <code>ppp</code> filename appears twice, each time matched to one of the emails of the group dip to which it belongs. Take a look at the files <code>exampledatafile</code> and <code>group-emails-example</code> for the data.</p>
+
+<p>Column name detection is supported for JOIN scenarios as well. Just specify <code>-H</code> in the command line and make sure that the source files contain the header rows.</p>
 
   </body>
 </html>

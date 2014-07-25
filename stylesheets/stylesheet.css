@@ -348,7 +348,7 @@ Full-Width Styles
 
 #downloads {
   position: absolute;
-  width: 420px;
+  width: 525px;
   z-index: 10;
   bottom: -40px;
   right: 0;
@@ -388,6 +388,18 @@ Full-Width Styles
   margin-left: 10px;
 }
 
+.deb_download_link {
+  display: block;
+  float: right;
+  width: 90px;
+  height:70px;
+  text-indent: -5000px;
+  overflow: hidden;
+  background: url(../images/sprite_download4.png) no-repeat bottom left;
+  margin-left: 10px;
+}
+
+
 .executable_download_link {
   display: block;
   float: right;
@@ -411,6 +423,11 @@ Full-Width Styles
 .rpm_download_link:hover {
   background: url(../images/sprite_download3.png) no-repeat top left;
 }
+
+.deb_download_link:hover {
+  background: url(../images/sprite_download4.png) no-repeat top left;
+}
+
 
 .executable_download_link:hover {
   background: url(../images/sprite_download3.png) no-repeat top right;

@@ -74,9 +74,9 @@
 		<ul>
 		<li><a href="#mac-users">Mac</a></li>
 		<li><a href="#rpm-base-linux-distributions">RPM Package for RPM based Linux distributions</a></li>
+		<li><a href="#debian">Debian Package</a></li>
 		<li><a href="#arch-linux">Arch Linux</a></li>
 		<li><a href="#manual-installation">Manual Installation (single file, no dependencies). Windows users should use this as well</a></li>
-		<li><a href="#debian">Debian Package - Working on it</a></li>
 		</ul>
 </ul>
 <br/>
@@ -90,6 +90,7 @@
 <p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula</p>
 
 <h3>
+<br/>
 <a name="rpm-base-linux-distributions" class="anchor" href="#rpm-base-linux-distributions"><span class="octicon octicon-link"></span></a>RPM-Based Linux distributions</h3>
 
 <p>Download the version <code>1.4.0</code> RPM here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm?source=install_page">here</a></strong>. </p>
@@ -101,14 +102,25 @@
 <p><strong>NOTE</strong> In Version <code>1.4.0</code>, the RPM package name has been changed. If you already have the old version, just remove it with <code>rpm -e q</code> before installing.</p>
 
 <h3>
+<br/>
+<a name="debian" class="anchor" href="#debian"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
+
+<p>Download the version <code>1.4.0</code> Debian package here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.4.0-1_all.deb?source=install_page">here</a></strong>. </p>
+
+<p>Install using <code>sudo dpkg -i &lt;package-file-name&gt;</code> or by double clicking the downloaded file in the file manager</code>.</p>
+
+<p>Debian Releases also contain a man page. Just enter <code>man q</code>.</p>
+
+<h3>
+<br/>
 <a name="arch-linux" class="anchor" href="#arch-linux"><span class="octicon octicon-link"></span></a>Arch Linux</h3>
 
 <p>A <code>PKGBUILD</code> is <a href="https://aur.archlinux.org/packages/q/">available</a> in AUR for Arch Linux users. See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> in the wiki or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a>.</p>
 
-<p>The man page is also provided (extracted <em>as is</em> from the RPM): <code>man q</code></p>
-
+<p>This release also contain the q man page. Just enter <code>man q</code>.</p>
 
 <h3>
+<br/>
 <a name="manual-installation" class="anchor" href="#manual-installation"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
 
 <ol>
@@ -117,11 +129,8 @@
 </ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q.bat?source=install_page">here</a></strong> into the same folder and use it to run q.</p>
 
 
-<h3>
-<a name="debian" class="anchor" href="#debian"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
 
-<p>Debian packaing is in progress. In the mean time install manually. See the section above.</p>
-
+<br/>
 <h2>
 <a name="default-settings-file" class="anchor" href="#default-settings-file"><span class="octicon octicon-link"></span></a>Default settings file</h2>
 

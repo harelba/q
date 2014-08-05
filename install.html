@@ -31,7 +31,7 @@
               <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.4.0.tar.gz">Download the last stable version tar.gz file</a>
               <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm">Download the latest stable version RPM</a>
               <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.4.0-1_all.deb">Download the latest stable version Debian package</a>
-              <a class="executable_download_link" title="If you're using Windows, you need another file. Go to the install section" href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q">Download the single-file executable</a>
+              <a class="executable_download_link" title="If you're using Windows, go to the Installation page and look for the beta version. I'm in the process of creating a full windows installation" href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q">Download the single-file executable</a>
             </section>
         </header>
     </div>
@@ -85,7 +85,8 @@
 		<li><a href="#rpm-base-linux-distributions">RPM Package for RPM based Linux distributions</a></li>
 		<li><a href="#debian">Debian Package</a></li>
 		<li><a href="#arch-linux">Arch Linux</a></li>
-		<li><a href="#manual-installation">Manual Installation (single file, no dependencies). Windows users should use this as well</a></li>
+		<li><a href="#windows">Windows (Beta)</a></li>
+		<li><a href="#manual-installation">Manual Installation (single file, no dependencies)</a></li>
 		</ul>
 </ul>
 <br/>
@@ -128,14 +129,25 @@
 
 <h3>
 <br/>
+<a name="windows" class="anchor" href="#windows"><span class="octicon octicon-link"></span></a>Windows (Beta)</h3>
+
+<p>You can download the new <strong>beta</strong> version for an standard Windows installation from <a href="https://github.com/harelba/packages-for-q/raw/master/windows/beta-setup-q-1.4.0.exe?source=install_page">here</a>. Please send me any feedback about the installation and open new issues here in github.</p>
+
+<p>Running q in Windows is a bit different, since it's in a compiled format. You need to run <strong><code>q.exe</code></strong> instead of q when running the tool.</p>
+
+<p>Please note that the installation should automatically add <code>q.exe</code> to the system path, so you're supposed to be able to run q.exe from anywhere in the command line. If for some reason you can't run q.exe from any folder, please drop me a line so I can improve the installation.</p>
+
+<p><strong>NOTE: </strong>If there is a problem with a missing DLL, please download and install <a href="https://github.com/harelba/packages-for-q/raw/master/windows/vcredist_x86.exe">this Microsot Redistributable</a>. I'm planning on adding it to the final Windows installation.</p>
+
+<p><strong>NOTE2: </strong>I've tried to make q for Windows standalone, without any need for dependencies except for maybe the Microsoft Redistributable above. This includes python as well - There is no need to have python installed in order to run q.exe.</p>
+
+<h3>
+<br/>
 <a name="manual-installation" class="anchor" href="#manual-installation"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
 
 <ol>
 <li>Download the main q executable from <strong><a href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q?source=install_page">here</a></strong> into a folder in the PATH.</li>
 <li>Make the file executable.</li>
-</ol><p>For <code>Windows</code> machines, also download q.bat <strong><a href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q.bat?source=install_page">here</a></strong> into the same folder and use it to run q.</p>
-
-
 
 <br/>
 <h2>

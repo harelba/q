@@ -131,7 +131,7 @@
 <br/>
 <a name="windows" class="anchor" href="#windows"><span class="octicon octicon-link"></span></a>Windows (Beta)</h3>
 
-<p>You can download the new <strong>beta</strong> version for an standard Windows installation from <a href="https://github.com/harelba/packages-for-q/raw/master/windows/beta-setup-q-1.4.0.exe?source=install_page">here</a>. Please send me any feedback about the installation and open new issues here in github.</p>
+<p>You can download the new <strong>beta</strong> version for an standard Windows installation from <code><a href="https://github.com/harelba/packages-for-q/raw/master/windows/beta-setup-q-1.4.0.exe?source=install_page">here</a></code>. Please send me any feedback about the installation and open new issues here in github.</p>
 
 <p>Running q in Windows is a bit different, since it's in a compiled format. You need to run <strong><code>q.exe</code></strong> instead of q when running the tool.</p>
 
@@ -140,6 +140,8 @@
 <p><strong>NOTE: </strong>If there is a problem with a missing DLL, please download and install <a href="https://github.com/harelba/packages-for-q/raw/master/windows/vcredist_x86.exe">this Microsot Redistributable</a>. I'm planning on adding it to the final Windows installation.</p>
 
 <p><strong>NOTE2: </strong>I've tried to make q for Windows standalone, without any need for dependencies except for maybe the Microsoft Redistributable above. This includes python as well - There is no need to have python installed in order to run q.exe.</p>
+
+<p><strong>NOTE3: </strong>The addition of <code>q.exe</code> to the path is immediate, but you need to open a new cmd.exe window in order for it to be applied. This means that command line windows which have been opened before the installation will not be able to find q.exe.</p>
 
 <h3>
 <br/>

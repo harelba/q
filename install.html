@@ -32,7 +32,7 @@
               <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm">Download the latest stable version RPM</a>
               <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.4.0-1_all.deb">Download the latest stable version Debian package</a>
               <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q">Download the single-file executable</a>
-              <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/beta-setup-q-1.4.0.exe">Download the single-file executable</a>
+              <a class="windows_download_link" title="Installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.4.0.exe">Download the single-file executable</a>
             </section>
         </header>
     </div>
@@ -77,7 +77,7 @@
 
 <p>You can easily download the tool in multiple packaging formats using the folder images above, or click the links below for a more detailed explanation</p>
 
-<p>Current stable version is <code>1.4.0</code>.</p>
+<p>Current stable version is <code>1.4.0</code>. All links below and in the folder images above refer to this version.</p>
 
 <ul>
 	<li>Detailed Installation Instructions for the various OSs</li>
@@ -85,8 +85,8 @@
 		<li><a href="#mac-users">Mac</a></li>
 		<li><a href="#rpm-base-linux-distributions">RPM Package for RPM based Linux distributions</a></li>
 		<li><a href="#debian">Debian Package</a></li>
+		<li><a href="#windows">Windows</a></li>
 		<li><a href="#arch-linux">Arch Linux</a></li>
-		<li><a href="#windows">Windows (Beta)</a></li>
 		<li><a href="#manual-installation">Manual Installation (single file, no dependencies)</a></li>
 		</ul>
 </ul>
@@ -98,7 +98,7 @@
 
 <p>Make sure you run <code>brew update</code> first and then just run <code>brew install q</code>. </p>
 
-<p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula</p>
+<p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula.</p>
 
 <h3>
 <br/>
@@ -122,27 +122,26 @@
 
 <h3>
 <br/>
-<a name="arch-linux" class="anchor" href="#arch-linux"><span class="octicon octicon-link"></span></a>Arch Linux</h3>
+<a name="windows" class="anchor" href="#windows"><span class="octicon octicon-link"></span></a>Windows</h3>
 
-<p>A <code>PKGBUILD</code> is <a href="https://aur.archlinux.org/packages/q/">available</a> in AUR for Arch Linux users. See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> in the wiki or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a>.</p>
-
-<p>This release also contain the q man page. Just enter <code>man q</code>.</p>
-
-<h3>
-<br/>
-<a name="windows" class="anchor" href="#windows"><span class="octicon octicon-link"></span></a>Windows (Beta)</h3>
-
-<p>You can download the new <strong>beta</strong> version for an standard Windows installation from <code><a href="https://github.com/harelba/packages-for-q/raw/master/windows/beta-setup-q-1.4.0.exe?source=install_page">here</a></code>. Please send me any feedback about the installation and open new issues here in github.</p>
+<p>You can download a standard Windows installation from <code><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.4.0.exe?source=install_page">here</a></code>. Please send me any feedback about the installation and open new issues here in github.</p>
 
 <p>Running q in Windows is a bit different, since it's in a compiled format. You need to run <strong><code>q.exe</code></strong> instead of q when running the tool.</p>
 
 <p>Please note that the installation should automatically add <code>q.exe</code> to the system path, so you're supposed to be able to run q.exe from anywhere in the command line. If for some reason you can't run q.exe from any folder, please drop me a line so I can improve the installation.</p>
 
-<p><strong>NOTE: </strong>If there is a problem with a missing DLL, please download and install <a href="https://github.com/harelba/packages-for-q/raw/master/windows/vcredist_x86.exe">this Microsot Redistributable</a>. I'm planning on adding it to the final Windows installation.</p>
+<p><strong>NOTE: </strong>There is no need to have python installed in order to run q.exe. The installation is completely standalone.</p>
 
-<p><strong>NOTE2: </strong>I've tried to make q for Windows standalone, without any need for dependencies except for maybe the Microsoft Redistributable above. This includes python as well - There is no need to have python installed in order to run q.exe.</p>
+<p><strong>NOTE2: </strong>q.exe is added automatically to the PATH. Please open a new cmd.exe window after installation (Windows doesn't update the PATH of existing cmd windows).</p>
 
-<p><strong>NOTE3: </strong>The addition of <code>q.exe</code> to the path is immediate, but you need to open a new cmd.exe window in order for it to be applied. This means that command line windows which have been opened before the installation will not be able to find q.exe.</p>
+<h3>
+<br/>
+<a name="arch-linux" class="anchor" href="#arch-linux"><span class="octicon octicon-link"></span></a>Arch Linux</h3>
+
+<p>A <code>PKGBUILD</code> is <a href="https://aur.archlinux.org/packages/q/">available</a> in AUR for Arch Linux users. See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> in the wiki or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a>.</p>
+
+<p>This release also contains the q man page. Just enter <code>man q</code>.</p>
+
 
 <h3>
 <br/>

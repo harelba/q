@@ -75,84 +75,68 @@
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>You can easily download the tool in multiple packaging formats using the folder images above, or click the links below for a more detailed explanation</p>
-
-<p>Current stable version is <code>1.4.0</code>. All links below and in the folder images above refer to this version.</p>
-
-<ul>
-	<li>Detailed Installation Instructions for the various OSs</li>
-		<ul>
-		<li><a href="#mac-users">Mac</a></li>
-		<li><a href="#rpm-base-linux-distributions">RPM Package for RPM based Linux distributions</a></li>
-		<li><a href="#debian">Debian Package</a></li>
-		<li><a href="#windows">Windows</a></li>
-		<li><a href="#arch-linux">Arch Linux</a></li>
-		<li><a href="#manual-installation">Manual Installation (single file, no dependencies)</a></li>
-		</ul>
-</ul>
-<br/>
-<br/>
-
-<h3>
-<a name="mac-users" class="anchor" href="#mac-users"><span class="octicon octicon-link"></span></a>Mac</h3>
-
-<p>Make sure you run <code>brew update</code> first and then just run <code>brew install q</code>. </p>
-
-<p>Thanks <a href="https://github.com/stuartcarnie">@stuartcarnie</a> for the initial homebrew formula.</p>
-
-<h3>
-<br/>
-<a name="rpm-base-linux-distributions" class="anchor" href="#rpm-base-linux-distributions"><span class="octicon octicon-link"></span></a>RPM-Based Linux distributions</h3>
-
-<p>Download the version <code>1.4.0</code> RPM here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm?source=install_page">here</a></strong>. </p>
-
-<p>Install using <code>rpm -ivh &lt;rpm-name&gt;</code>.</p>
-
-<p>RPM Releases also contain a man page. Just enter <code>man q</code>.</p>
-
-<h3>
-<br/>
-<a name="debian" class="anchor" href="#debian"><span class="octicon octicon-link"></span></a>Debian-based Linux distributions</h3>
-
-<p>Download the version <code>1.4.0</code> Debian package here <strong><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.4.0-1_all.deb?source=install_page">here</a></strong>. </p>
-
-<p>Install using <code>sudo dpkg -i &lt;package-file-name&gt;</code> or by double clicking the downloaded file in the file manager</code>.</p>
-
-<p>Debian Releases also contain a man page. Just enter <code>man q</code>.</p>
-
-<h3>
-<br/>
-<a name="windows" class="anchor" href="#windows"><span class="octicon octicon-link"></span></a>Windows</h3>
-
-<p>You can download a standard Windows installation from <code><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.4.0.exe?source=install_page">here</a></code>. Please send me any feedback about the installation and open new issues here in github.</p>
-
-<p>Running q in Windows is a bit different, since it's in a compiled format. You need to run <strong><code>q.exe</code></strong> instead of q when running the tool.</p>
-
-<p>Please note that the installation should automatically add <code>q.exe</code> to the system path, so you're supposed to be able to run q.exe from anywhere in the command line. If for some reason you can't run q.exe from any folder, please drop me a line so I can improve the installation.</p>
-
-<p><strong>NOTE: </strong>There is no need to have python installed in order to run q.exe. The installation is completely standalone.</p>
-
-<p><strong>NOTE2: </strong>q.exe is added automatically to the PATH. Please open a new cmd.exe window after installation (Windows doesn't update the PATH of existing cmd windows).</p>
-
-<h3>
-<br/>
-<a name="arch-linux" class="anchor" href="#arch-linux"><span class="octicon octicon-link"></span></a>Arch Linux</h3>
-
-<p>A <code>PKGBUILD</code> is <a href="https://aur.archlinux.org/packages/q/">available</a> in AUR for Arch Linux users. See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> in the wiki or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a>.</p>
-
-<p>This release also contains the q man page. Just enter <code>man q</code>.</p>
+<p>Current stable version is <code>1.4.0</code>. All download links refer to this version.</p>
 
 
-<h3>
-<br/>
-<a name="manual-installation" class="anchor" href="#manual-installation"><span class="octicon octicon-link"></span></a>Manual installation (very simple, since there are no dependencies)</h3>
+<table align="center">
+   <tbody>
+      <tr>
+         <td width="30%" align="center"><strong>Format</strong></td>
+         <td width="40%" align="center"><strong>Instructions</strong></td>
+         <td width="30%" align="center"><strong>Comments</strong></td>
+      </tr>
+      <tr>
+         <td><span class="icon">​</span>Mac</td>
+         <td> Run <code>brew update</code> and then <code>brew install q</code> </td>
+         <td>  </td>
+      </tr>
+      <tr>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.4.0-1.noarch.rpm?source=install_page&table=1"><span class="icon">​</span>RPM Package</a></td>
+         <td> Download the package and run <code>rpm -ivh &lt;package-filename&gt;</code> </td>
+         <td> A man page is available for this release. Just enter <code>man q</code>. </td>
+      </tr>
+      <tr>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.4.0-1_all.deb?source=install_page&table=1"><span class="icon">​</span>Debian Package</a></td>
+         <td> Download the package and run <code>sudo dpkg -i &lt;package-filename&gt;<code> </td>
+         <td> A man page is available for this release. Just enter <code>man q</code>. </td>
+      </tr>
+      <tr>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.4.0.exe?source=install_page&table=1"><span class="icon">​</span>Windows Installer</a></td>
+         <td> Run the installer executable and hit next next next... <code>q.exe</code> will be added to the PATH so you can access it everywhere. </td>
+         <td> Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done. </td>
+      </tr>
+      <tr>
+         <td><a class="ext-link" href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q?source=install_page&table=1"><span class="icon">​</span>Single file download</a></td>
+         <td> Download the file into a location in the PATH and make it executable using <code>chmod +x q</code>.</td>
+         <td> Python 2.5 and above is required. If you're using python 2.4, just run <code>pip install sqlite</code> and you're all set. </td>
+      </tr>
+      <tr>
+         <td><a class="ext-link" href="https://aur.archlinux.org/packages/q/"><span class="icon">​</span>Arch Linux</a></td>
+         <td> See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a></td>
+         <td> The link refers to a PKGBUILD.  </td>
+		</tr>
+
+      <tr>
+         <td colspan="3" align="center"><strong>Source Code Archives</strong></td>
+      </tr>
+
+      <tr>
+         <td> <a href="https://github.com/harelba/q/archive/1.4.0.tar.gz?source=install_page&table=1">tar.gz</a> </td>
+         <td> Full source tree for the latest stable version.</td>
+         <td></td>
+      </tr>
+      <tr>
+         <td> <a href="https://github.com/harelba/q/archive/1.4.0.zip?source=install_page&table=1">zip</a> </td>
+         <td> Full source tree for the latest stable version.</td>
+         <td> </td>
+      </tr>
 
 
 
-<ol>
-<li>Download the main q executable from <strong><a href="https://cdn.rawgit.com/harelba/q/1.4.0/bin/q?source=install_page">here</a></strong> into a folder in the PATH.</li>
-<li>Make the file executable.</li>
+	</tbody>
+</table>
 
-<br/>
+
+
   </body>
 </html>

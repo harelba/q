@@ -166,7 +166,7 @@ parser.add_option_group(query_option_group)
 
 def regexp(regular_expression, data):
     if data is not None:
-        if type(data) is not str:
+        if not isinstance(data, str) and not isinstance(data, unicode):
             data = str(data)
         return re.search(regular_expression, data) is not None
     else:

@@ -43,6 +43,7 @@ import re
 from ConfigParser import ConfigParser
 import traceback
 import csv
+import hashlib
 
 DEBUG = False
 
@@ -164,6 +165,11 @@ query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", d
 parser.add_option_group(query_option_group)
 #-----------------------------------------------
 
+def sha1(data):
+    if not isinstance(data,str) and not isinstance(data,unicode):
+        return hashlib.sha1(str(data)).hexdigest()
+    return hashlib.sha1(data).hexdigest()
+    
 def regexp(regular_expression, data):
     if data is not None:
         if type(data) is not str:
@@ -191,6 +197,7 @@ class Sqlite3DB(object):
 
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
+        self.conn.create_function("sha1", 1, sha1)
 
     def is_numeric_type(self, column_type):
         return column_type in self.numeric_column_types
@@ -763,7 +770,10 @@ class TableCreator(object):
 
     def nullify_values_if_needed(self, col_vals):
         new_vals = col_vals[:]
+        col_count = len(col_vals)
         for i in self.numeric_column_indices:
+            if i >= col_count:
+                continue
             v = col_vals[i]
             if v == '':
                 new_vals[i] = None

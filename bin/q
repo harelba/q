@@ -1105,4 +1105,8 @@ except IOError, e:
     pass
 
 
-table_creator.drop_table()
+try:
+    table_creator.drop_table()
+except:
+    # Support no-table select queries
+    pass

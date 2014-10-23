@@ -23,11 +23,11 @@
 #
 # Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 #
-# Full Documentation and details in https://github.com/harelba/q
+# Full Documentation and details in http://harelba.github.io/q/ 
 #
 # Run with --help for command line details
 #
-q_version = "1.4.0"
+q_version = "1.4.1"
 
 import os
 import sys
@@ -115,7 +115,7 @@ parser = OptionParser(usage="""
 	    This example will output the total size in MB per user+group in the /tmp subtree
 
 
-        See the help or https://github.com/harelba/q for more details.
+        See the help or https://github.com/harelba/q/ for more details.
 """)
 
 #-----------------------------------------------
@@ -888,10 +888,16 @@ def determine_max_col_lengths(m):
                 max_lengths[col_index] = new_len
     return max_lengths
 
+def print_credentials():
+    print >>sys.stderr,"q version %s" % q_version
+    print >>sys.stderr,"Copyright (C) 2012-2014 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)"
+    print >>sys.stderr,"http://harelba.github.io/q/"
+    print >>sys.stderr
+
 (options, args) = parser.parse_args()
 
 if options.version:
-    print "q version %s" % q_version
+    print_credentials()
     sys.exit(0)
 
 if len(args) > 1:
@@ -899,6 +905,7 @@ if len(args) > 1:
     sys.exit(1)
 
 if len(args) == 0 and options.query_filename is None:
+    print_credentials()
     print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
     sys.exit(1)
 

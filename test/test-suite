@@ -27,7 +27,7 @@ def run_command(cmd_to_run):
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
     o, e = p.communicate()
     # remove last newline
-    o = o.strip()
+    o = o.rstrip()
     e = e.strip()
     # split rows
     if o != '':
@@ -71,6 +71,26 @@ sample_data_with_empty_string_no_header = "\n".join(
     sample_data_rows_with_empty_string) + "\n"
 sample_data_with_header = header_row + "\n" + sample_data_no_header
 sample_data_with_missing_header_names = "name,value1\n" + sample_data_no_header
+
+sample_quoted_data = '''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
+control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
+non-quoted-value "this is a quoted value" "this is a ""double double"" quoted value" "this is an escaped \\"quoted value\\"" "this is a double double quoted ""multiline
+  value""." "this is an escaped \\"multiline
+  value\\"."
+control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
+'''
+
+double_double_quoted_data = '''regular_double_quoted double_double_quoted 
+"this is a quoted value" "this is a quoted value with ""double double quotes"""
+'''
+
+escaped_double_quoted_data = '''regular_double_quoted escaped_double_quoted 
+"this is a quoted value" "this is a quoted value with \\"escaped double quotes\\""
+'''
+
+combined_quoted_data = '''regular_double_quoted double_double_quoted escaped_double_quoted
+"this is a quoted value" "this is a quoted value with ""double double quotes""" "this is a quoted value with \\"escaped double quotes\\""
+'''
 
 # Values with leading whitespace
 sample_data_rows_with_spaces = ['a,1,0', '   b,   2,0', 'c,,0']
@@ -715,8 +735,229 @@ class BasicTests(AbstractQTestCase):
 
         self.assertTrue(e[0].startswith("Could not read query from file"))
 
-         
+    def test_non_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        cmd = '../bin/q -d " " "select c1 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
 
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'non_quoted')
+        self.assertTrue(o[1],'control-value-1')
+        self.assertTrue(o[2],'non-quoted-value')
+        self.assertTrue(o[3],'control-value-1')
+
+        self.cleanup(tmp_data_file)
+
+    def test_regular_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        cmd = '../bin/q -d " " "select c2 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'regular_double_quoted')
+        self.assertTrue(o[1],'control-value-2')
+        self.assertTrue(o[2],'this is a quoted value')
+        self.assertTrue(o[3],'control-value-2')
+
+        self.cleanup(tmp_data_file)
+
+    def test_double_double_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        cmd = '../bin/q -d " " "select c3 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'double_double_quoted')
+        self.assertTrue(o[1],'control-value-3')
+        self.assertTrue(o[2],'this is a "double double" quoted value')
+        self.assertTrue(o[3],'control-value-3')
+
+        self.cleanup(tmp_data_file)
+
+    def test_escaped_double_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        cmd = '../bin/q -d " " "select c4 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'escaped_double_quoted')
+        self.assertTrue(o[1],'control-value-4')
+        self.assertTrue(o[2],'this is an escaped "quoted value"')
+        self.assertTrue(o[3],'control-value-4')
+
+        self.cleanup(tmp_data_file)
+
+    def test_multiline_double_double_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        # FIXME Need to convert \0a to proper encoding suitable for the person running the tests.
+        cmd = '../bin/q -d " " "select replace(c5,X\'0A\',\'::\') from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'multiline_double_double_quoted')
+        self.assertTrue(o[1],'control-value-5')
+        self.assertTrue(o[2],'this is a double double quoted "multiline\n value".')
+        self.assertTrue(o[3],'control-value-5')
+
+        self.cleanup(tmp_data_file)
+
+    def test_multiline_escaped_double_quoted_values_in_quoted_data(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data)
+        
+        # FIXME Need to convert \0a to proper encoding suitable for the person running the tests.
+        cmd = '../bin/q -d " " "select replace(c6,X\'0A\',\'::\') from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),4)
+
+        self.assertTrue(o[0],'multiline_escaped_double_quoted')
+        self.assertTrue(o[1],'control-value-6')
+        self.assertTrue(o[2],'this is an escaped "multiline:: value".')
+        self.assertTrue(o[3],'control-value-6')
+
+        self.cleanup(tmp_data_file)
+
+    def test_disable_double_double_quoted_data_flag__values(self):
+        # This test (and flag) is meant to verify backward comptibility only. It is possible that 
+        # this flag will be removed completely in the future
+
+        tmp_data_file = self.create_file_with_data(double_double_quoted_data)
+     
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c2 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'double_double_quoted')
+        self.assertEquals(o[1],'this is a quoted value with "double')
+
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c3 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'')
+        self.assertEquals(o[1],'double')
+
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c4 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'')
+        self.assertEquals(o[1],'quotes"""')
+
+        self.cleanup(tmp_data_file)
+
+    def test_disable_escaped_double_quoted_data_flag__values(self):
+        # This test (and flag) is meant to verify backward comptibility only. It is possible that 
+        # this flag will be removed completely in the future
+
+        tmp_data_file = self.create_file_with_data(escaped_double_quoted_data)
+     
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c2 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'escaped_double_quoted')
+        self.assertEquals(o[1],'this is a quoted value with \\escaped')
+
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c3 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'')
+        self.assertEquals(o[1],'double')
+
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c4 from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'')
+        self.assertEquals(o[1],'quotes\\""')
+
+        self.cleanup(tmp_data_file)
+
+    def test_combined_quoted_data_flags__number_of_columns_detected(self):
+        # This test (and flags) is meant to verify backward comptibility only. It is possible that 
+        # these flags will be removed completely in the future
+        tmp_data_file = self.create_file_with_data(combined_quoted_data)
+
+        cmd = '../bin/q -d " " --disable-double-double-quoting --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        o = o[1:]   # remove the first "Table for file..." line in the output
+
+        self.assertEquals(len(o),7) # found 7 fields
+
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        o = o[1:]   # remove the first "Table for file..." line in the output
+
+        self.assertEquals(len(o),5) # found 5 fields
+
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select * from %s" -A' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        o = o[1:]   # remove the first "Table for file..." line in the output
+
+        self.assertEquals(len(o),5) # found 5 fields
+
+        cmd = '../bin/q -d " " "select * from %s" -A' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        o = o[1:]   # remove the first "Table for file..." line in the output
+
+        self.assertEquals(len(o),3) # found only 3 fields, which is the correct amount
+
+        self.cleanup(tmp_data_file)
 
 class ParsingModeTests(AbstractQTestCase):
 

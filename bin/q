@@ -27,7 +27,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.4.1"
+q_version = "1.5.0" # not released yet
 
 import os
 import sys
@@ -141,6 +141,10 @@ input_data_option_group.add_option("-c", "--column-count", dest="column_count", 
                   help="Specific column count when using relaxed or strict mode")
 input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
                   help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
+input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=True, action="store_false",
+                  help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
+                  help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
 parser.add_option_group(input_data_option_group)
 #-----------------------------------------------
 output_data_option_group = OptionGroup(parser,"Output Options") 
@@ -155,6 +159,7 @@ output_data_option_group.add_option("-f", "--formatting", dest="formatting", def
                   help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
 output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
                   help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+# -M will be added here for supporting output quoting mode in the future
 parser.add_option_group(output_data_option_group)
 #-----------------------------------------------
 query_option_group = OptionGroup(parser,"Query Related Options") 
@@ -972,7 +977,13 @@ else:
     skip_initial_space = True
 
 q_dialect = {'skipinitialspace': skip_initial_space, 'quoting': 0,
-             'delimiter': options.delimiter, 'quotechar': '"', 'doublequote': False}
+             'delimiter': options.delimiter, 'quotechar': '"' }
+
+q_dialect['doublequote'] = options.disable_double_double_quoting;
+
+if options.disable_escaped_double_quoting:
+    q_dialect['escapechar'] = '\\'
+
 csv.register_dialect('q', **q_dialect)
 file_reading_method = 'csv'
 

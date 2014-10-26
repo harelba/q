@@ -501,7 +501,7 @@ class TableColumnInferer(object):
         else:
             raise Exception('Unknown parsing mode %s' % self.mode)
 
-        if self.column_count == 1:
+        if self.column_count == 1 and self.expected_column_count != 1:
             print >>sys.stderr, "Warning: column count is one - did you provide the correct delimiter?"
         if self.column_count == 0:
             raise Exception("Detected a column count of zero... Failing")

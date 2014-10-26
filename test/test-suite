@@ -92,6 +92,10 @@ combined_quoted_data = '''regular_double_quoted double_double_quoted escaped_dou
 "this is a quoted value" "this is a quoted value with ""double double quotes""" "this is a quoted value with \\"escaped double quotes\\""
 '''
 
+one_column_data = '''data without commas 1
+data without commas 2
+'''
+
 # Values with leading whitespace
 sample_data_rows_with_spaces = ['a,1,0', '   b,   2,0', 'c,,0']
 sample_data_with_spaces_no_header = "\n".join(
@@ -1151,6 +1155,65 @@ class ParsingModeTests(AbstractQTestCase):
                            "/cdrom", "/home", "/vmlinuz -> boot/vmlinuz-3.8.0-19-generic", "/initrd.img -> boot/initrd.img-3.8.0-19-generic"]
 
         self.assertEquals(o, expected_output)
+
+        self.cleanup(tmpfile)
+
+    def test_1_column_warning_in_relaxed_mode(self):
+        tmpfile = self.create_file_with_data(one_column_data)
+        cmd = '../bin/q -m relaxed "select c1 from %s" -d ,' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(e[0],"Warning: column count is one - did you provide the correct delimiter?")
+        self.assertEquals(o[0],'data without commas 1')
+        self.assertEquals(o[1],'data without commas 2')
+
+        self.cleanup(tmpfile)
+
+    def test_1_column_warning_in_strict_mode(self):
+        tmpfile = self.create_file_with_data(one_column_data)
+        cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m strict' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 1)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(e[0],"Warning: column count is one - did you provide the correct delimiter?")
+        self.assertEquals(o[0],'data without commas 1')
+        self.assertEquals(o[1],'data without commas 2')
+
+        self.cleanup(tmpfile)
+
+
+    def test_1_column_warning_suppression_in_relaxed_mode_when_column_count_is_specific(self):
+        tmpfile = self.create_file_with_data(one_column_data)
+        cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m relaxed -c 1' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'data without commas 1')
+        self.assertEquals(o[1],'data without commas 2')
+
+        self.cleanup(tmpfile)
+
+    def test_1_column_warning_suppression_in_strict_mode_when_column_count_is_specific(self):
+        tmpfile = self.create_file_with_data(one_column_data)
+        cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m strict -c 1' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'data without commas 1')
+        self.assertEquals(o[1],'data without commas 2')
 
         self.cleanup(tmpfile)
 

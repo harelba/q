@@ -899,232 +899,239 @@ def print_credentials():
     print >>sys.stderr,"http://harelba.github.io/q/"
     print >>sys.stderr
 
-(options, args) = parser.parse_args()
 
-if options.version:
-    print_credentials()
-    sys.exit(0)
+def main():
 
-if len(args) > 1:
-    print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
-    sys.exit(1)
+    (options, args) = parser.parse_args()
 
-if len(args) == 0 and options.query_filename is None:
-    print_credentials()
-    print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
-    sys.exit(1)
-
-if options.query_filename is not None:
-    if len(args) != 0:
-        print >>sys.stderr,"Can't provide both a query file and a query on the command line"
-        sys.exit(1)
-    try:
-        f = file(options.query_filename)
-        query_str = f.read()
-        f.close()
-    except:
-        print >>sys.stderr,"Could not read query from file %s" % options.query_filename
-        sys.exit(1)
-else:
-    query_str = args[0]
-
-if options.query_encoding is not None and options.query_encoding != 'none':
-    try:
-        query_str = query_str.decode(options.query_encoding)
-    except:
-        print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
-        sys.exit(3)
-
-query_str = query_str.strip()
-
-if len(query_str) == 0:
-    print >>sys.stderr,"Query cannot be empty"   
-    sys.exit(1)
-
-if options.mode not in ['fluffy', 'relaxed', 'strict']:
-    print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
-    sys.exit(13)
-
-output_encoding = get_stdout_encoding(options.output_encoding)
-try:
-    STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
-except:
-    print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
-    sys.exit(200)
-
-# Create DB object
-db = Sqlite3DB()
-
-# Create SQL statment
-sql_object = Sql('%s' % query_str)
-
-# If the user flagged for a tab-delimited file then set the delimiter to tab
-if options.tab_delimited:
-    options.delimiter = '\t'
-
-if options.tab_delimited_output:
-    options.output_delimiter = '\t'
-
-if options.delimiter is None:
-    options.delimiter = ' '
-elif len(options.delimiter) != 1:
-    print >>sys.stderr, "Delimiter must be one character only"
-    sys.exit(5)
-
-if options.keep_leading_whitespace_in_values:
-    skip_initial_space = False
-else:
-    skip_initial_space = True
-
-q_dialect = {'skipinitialspace': skip_initial_space, 'quoting': 0,
-             'delimiter': options.delimiter, 'quotechar': '"' }
-
-q_dialect['doublequote'] = options.disable_double_double_quoting;
-
-if options.disable_escaped_double_quoting:
-    q_dialect['escapechar'] = '\\'
-
-csv.register_dialect('q', **q_dialect)
-file_reading_method = 'csv'
-
-if options.column_count is not None:
-    expected_column_count = int(options.column_count)
-else:
-    # infer automatically
-    expected_column_count = None
-
-# Create a line splitter
-line_splitter = LineSplitter(options.delimiter, expected_column_count)
-
-if options.encoding != 'none':
-    try:
-        codecs.lookup(options.encoding)
-    except LookupError:
-        print >>sys.stderr, "Encoding %s could not be found" % options.encoding
-        sys.exit(10)
-
-try:
-    table_creators = []
-    # Get each "table name" which is actually the file name
-    for filename in sql_object.qtable_names:
-        # Create the matching database table and populate it
-        table_creator = TableCreator(db, filename, line_splitter, options.skip_header, options.gzipped, options.encoding,
-                                     mode=options.mode, expected_column_count=expected_column_count, input_delimiter=options.delimiter)
-        start_time = time.time()
-        table_creator.populate(options.analyze_only)
-        table_creators.append(table_creator)
-        if DEBUG:
-            print >>sys.stderr, "TIMING - populate time is %4.3f" % (
-                time.time() - start_time)
-
-        # Replace the logical table name with the real table name
-        sql_object.set_effective_table_name(filename, table_creator.table_name)
-
-    if options.analyze_only:
-        for table_creator in table_creators:
-            column_names = table_creator.column_inferer.get_column_names()
-            print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
-            for k in column_names:
-                column_type = table_creator.column_inferer.get_column_dict()[k]
-                print "  `%s` - %s" % (k, db.type_names[column_type].lower())
+    if options.version:
+        print_credentials()
         sys.exit(0)
 
-    # Execute the query and fetch the data
-    db_results_obj = sql_object.execute_and_fetch(db)
-    m = db_results_obj.results
-    output_column_name_list = db_results_obj.query_column_names
-except EmptyDataException:
-    print >>sys.stderr, "Warning - data is empty"
-    sys.exit(0)
-except FileNotFoundException, e:
-    print >>sys.stderr, e.msg
-    sys.exit(30)
-except sqlite3.OperationalError, e:
-    msg = str(e)
-    print >>sys.stderr, "query error: %s" % msg
-    if "no such column" in msg and options.skip_header:
-        print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
-    sys.exit(1)
-except ColumnCountMismatchException, e:
-    print >>sys.stderr, e.msg
-    sys.exit(2)
-except (UnicodeDecodeError, UnicodeError), e:
-    print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
-    sys.exit(3)
-except BadHeaderException, e:
-    print >>sys.stderr, "Bad header row: %s" % e.msg
-    sys.exit(35)
-except KeyboardInterrupt:
-    print >>sys.stderr, "Interrupted"
-    sys.exit(0)
+    if len(args) > 1:
+        print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
+        sys.exit(1)
 
+    if len(args) == 0 and options.query_filename is None:
+        print_credentials()
+        print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
+        sys.exit(1)
 
-# If the user requested beautifying the output
-if options.beautify:
-    max_lengths = determine_max_col_lengths(m)
-
-if options.output_delimiter:
-    # If output delimiter is specified, then we use it
-    output_delimiter = options.output_delimiter
-else:
-    # Otherwise,
-    if options.delimiter:
-        # if an input delimiter is specified, then we use it as the output as
-        # well
-        output_delimiter = options.delimiter
+    if options.query_filename is not None:
+        if len(args) != 0:
+            print >>sys.stderr,"Can't provide both a query file and a query on the command line"
+            sys.exit(1)
+        try:
+            f = file(options.query_filename)
+            query_str = f.read()
+            f.close()
+        except:
+            print >>sys.stderr,"Could not read query from file %s" % options.query_filename
+            sys.exit(1)
     else:
-        # if no input delimiter is specified, then we use space as the default
-        # (since no input delimiter means any whitespace)
-        output_delimiter = " "
+        query_str = args[0]
 
-if options.formatting:
-    formatting_dict = dict(
-        [(x.split("=")[0], x.split("=")[1]) for x in options.formatting.split(",")])
-else:
-    formatting_dict = None
+    if options.query_encoding is not None and options.query_encoding != 'none':
+        try:
+            query_str = query_str.decode(options.query_encoding)
+        except:
+            print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
+            sys.exit(3)
 
-try:
-    if options.output_header and output_column_name_list is not None:
-        m.insert(0,output_column_name_list)
-    for rownum, row in enumerate(m):
-        row_str = []
-        for i, col in enumerate(row):
-            if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
-                fmt_str = formatting_dict[str(i + 1)]
-            else:
-                if options.beautify:
-                    fmt_str = "%%-%ss" % max_lengths[i]
+    query_str = query_str.strip()
+
+    if len(query_str) == 0:
+        print >>sys.stderr,"Query cannot be empty"   
+        sys.exit(1)
+
+    if options.mode not in ['fluffy', 'relaxed', 'strict']:
+        print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
+        sys.exit(13)
+
+    output_encoding = get_stdout_encoding(options.output_encoding)
+    try:
+        STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+    except:
+        print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
+        sys.exit(200)
+
+    # Create DB object
+    db = Sqlite3DB()
+
+    # Create SQL statment
+    sql_object = Sql('%s' % query_str)
+
+    # If the user flagged for a tab-delimited file then set the delimiter to tab
+    if options.tab_delimited:
+        options.delimiter = '\t'
+
+    if options.tab_delimited_output:
+        options.output_delimiter = '\t'
+
+    if options.delimiter is None:
+        options.delimiter = ' '
+    elif len(options.delimiter) != 1:
+        print >>sys.stderr, "Delimiter must be one character only"
+        sys.exit(5)
+
+    if options.keep_leading_whitespace_in_values:
+        skip_initial_space = False
+    else:
+        skip_initial_space = True
+
+    q_dialect = {'skipinitialspace': skip_initial_space, 'quoting': 0,
+                 'delimiter': options.delimiter, 'quotechar': '"' }
+
+    q_dialect['doublequote'] = options.disable_double_double_quoting;
+
+    if options.disable_escaped_double_quoting:
+        q_dialect['escapechar'] = '\\'
+
+    csv.register_dialect('q', **q_dialect)
+    file_reading_method = 'csv'
+
+    if options.column_count is not None:
+        expected_column_count = int(options.column_count)
+    else:
+        # infer automatically
+        expected_column_count = None
+
+    # Create a line splitter
+    line_splitter = LineSplitter(options.delimiter, expected_column_count)
+
+    if options.encoding != 'none':
+        try:
+            codecs.lookup(options.encoding)
+        except LookupError:
+            print >>sys.stderr, "Encoding %s could not be found" % options.encoding
+            sys.exit(10)
+
+    try:
+        table_creators = []
+        # Get each "table name" which is actually the file name
+        for filename in sql_object.qtable_names:
+            # Create the matching database table and populate it
+            table_creator = TableCreator(db, filename, line_splitter, options.skip_header, options.gzipped, options.encoding,
+                                         mode=options.mode, expected_column_count=expected_column_count, input_delimiter=options.delimiter)
+            start_time = time.time()
+            table_creator.populate(options.analyze_only)
+            table_creators.append(table_creator)
+            if DEBUG:
+                print >>sys.stderr, "TIMING - populate time is %4.3f" % (
+                    time.time() - start_time)
+
+            # Replace the logical table name with the real table name
+            sql_object.set_effective_table_name(filename, table_creator.table_name)
+
+        if options.analyze_only:
+            for table_creator in table_creators:
+                column_names = table_creator.column_inferer.get_column_names()
+                print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
+                for k in column_names:
+                    column_type = table_creator.column_inferer.get_column_dict()[k]
+                    print "  `%s` - %s" % (k, db.type_names[column_type].lower())
+            sys.exit(0)
+
+        # Execute the query and fetch the data
+        db_results_obj = sql_object.execute_and_fetch(db)
+        m = db_results_obj.results
+        output_column_name_list = db_results_obj.query_column_names
+    except EmptyDataException:
+        print >>sys.stderr, "Warning - data is empty"
+        sys.exit(0)
+    except FileNotFoundException, e:
+        print >>sys.stderr, e.msg
+        sys.exit(30)
+    except sqlite3.OperationalError, e:
+        msg = str(e)
+        print >>sys.stderr, "query error: %s" % msg
+        if "no such column" in msg and options.skip_header:
+            print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
+        sys.exit(1)
+    except ColumnCountMismatchException, e:
+        print >>sys.stderr, e.msg
+        sys.exit(2)
+    except (UnicodeDecodeError, UnicodeError), e:
+        print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
+        sys.exit(3)
+    except BadHeaderException, e:
+        print >>sys.stderr, "Bad header row: %s" % e.msg
+        sys.exit(35)
+    except KeyboardInterrupt:
+        print >>sys.stderr, "Interrupted"
+        sys.exit(0)
+
+
+    # If the user requested beautifying the output
+    if options.beautify:
+        max_lengths = determine_max_col_lengths(m)
+
+    if options.output_delimiter:
+        # If output delimiter is specified, then we use it
+        output_delimiter = options.output_delimiter
+    else:
+        # Otherwise,
+        if options.delimiter:
+            # if an input delimiter is specified, then we use it as the output as
+            # well
+            output_delimiter = options.delimiter
+        else:
+            # if no input delimiter is specified, then we use space as the default
+            # (since no input delimiter means any whitespace)
+            output_delimiter = " "
+
+    if options.formatting:
+        formatting_dict = dict(
+            [(x.split("=")[0], x.split("=")[1]) for x in options.formatting.split(",")])
+    else:
+        formatting_dict = None
+
+    try:
+        if options.output_header and output_column_name_list is not None:
+            m.insert(0,output_column_name_list)
+        for rownum, row in enumerate(m):
+            row_str = []
+            for i, col in enumerate(row):
+                if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
+                    fmt_str = formatting_dict[str(i + 1)]
                 else:
-                    fmt_str = "%s"
+                    if options.beautify:
+                        fmt_str = "%%-%ss" % max_lengths[i]
+                    else:
+                        fmt_str = "%s"
 
-            if col is not None:
-                row_str.append(fmt_str % col)
-            else:
-                row_str.append(fmt_str % "")
+                if col is not None:
+                    row_str.append(fmt_str % col)
+                else:
+                    row_str.append(fmt_str % "")
 
-        STDOUT.write(output_delimiter.join(row_str) + "\n")
-except (UnicodeEncodeError, UnicodeError), e:
-    print >>sys.stderr, "Cannot encode data. Error:%s" % e
-    sys.exit(3)
-except IOError, e:
-    if e.errno == 32:
-        # broken pipe, that's ok
+            STDOUT.write(output_delimiter.join(row_str) + "\n")
+    except (UnicodeEncodeError, UnicodeError), e:
+        print >>sys.stderr, "Cannot encode data. Error:%s" % e
+        sys.exit(3)
+    except IOError, e:
+        if e.errno == 32:
+            # broken pipe, that's ok
+            pass
+        else:
+            # dont miss other problem for now
+            raise
+    except KeyboardInterrupt:
         pass
-    else:
-        # dont miss other problem for now
-        raise
-except KeyboardInterrupt:
-    pass
 
-try:
-    # Prevent python bug when order of pipe shutdowns is reversed
-    sys.stdout.flush()
-except IOError, e:
-    pass
+    try:
+        # Prevent python bug when order of pipe shutdowns is reversed
+        sys.stdout.flush()
+    except IOError, e:
+        pass
 
 
-try:
-    table_creator.drop_table()
-except:
-    # Support no-table select queries
-    pass
+    try:
+        table_creator.drop_table()
+    except:
+        # Support no-table select queries
+        pass
+
+
+if __name__ == '__main__':
+    main()

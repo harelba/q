@@ -290,6 +290,11 @@ class BadHeaderException(Exception):
         return repr(self.msg)
 
 
+class CannotUnzipStdInException(Exception):
+
+    def __init__(self):
+        pass
+
 class EmptyDataException(Exception):
 
     def __init__(self):
@@ -714,13 +719,15 @@ class TableCreator(object):
 
                 # Check if it's standard input or a file
                 if filename == '-':
-                    f = sys.stdin
+                    codec_info = codecs.lookup(self.encoding)
+                    f  = codecs.StreamReaderWriter(sys.stdin,codec_info.streamreader,codec_info.streamwriter,None)
+                    if self.gzipped:
+                        raise CannotUnzipStdInException()
                 else:
-                    f = file(filename, 'rb')
-
-                # Wrap it with gzip decompression if needed
-                if self.gzipped or filename.endswith('.gz'):
-                    f = gzip.GzipFile(fileobj=f)
+                    if self.gzipped or filename.endswith('.gz'):
+                        f = gzip.GzipFile(fileobj=file(filename,'rb'))    
+                    else:
+                        f = codecs.open(filename, 'rb',encoding=self.encoding)
 
                 self.read_file_using_csv(f, analyze_only)
                 if not self.table_created:
@@ -1054,6 +1061,9 @@ except (UnicodeDecodeError, UnicodeError), e:
 except BadHeaderException, e:
     print >>sys.stderr, "Bad header row: %s" % e.msg
     sys.exit(35)
+except CannotUnzipStdInException,e:
+    print >>sys.stderr,"Cannot decompress standard input. Pipe the input through zcat in order to decompress."
+    sys.exit(36)
 except KeyboardInterrupt:
     print >>sys.stderr, "Interrupted"
     sys.exit(0)

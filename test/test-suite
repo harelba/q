@@ -158,6 +158,21 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_attempt_to_unzip_stdin(self):
+        tmpfile = self.create_file_with_data(
+            '\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00', encoding='none')
+
+        cmd = 'cat %s | ../bin/q -z "select sum(c1),avg(c1) from -"' % tmpfile.name
+
+        retcode, o, e = run_command(cmd)
+        self.assertTrue(retcode != 0)
+        self.assertTrue(len(o) == 0)
+        self.assertTrue(len(e) == 1)
+
+        self.assertEquals(e[0],'Cannot decompress standard input. Pipe the input through zcat in order to decompress.')
+
+        self.cleanup(tmpfile)
+
     def test_delimition_mistake_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 

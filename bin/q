@@ -145,6 +145,8 @@ input_data_option_group.add_option("--disable-double-double-quoting", dest="disa
                   help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
 input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
                   help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
+                  help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
 parser.add_option_group(input_data_option_group)
 #-----------------------------------------------
 output_data_option_group = OptionGroup(parser,"Output Options") 
@@ -159,7 +161,8 @@ output_data_option_group.add_option("-f", "--formatting", dest="formatting", def
                   help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
 output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
                   help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-# -M will be added here for supporting output quoting mode in the future
+output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
+                  help="Output quoting mode. Possible values are all, minimal, nunnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
 parser.add_option_group(output_data_option_group)
 #-----------------------------------------------
 query_option_group = OptionGroup(parser,"Query Related Options") 
@@ -280,6 +283,21 @@ class Sqlite3DB(object):
     def drop_table(self, table_name):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
+class CouldNotConvertStringToNumericValueException(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
+
+class CouldNotParseInputException(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
 
 class BadHeaderException(Exception):
 
@@ -650,14 +668,19 @@ class TableColumnInferer(object):
 
 
 def encoded_csv_reader(encoding, f, dialect, **kwargs):
-    csv_reader = csv.reader(f, dialect, **kwargs)
-    if encoding is not None and encoding != 'none':
-        for row in csv_reader:
-            yield [unicode(x, encoding) for x in row]
-    else:
-        for row in csv_reader:
-            yield row
-
+    try:
+        csv_reader = csv.reader(f, dialect, **kwargs)
+        if encoding is not None and encoding != 'none':
+            for row in csv_reader:
+                yield [unicode(x, encoding) for x in row]
+        else:
+            for row in csv_reader:
+                yield row
+    except ValueError,e:
+        if e.message is not None and e.message.startswith('could not convert string to'):
+            raise CouldNotConvertStringToNumericValueException(e.message)
+        else:
+            raise CouldNotParseInputException(str(e))
 
 def normalized_filename(filename):
     if filename == '-':
@@ -719,15 +742,14 @@ class TableCreator(object):
 
                 # Check if it's standard input or a file
                 if filename == '-':
-                    codec_info = codecs.lookup(self.encoding)
-                    f  = codecs.StreamReaderWriter(sys.stdin,codec_info.streamreader,codec_info.streamwriter,None)
+                    f = sys.stdin
                     if self.gzipped:
                         raise CannotUnzipStdInException()
                 else:
                     if self.gzipped or filename.endswith('.gz'):
                         f = gzip.GzipFile(fileobj=file(filename,'rb'))    
                     else:
-                        f = codecs.open(filename, 'rb',encoding=self.encoding)
+                        f = file(filename,'rb')
 
                 self.read_file_using_csv(f, analyze_only)
                 if not self.table_created:
@@ -889,13 +911,13 @@ class TableCreator(object):
             self.db.drop_table(self.table_name)
 
 
-def determine_max_col_lengths(m):
+def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     if len(m) == 0:
         return []
     max_lengths = [0 for x in xrange(0, len(m[0]))]
     for row_index in xrange(0, len(m)):
         for col_index in xrange(0, len(m[0])):
-            new_len = len(unicode(m[row_index][col_index]))
+            new_len = len(unicode(output_field_quoting_func(output_delimiter,m[row_index][col_index])))
             if new_len > max_lengths[col_index]:
                 max_lengths[col_index] = new_len
     return max_lengths
@@ -983,10 +1005,53 @@ if options.keep_leading_whitespace_in_values:
 else:
     skip_initial_space = True
 
-q_dialect = {'skipinitialspace': skip_initial_space, 'quoting': 0,
+def quote_none_func(output_delimiter,v):
+    return v
+
+def quote_minimal_func(output_delimiter,v):
+    if v is None:
+        return v
+    if type(v) == str or type(v) == unicode and output_delimiter in v:
+        return '"%s"' % (v)
+    return v;
+
+def quote_nonnumeric_func(output_delimiter,v):
+    if v is None:
+        return v
+    if type(v) == str or type(v) == unicode:
+        return '"%s"' % (v)
+    return v;
+
+def quote_all_func(output_delimiter,v):
+    return '"%s"' % (v)
+
+input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
+                    'all' : csv.QUOTE_ALL,
+                    # nonnumeric is not supported for input quoting modes, since we determine the data types 
+                    # ourselves instead of letting the csv module try to identify the types
+                    'none' : csv.QUOTE_NONE }
+
+output_quoting_modes = {   'minimal' : quote_minimal_func,
+                    'all' : quote_all_func,
+                    'nonnumeric' : quote_nonnumeric_func,
+                    'none' : quote_none_func }
+
+if options.input_quoting_mode not in input_quoting_modes.keys():
+    print >>sys.stderr,"Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(input_quoting_modes.keys()),options.input_quoting_mode)
+    sys.exit(55)
+
+if options.output_quoting_mode not in output_quoting_modes.keys():
+    print >>sys.stderr,"Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(output_quoting_modes.keys()),options.input_quoting_mode)
+    sys.exit(56)
+
+input_quoting_mode_csv_numeral = input_quoting_modes[options.input_quoting_mode]
+output_field_quoting_func = output_quoting_modes[options.output_quoting_mode]
+
+q_dialect = {'skipinitialspace': skip_initial_space,
              'delimiter': options.delimiter, 'quotechar': '"' }
 
-q_dialect['doublequote'] = options.disable_double_double_quoting;
+q_dialect['quoting'] = input_quoting_mode_csv_numeral
+q_dialect['doublequote'] = options.disable_double_double_quoting
 
 if options.disable_escaped_double_quoting:
     q_dialect['escapechar'] = '\\'
@@ -1009,6 +1074,7 @@ if options.encoding != 'none':
     except LookupError:
         print >>sys.stderr, "Encoding %s could not be found" % options.encoding
         sys.exit(10)
+
 
 try:
     table_creators = []
@@ -1064,14 +1130,16 @@ except BadHeaderException, e:
 except CannotUnzipStdInException,e:
     print >>sys.stderr,"Cannot decompress standard input. Pipe the input through zcat in order to decompress."
     sys.exit(36)
+except CouldNotConvertStringToNumericValueException,e:
+    print >>sys.stderr,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg
+    sys.exit(58)
+except CouldNotParseInputException,e:
+    print >>sys.stderr,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg
+    sys.exit(59)
+
 except KeyboardInterrupt:
     print >>sys.stderr, "Interrupted"
     sys.exit(0)
-
-
-# If the user requested beautifying the output
-if options.beautify:
-    max_lengths = determine_max_col_lengths(m)
 
 if options.output_delimiter:
     # If output delimiter is specified, then we use it
@@ -1086,6 +1154,10 @@ else:
         # if no input delimiter is specified, then we use space as the default
         # (since no input delimiter means any whitespace)
         output_delimiter = " "
+
+# If the user requested beautifying the output
+if options.beautify:
+    max_lengths = determine_max_col_lengths(m,output_field_quoting_func,output_delimiter)
 
 if options.formatting:
     formatting_dict = dict(
@@ -1108,7 +1180,7 @@ try:
                     fmt_str = "%s"
 
             if col is not None:
-                row_str.append(fmt_str % col)
+                row_str.append(fmt_str % output_field_quoting_func(output_delimiter,col))
             else:
                 row_str.append(fmt_str % "")
 

@@ -92,6 +92,8 @@ combined_quoted_data = '''regular_double_quoted double_double_quoted escaped_dou
 "this is a quoted value" "this is a quoted value with ""double double quotes""" "this is a quoted value with \\"escaped double quotes\\""
 '''
 
+sample_quoted_data2 = '"quoted data" 23\nunquoted-data 54'
+
 one_column_data = '''data without commas 1
 data without commas 2
 '''
@@ -823,6 +825,234 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmp_data_file)
 
+    def test_none_input_quoting_mode_in_relaxed_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -m relaxed -D , -w none "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'"quoted,data",23')
+        self.assertEquals(o[1],'unquoted-data,54,')
+
+        self.cleanup(tmp_data_file)
+
+    def test_none_input_quoting_mode_in_strict_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -m strict -D , -w none "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(e),1)
+        self.assertEquals(len(o),0)
+
+        self.assertTrue(e[0].startswith('Strict mode. Column Count is expected to identical'))
+
+        self.cleanup(tmp_data_file)
+
+    def test_minimal_input_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w minimal "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'quoted data,23')
+        self.assertEquals(o[1],'unquoted-data,54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_all_input_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w all "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'quoted data,23')
+        self.assertEquals(o[1],'unquoted-data,54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_incorrect_input_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w unknown_wrapping_mode "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(e),1)
+        self.assertEquals(len(o),0)
+
+        self.assertTrue(e[0].startswith('Input quoting mode can only be one of all,none,minimal'))
+        self.assertTrue('unknown_wrapping_mode' in e[0])
+
+        self.cleanup(tmp_data_file)
+
+    def test_none_output_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w all -W none "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'quoted data,23')
+        self.assertEquals(o[1],'unquoted-data,54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_minimal_output_quoting_mode__without_need_to_quote_in_output(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w all -W minimal "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'quoted data,23')
+        self.assertEquals(o[1],'unquoted-data,54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_minimal_output_quoting_mode__with_need_to_quote_in_output(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        # output delimiter is set to space, so the output will contain it
+        cmd = '../bin/q -d " " -D " " -w all -W minimal "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'"quoted data" 23')
+        self.assertEquals(o[1],'unquoted-data 54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_nonnumeric_output_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w all -W nonnumeric "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'"quoted data",23')
+        self.assertEquals(o[1],'"unquoted-data",54')
+
+        self.cleanup(tmp_data_file)
+
+    def test_all_output_quoting_mode(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2)
+
+        cmd = '../bin/q -d " " -D , -w all -W all "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals(o[0],'"quoted data","23"')
+        self.assertEquals(o[1],'"unquoted-data","54"')
+
+        self.cleanup(tmp_data_file)
+
+    def _internal_test_consistency_of_chaining_output_to_input(self,input_data,input_wrapping_mode,output_wrapping_mode):
+
+        tmp_data_file = self.create_file_with_data(input_data)
+
+        basic_cmd = '../bin/q -w %s -W %s "select * from -"' % (input_wrapping_mode,output_wrapping_mode)
+        chained_cmd = 'cat %s | %s | %s | %s' % (tmp_data_file.name,basic_cmd,basic_cmd,basic_cmd)
+
+        retcode, o, e = run_command(chained_cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),2)
+
+        self.assertEquals("\n".join(o),input_data)
+
+        self.cleanup(tmp_data_file)
+
+    def test_consistency_of_chaining_minimal_wrapping_to_minimal_wrapping(self):
+        input_data = '"quoted data" 23\nunquoted-data 54'
+        self._internal_test_consistency_of_chaining_output_to_input(input_data,'minimal','minimal')
+
+    def test_consistency_of_chaining_all_wrapping_to_all_wrapping(self):
+        input_data = '"quoted data" "23"\n"unquoted-data" "54"'
+        self._internal_test_consistency_of_chaining_output_to_input(input_data,'all','all')
+
+    def test_utf8_with_bom_encoding(self):
+        return 
+        # DOES NOT PASS due to csv python module issue http://bugs.python.org/issue7185 . Need to find a workaround.
+        # Trying to wrap the file object passed to the csv module using a proper codec fails because of csv module internals.
+
+        utf_8_data_with_bom = '\xef\xbb\xbf"typeid","limit","apcost","date","checkpointId"\n"1","2","5","1,2,3,4,5,6,7","3000,3001,3002"\n"2","2","5","1,2,3,4,5,6,7","3003,3004,3005"\n'
+        tmp_data_file = self.create_file_with_data(utf_8_data_with_bom,encoding=None)
+
+        cmd = '../bin/q -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),3)
+
+        self.assertEquals(o[0],'typeid,limit,apcost,date,checkpointId')
+        self.assertEquals(o[1],'1,2,5,"1,2,3,4,5,6,7","3000,3001,3002"')
+        self.assertEquals(o[2],'2,2,5,"1,2,3,4,5,6,7","3003,3004,3005"')
+
+        self.cleanup(tmp_data_file)
+
+    def test_input_field_quoting_and_data_types_with_encoding(self):
+        # Checks combination of minimal input field quoting, with special characters that need to be decoded - 
+        # Both content and proper data types are verified
+        data = '111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n'
+        tmp_data_file = self.create_file_with_data(data,encoding='none')
+
+        cmd = '../bin/q -d , "select * from %s"' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),1)
+
+        self.assertEquals(o[0].decode('utf-8'),u'111,22.22,testing text with special characters - citt\xe0 ,http://somekindofurl.com,12.13.14.15,12.1')
+
+        cmd = '../bin/q -d , "select * from %s" -A' % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode,0)
+        self.assertEquals(len(e),0)
+        self.assertEquals(len(o),7)
+
+        self.assertTrue(o[0].startswith('Table for file'))
+        self.assertEquals(o[1].strip(),'`c1` - int')
+        self.assertEquals(o[2].strip(),'`c2` - float')
+        self.assertEquals(o[3].strip(),'`c3` - text')
+        self.assertEquals(o[4].strip(),'`c4` - text')
+        self.assertEquals(o[5].strip(),'`c5` - text')
+        self.assertEquals(o[6].strip(),'`c6` - float')
+
+        self.cleanup(tmp_data_file)
+
     def test_multiline_double_double_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
         
@@ -865,7 +1095,7 @@ class BasicTests(AbstractQTestCase):
 
         tmp_data_file = self.create_file_with_data(double_double_quoted_data)
      
-        cmd = '../bin/q -d " " --disable-double-double-quoting "select c2 from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -875,7 +1105,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0],'double_double_quoted')
         self.assertEquals(o[1],'this is a quoted value with "double')
 
-        cmd = '../bin/q -d " " --disable-double-double-quoting "select c3 from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -885,7 +1115,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0],'')
         self.assertEquals(o[1],'double')
 
-        cmd = '../bin/q -d " " --disable-double-double-quoting "select c4 from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -902,8 +1132,8 @@ class BasicTests(AbstractQTestCase):
         # this flag will be removed completely in the future
 
         tmp_data_file = self.create_file_with_data(escaped_double_quoted_data)
-     
-        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c2 from %s"' % tmp_data_file.name
+        
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -913,7 +1143,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0],'escaped_double_quoted')
         self.assertEquals(o[1],'this is a quoted value with \\escaped')
 
-        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c3 from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -923,7 +1153,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(o[0],'')
         self.assertEquals(o[1],'double')
 
-        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c4 from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -1166,8 +1396,8 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEquals(len(o), 9)
         self.assertEquals(len(e), 0)
 
-        expected_output = ["/selinux", "/mnt", "/srv", "/lost+found", "/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic",
-                           "/cdrom", "/home", "/vmlinuz -> boot/vmlinuz-3.8.0-19-generic", "/initrd.img -> boot/initrd.img-3.8.0-19-generic"]
+        expected_output = ["/selinux", "/mnt", "/srv", "/lost+found", '"/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic"',
+                           "/cdrom", "/home", '"/vmlinuz -> boot/vmlinuz-3.8.0-19-generic"', '"/initrd.img -> boot/initrd.img-3.8.0-19-generic"']
 
         self.assertEquals(o, expected_output)
 

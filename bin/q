@@ -201,6 +201,11 @@ class CannotUnzipStdInException(Exception):
     def __init__(self):
         pass
 
+class UnprovidedStdInException(Exception):
+
+    def __init__(self):
+        pass
+
 class EmptyDataException(Exception):
 
     def __init__(self):
@@ -579,7 +584,7 @@ def normalized_filename(filename):
 
 class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None):
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,stdin_file=None,stdin_filename='-'):
         self.db = db
         self.filenames_str = filenames_str
         self.skip_header = skip_header
@@ -590,6 +595,9 @@ class TableCreator(object):
         self.mode = mode
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
+        self.stdin_file = stdin_file
+        self.stdin_filename = stdin_filename
+
         self.column_inferer = TableColumnInferer(
             mode, expected_column_count, input_delimiter, skip_header)
 
@@ -613,8 +621,8 @@ class TableCreator(object):
         # for each filename (or pattern)
         for fileglob in filenames:
             # Allow either stdin or a glob match
-            if fileglob == '-':
-                files_to_go_over = ['-']
+            if fileglob == self.stdin_filename:
+                files_to_go_over = [self.stdin_filename]
             else:
                 files_to_go_over = glob.glob(fileglob)
 
@@ -629,8 +637,10 @@ class TableCreator(object):
                 self.lines_read = 0
 
                 # Check if it's standard input or a file
-                if filename == '-':
-                    f = sys.stdin
+                if filename == self.stdin_filename:
+                    if self.stdin_file is None:
+                        raise UnprovidedStdInException()
+                    f = self.stdin_file
                     if self.gzipped:
                         raise CannotUnzipStdInException()
                 else:
@@ -827,12 +837,26 @@ class QError(object):
         self.msg = msg
         self.errorcode = errorcode
 
+class QDataLoad(object):
+    def __init__(self,filename,start_time,end_time):
+        self.filename = filename
+        self.start_time = start_time
+        self.end_time = end_time
+
+    def duration(self):
+        return self.end_time - self.start_time
+
+    def __str__(self):
+        return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename,self.start_time,self.duration())
+    __repr__ = __str__
+
 class QOutput(object):
-    def __init__(self,data,column_name_list,warnings,error):
+    def __init__(self,data,column_name_list,warnings,error,data_loads):
         self.data = data
         self.column_name_list = column_name_list
         self.warnings = warnings
         self.error = error
+        self.data_loads = data_loads
 
     def error_occurred(self):
         return self.error is not None
@@ -848,9 +872,10 @@ class QOutput(object):
         else:
             s.append("row_count=None")
         if self.column_name_list is not None:
-            s.append("column_names=%s" % ",".join(self.column_name_list))
+            s.append("column_names=[%s]" % ",".join(self.column_name_list))
         else:
             s.append("column_names=None")
+        s.append("data_load_count=%s" % len(self.data_loads))
         return "QOutput<%s>" % ",".join(s)
     __repr__ = __str__
 
@@ -869,8 +894,7 @@ class QTextAsData(object):
 
         query_encoding=locale.getpreferredencoding(),
         debug=False,
-        analyze_only=False,
-        auto_load = True
+        analyze_only=False
     ):
         self.skip_header = skip_header
         self.delimiter = delimiter
@@ -892,10 +916,11 @@ class QTextAsData(object):
         self.dialect_name = 'q'
         csv.register_dialect(self.dialect_name, **self.q_dialect)
 
-        self.table_creators = None
+        self.table_creators = {}
 
-        if auto_load:
-            self.load_data()
+        # Create DB object
+        self.db = Sqlite3DB()
+
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
@@ -922,50 +947,66 @@ class QTextAsData(object):
 
         return dialect
 
-    def load_data(self):
-        ## RLRL TODO separate load and execute phases
-        pass
+    def ensure_data_is_loaded(self,query_str,stdin_file,stdin_filename='-'):
+        data_loads = []
 
+        # Create SQL statment
+        sql_object = Sql('%s' % query_str)
 
-    def execute(self,query_str):
+        # Create a line splitter
+        line_splitter = LineSplitter(self.delimiter, self.expected_column_count)
+
+        # Get each "table name" which is actually the file name
+        for filename in sql_object.qtable_names:
+            start_time = time.time()
+
+            # reuse already loaded data, except for stdin file data (stdin file data will always
+            # be reloaded and overwritten)
+            if filename in self.table_creators.keys() and filename != stdin_filename:
+                continue
+
+            # Create the matching database table and populate it
+            table_creator = TableCreator(
+                self.db, filename, line_splitter, self.skip_header, self.gzipped_input, self.input_encoding,
+                mode=self.parsing_mode, expected_column_count=self.expected_column_count, 
+                input_delimiter=self.delimiter,stdin_file = stdin_file,stdin_filename = stdin_filename)
+            table_creator.populate(self.dialect_name,self.analyze_only)
+            self.table_creators[filename] = table_creator
+
+            data_loads.append(QDataLoad(filename,start_time,time.time()))
+
+            if self.debug:
+                print >>sys.stderr, "TIMING - populate time is %4.3f" % (
+                    time.time() - start_time)
+
+        return data_loads
+
+    def materialize_sql_object(self,sql_object):
+        for filename in sql_object.qtable_names:
+            sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
+
+    def execute(self,query_str,stdin_file=None,stdin_filename='-'):
         warnings = []
         error = None
+        data_loads = []
         db_results_obj = None
 
         try:
-            # Create DB object
-            self.db = Sqlite3DB()
+            data_loads += self.ensure_data_is_loaded(query_str,stdin_file=stdin_file,stdin_filename=stdin_filename)
 
             # Create SQL statment
-            sql_object = Sql('%s' % query_str)
+            sql_object = Sql(query_str)
 
-            # Create a line splitter
-            line_splitter = LineSplitter(self.delimiter, self.expected_column_count)
-
-            self.table_creators = []
-            # Get each "table name" which is actually the file name
-            for filename in sql_object.qtable_names:
-                # Create the matching database table and populate it
-                table_creator = TableCreator(self.db, filename, line_splitter, self.skip_header, self.gzipped_input, self.input_encoding,
-                                             mode=self.parsing_mode, expected_column_count=self.expected_column_count, input_delimiter=self.delimiter)
-                start_time = time.time()
-                table_creator.populate(self.dialect_name,self.analyze_only)
-                self.table_creators.append(table_creator)
-                if self.debug:
-                    print >>sys.stderr, "TIMING - populate time is %4.3f" % (
-                        time.time() - start_time)
-
-                # Replace the logical table name with the real table name
-                sql_object.set_effective_table_name(filename, table_creator.table_name)
+            self.materialize_sql_object(sql_object)
 
             if self.analyze_only:
-                for table_creator in self.table_creators:
+                for filename,table_creator in self.table_creators.iteritems():
                     column_names = table_creator.column_inferer.get_column_names()
                     print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
                     for k in column_names:
                         column_type = table_creator.column_inferer.get_column_dict()[k]
                         print "  `%s` - %s" % (k, self.db.type_names[column_type].lower())
-                return QOutput(data = None,column_name_list = None,warnings = warnings, error = None)
+                return QOutput(data = None,column_name_list = None,warnings = warnings, error = None, data_loads = [])
 
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.db)
@@ -987,34 +1028,36 @@ class QTextAsData(object):
             error = QError(e,"Bad header row: %s" % e.msg,35)
         except CannotUnzipStdInException,e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
+        except UnprovidedStdInException,e:
+            error = QError(e,"Standard Input must be provided in order to use it as a table",61)
         except CouldNotConvertStringToNumericValueException,e:
             error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
         except CouldNotParseInputException,e:
             error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
         except KeyboardInterrupt,e:
             warnings.append(QWarning(e,"Interrupted"))
-        except Error, e:
-            error = QError(e,e.msg,199)
+        except Exception, e:
+            error = QError(e,str(e),199)
 
         if db_results_obj is not None:
             return QOutput(
                 data = db_results_obj.results, 
                 column_name_list=db_results_obj.query_column_names,
                 warnings = warnings,
-                error = error)
+                error = error,
+                data_loads = data_loads)
         else:
-            return QOutput(data = None, column_name_list = None,warnings = warnings,error = error)
+            return QOutput(data = None, column_name_list = None,warnings = warnings,error = error , data_loads = data_loads)
 
-    def done(self):
-        if self.table_creators is None:
-            return
+    def unload(self):
 
-        for table_creator in self.table_creators:
+        for filename,table_creator in self.table_creators.iteritems():
             try:
                 table_creator.drop_table()
             except:
                 # Support no-table select queries
                 pass
+        self.table_creators = {}
 
     def analyze(self):
         pass
@@ -1354,8 +1397,8 @@ def run_standalone():
         debug=DEBUG,
         analyze_only=options.analyze_only)
 
-    q_output = q_query.execute(query_str)
-    q_query.done()
+    q_output = q_query.execute(query_str,stdin_file=sys.stdin)
+    q_query.unload()
 
     q_output_printer = QOutputPrinter(
         delimiter=options.output_delimiter,

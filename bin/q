@@ -816,21 +816,41 @@ def print_credentials():
     print >>sys.stderr,"http://harelba.github.io/q/"
     print >>sys.stderr
 
+class QWarning(object):
+    def __init__(self,exception,msg):
+        self.exception = exception
+        self.msg = msg
+
+class QError(object):
+    def __init__(self,exception,msg,errorcode):
+        self.exception = exception
+        self.msg = msg
+        self.errorcode = errorcode
+
 class QOutput(object):
-    def __init__(self,data,column_name_list,warnings,errors):
+    def __init__(self,data,column_name_list,warnings,error):
         self.data = data
         self.column_name_list = column_name_list
         self.warnings = warnings
-        self.errors = errors
+        self.error = error
+
+    def error_occurred(self):
+        return self.error is not None
 
     def __str__(self):
         s = []
-        if len(self.errors) > 0:
-            s.append("errors=%s" % len(self.errors))
+        if self.error is not None:
+            s.append("error=%s" % self.error.msg)
         if len(self.warnings) > 0:
-            s.append("warnings=%s" % len(self.warnings))
-        s.append("row_count=%s" % len(self.data))
-        s.append("column_names=%s" % ",".join(self.column_name_list))
+            s.append("warning_count=%s" % len(self.warnings))
+        if self.data is not None:
+            s.append("row_count=%s" % len(self.data))
+        else:
+            s.append("row_count=None")
+        if self.column_name_list is not None:
+            s.append("column_names=%s" % ",".join(self.column_name_list))
+        else:
+            s.append("column_names=None")
         return "QOutput<%s>" % ",".join(s)
     __repr__ = __str__
 
@@ -906,53 +926,84 @@ class QTextAsData(object):
         ## RLRL TODO separate load and execute phases
         pass
 
+
     def execute(self,query_str):
-        # TODO Propagate warnings and errors to these lists so they can be returned properly
         warnings = []
-        errors = []
+        error = None
+        db_results_obj = None
 
-        # Create DB object
-        self.db = Sqlite3DB()
+        try:
+            # Create DB object
+            self.db = Sqlite3DB()
 
-        # Create SQL statment
-        sql_object = Sql('%s' % query_str)
+            # Create SQL statment
+            sql_object = Sql('%s' % query_str)
 
-        # Create a line splitter
-        line_splitter = LineSplitter(self.delimiter, self.expected_column_count)
+            # Create a line splitter
+            line_splitter = LineSplitter(self.delimiter, self.expected_column_count)
 
-        self.table_creators = []
-        # Get each "table name" which is actually the file name
-        for filename in sql_object.qtable_names:
-            # Create the matching database table and populate it
-            table_creator = TableCreator(self.db, filename, line_splitter, self.skip_header, self.gzipped_input, self.input_encoding,
-                                         mode=self.parsing_mode, expected_column_count=self.expected_column_count, input_delimiter=self.delimiter)
-            start_time = time.time()
-            table_creator.populate(self.dialect_name,self.analyze_only)
-            self.table_creators.append(table_creator)
-            if self.debug:
-                print >>sys.stderr, "TIMING - populate time is %4.3f" % (
-                    time.time() - start_time)
+            self.table_creators = []
+            # Get each "table name" which is actually the file name
+            for filename in sql_object.qtable_names:
+                # Create the matching database table and populate it
+                table_creator = TableCreator(self.db, filename, line_splitter, self.skip_header, self.gzipped_input, self.input_encoding,
+                                             mode=self.parsing_mode, expected_column_count=self.expected_column_count, input_delimiter=self.delimiter)
+                start_time = time.time()
+                table_creator.populate(self.dialect_name,self.analyze_only)
+                self.table_creators.append(table_creator)
+                if self.debug:
+                    print >>sys.stderr, "TIMING - populate time is %4.3f" % (
+                        time.time() - start_time)
 
-            # Replace the logical table name with the real table name
-            sql_object.set_effective_table_name(filename, table_creator.table_name)
+                # Replace the logical table name with the real table name
+                sql_object.set_effective_table_name(filename, table_creator.table_name)
 
-        if self.analyze_only:
-            for table_creator in self.table_creators:
-                column_names = table_creator.column_inferer.get_column_names()
-                print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
-                for k in column_names:
-                    column_type = table_creator.column_inferer.get_column_dict()[k]
-                    print "  `%s` - %s" % (k, self.db.type_names[column_type].lower())
-            return
+            if self.analyze_only:
+                for table_creator in self.table_creators:
+                    column_names = table_creator.column_inferer.get_column_names()
+                    print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
+                    for k in column_names:
+                        column_type = table_creator.column_inferer.get_column_dict()[k]
+                        print "  `%s` - %s" % (k, self.db.type_names[column_type].lower())
+                return QOutput(data = None,column_name_list = None,warnings = warnings, error = None)
 
-        # Execute the query and fetch the data
-        db_results_obj = sql_object.execute_and_fetch(self.db)
+            # Execute the query and fetch the data
+            db_results_obj = sql_object.execute_and_fetch(self.db)
 
-        return QOutput(
-            data = db_results_obj.results, 
-            column_name_list=db_results_obj.query_column_names,
-            warnings = warnings,
-            errors = errors)
+        except EmptyDataException,e:
+            warnings.append(QWarning(e,"Warning - data is empty"))
+        except FileNotFoundException, e:
+            error = QError(e,e.msg,30)
+        except sqlite3.OperationalError, e:
+            msg = str(e)
+            error = QError(e,"query error: %s" % msg,1)
+            if "no such column" in msg and self.skip_header:
+                warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
+        except ColumnCountMismatchException, e:
+            error = QError(e,e.msg,2)
+        except (UnicodeDecodeError, UnicodeError), e:
+            error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e,3)
+        except BadHeaderException, e:
+            error = QError(e,"Bad header row: %s" % e.msg,35)
+        except CannotUnzipStdInException,e:
+            error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
+        except CouldNotConvertStringToNumericValueException,e:
+            error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
+        except CouldNotParseInputException,e:
+            error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
+        except KeyboardInterrupt,e:
+            warnings.append(QWarning(e,"Interrupted"))
+        except Error, e:
+            error = QError(e,e.msg,199)
+
+        if db_results_obj is not None:
+            return QOutput(
+                data = db_results_obj.results, 
+                column_name_list=db_results_obj.query_column_names,
+                warnings = warnings,
+                error = error)
+        else:
+            return QOutput(data = None, column_name_list = None,warnings = warnings,error = error)
 
     def done(self):
         if self.table_creators is None:
@@ -1011,7 +1062,17 @@ class QOutputPrinter(object):
 
     def print_output(self,f,results):
 
+        if results.error_occurred():
+            error = results.error
+            print >>sys.stderr,error.msg
+
+        for warning in results.warnings:
+            print >>sys.stderr,"%s" % warning.msg
+
         data = results.data
+
+        if data is None:
+            return
 
         # If the user requested beautifying the output
         if self.beautify:
@@ -1058,7 +1119,7 @@ class QOutputPrinter(object):
 
         try:
             # Prevent python bug when order of pipe shutdowns is reversed
-            sys.stdout.flush()
+            f.flush()
         except IOError, e:
             pass
 
@@ -1293,46 +1354,8 @@ def run_standalone():
         debug=DEBUG,
         analyze_only=options.analyze_only)
 
-    try:
-        q_output = q_query.execute(query_str)
-
-        if options.analyze_only:
-            sys.exit(0)
-
-    except EmptyDataException:
-        print >>sys.stderr, "Warning - data is empty"
-        sys.exit(0)
-    except FileNotFoundException, e:
-        print >>sys.stderr, e.msg
-        sys.exit(30)
-    except sqlite3.OperationalError, e:
-        msg = str(e)
-        print >>sys.stderr, "query error: %s" % msg
-        if "no such column" in msg and options.skip_header:
-            print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
-        sys.exit(1)
-    except ColumnCountMismatchException, e:
-        print >>sys.stderr, e.msg
-        sys.exit(2)
-    except (UnicodeDecodeError, UnicodeError), e:
-        print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
-        sys.exit(3)
-    except BadHeaderException, e:
-        print >>sys.stderr, "Bad header row: %s" % e.msg
-        sys.exit(35)
-    except CannotUnzipStdInException,e:
-        print >>sys.stderr,"Cannot decompress standard input. Pipe the input through zcat in order to decompress."
-        sys.exit(36)
-    except CouldNotConvertStringToNumericValueException,e:
-        print >>sys.stderr,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg
-        sys.exit(58)
-    except CouldNotParseInputException,e:
-        print >>sys.stderr,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg
-        sys.exit(59)
-
-    except KeyboardInterrupt:
-        print >>sys.stderr, "Interrupted"
-        sys.exit(0)
+    q_output = q_query.execute(query_str)
+    q_query.done()
 
     q_output_printer = QOutputPrinter(
         delimiter=options.output_delimiter,
@@ -1352,18 +1375,13 @@ def run_standalone():
             # broken pipe, that's ok
             pass
         else:
-            # dont miss other problem for now
+            # dont miss other problems for now
             raise
     except KeyboardInterrupt:
         pass
 
-    try:
-        # Prevent python bug when order of pipe shutdowns is reversed
-        STDOUT.flush()
-    except IOError, e:
-        pass
-
-    q_query.done()
+    if q_output.error_occurred():
+        sys.exit(q_output.error.errorcode)
 
 
 if __name__ == '__main__':

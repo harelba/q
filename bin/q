@@ -29,6 +29,8 @@
 #
 q_version = "1.5.0" # not released yet
 
+__all__ = [ 'QTextAsData' ]
+
 import os
 import sys
 import sqlite3
@@ -44,6 +46,7 @@ from ConfigParser import ConfigParser
 import traceback
 import csv
 import hashlib
+import uuid
 
 DEBUG = False
 
@@ -57,121 +60,6 @@ def get_stdout_encoding(encoding_override=None):
         return locale.getpreferredencoding()
 
 SHOW_SQL = False
-
-p = ConfigParser()
-p.read([os.path.expanduser('~/.qrc'), '.qrc'])
-
-
-def get_option_with_default(p, option_type, option, default):
-    if not p.has_option('options', option):
-        return default
-    if option_type == 'boolean':
-        return p.getboolean('options', option)
-    elif option_type == 'int':
-        return p.getint('options', option)
-    elif option_type == 'string':
-        return p.get('options', option)
-    elif option_type == 'escaped_string':
-        return p.get('options', option).decode('string-escape')
-    else:
-        raise Exception("Unknown option type")
-
-default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
-default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
-default_delimiter = get_option_with_default(
-    p, 'escaped_string', 'delimiter', None)
-default_output_delimiter = get_option_with_default(
-    p, 'escaped_string', 'output_delimiter', None)
-default_skip_header = get_option_with_default(p, 'int', 'skip_header', 0)
-default_formatting = get_option_with_default(p, 'string', 'formatting', None)
-default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
-default_output_encoding = get_option_with_default(p, 'string', 'encoding', None)
-default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
-default_output_header = get_option_with_default(p, 'string', 'output_header', False)
-
-parser = OptionParser(usage="""
-	q allows performing SQL-like statements on tabular text data.
-
-	Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
-
-	Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-        When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
-
-	Column types are detected automatically. Use -A in order to see the column name/type analysis.
-
-	Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
-
-	All sqlite3 SQL constructs are supported.
-
-	Examples:
-
-          Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-	    This example would print a count of each unique permission string in the current folder.
-
-	  Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-	    This example would provide the average and the sum of the numbers in the range 1 to 1000
-
-	  Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-	    This example will output the total size in MB per user+group in the /tmp subtree
-
-
-        See the help or https://github.com/harelba/q/ for more details.
-""")
-
-#-----------------------------------------------
-parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
-                  help="Print version")
-#-----------------------------------------------
-input_data_option_group = OptionGroup(parser,"Input Data Options")
-input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
-                  help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
-input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
-                  help="Field delimiter. If none specified, then space is used as the delimiter.")
-input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
-                  help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
-input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
-                  help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
-input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
-                  help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
-                  help="Analyze sample input and provide information about data types")
-input_data_option_group.add_option("-m", "--mode", dest="mode", default="relaxed",
-                  help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
-input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=None,
-                  help="Specific column count when using relaxed or strict mode")
-input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
-                  help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=True, action="store_false",
-                  help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
-                  help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
-                  help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
-parser.add_option_group(input_data_option_group)
-#-----------------------------------------------
-output_data_option_group = OptionGroup(parser,"Output Options") 
-output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
-                  help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
-                  help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
-output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
-output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
-                  help="Beautify output according to actual values. Might be slow...")
-output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
-                  help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
-                  help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
-                  help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
-parser.add_option_group(output_data_option_group)
-#-----------------------------------------------
-query_option_group = OptionGroup(parser,"Query Related Options") 
-query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=None,
-                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
-query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
-                  help="query text encoding. Experimental. Please send your feedback on this")
-parser.add_option_group(query_option_group)
-#-----------------------------------------------
 
 def sha1(data):
     if not isinstance(data,str) and not isinstance(data,unicode):
@@ -719,7 +607,7 @@ class TableCreator(object):
     def get_table_name(self):
         return self.table_name
 
-    def populate(self, analyze_only=False):
+    def populate(self, dialect,analyze_only=False):
         # Get the list of filenames
         filenames = self.filenames_str.split("+")
         # for each filename (or pattern)
@@ -751,7 +639,7 @@ class TableCreator(object):
                     else:
                         f = file(filename,'rb')
 
-                self.read_file_using_csv(f, analyze_only)
+                self.read_file_using_csv(f, analyze_only,dialect=dialect)
                 if not self.table_created:
                     self.column_inferer.force_analysis()
                     self._do_create_table()
@@ -765,8 +653,8 @@ class TableCreator(object):
         self._flush_inserts()
         self.pre_creation_rows = []
 
-    def read_file_using_csv(self, f, analyze_only):
-        csv_reader = encoded_csv_reader(self.encoding, f, dialect='q')
+    def read_file_using_csv(self, f, analyze_only,dialect):
+        csv_reader = encoded_csv_reader(self.encoding, f, dialect=dialect)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -928,82 +816,157 @@ def print_credentials():
     print >>sys.stderr,"http://harelba.github.io/q/"
     print >>sys.stderr
 
-(options, args) = parser.parse_args()
+class QOutput(object):
+    def __init__(self,data,column_name_list,warnings,errors):
+        self.data = data
+        self.column_name_list = column_name_list
+        self.warnings = warnings
+        self.errors = errors
 
-if options.version:
-    print_credentials()
-    sys.exit(0)
+    def __str__(self):
+        s = []
+        if len(self.errors) > 0:
+            s.append("errors=%s" % len(self.errors))
+        if len(self.warnings) > 0:
+            s.append("warnings=%s" % len(self.warnings))
+        s.append("row_count=%s" % len(self.data))
+        s.append("column_names=%s" % ",".join(self.column_name_list))
+        return "QOutput<%s>" % ",".join(s)
+    __repr__ = __str__
 
-if len(args) > 1:
-    print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
-    sys.exit(1)
+class QTextAsData(object):
+    def __init__(self,
+        skip_header=False,
+        delimiter=' ', 
+        input_encoding='UTF-8',
+        gzipped_input=False,
+        parsing_mode='relaxed',
+        expected_column_count=None,
+        keep_leading_whitespace_in_values=False,
+        disable_double_double_quoting=False,
+        disable_escaped_double_quoting=False,
+        input_quoting_mode='minimal',
 
-if len(args) == 0 and options.query_filename is None:
-    print_credentials()
-    print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
-    sys.exit(1)
+        query_encoding=locale.getpreferredencoding(),
+        debug=False,
+        analyze_only=False,
+        auto_load = True
+    ):
+        self.skip_header = skip_header
+        self.delimiter = delimiter
+        self.input_encoding = input_encoding
+        self.gzipped_input = gzipped_input
+        self.parsing_mode = parsing_mode
+        self.expected_column_count = expected_column_count
+        self.keep_leading_whitespace_in_values = keep_leading_whitespace_in_values
+        self.disable_double_double_quoting = disable_double_double_quoting
+        self.disable_escaped_double_quoting = disable_escaped_double_quoting
+        self.input_quoting_mode = input_quoting_mode
 
-if options.query_filename is not None:
-    if len(args) != 0:
-        print >>sys.stderr,"Can't provide both a query file and a query on the command line"
-        sys.exit(1)
-    try:
-        f = file(options.query_filename)
-        query_str = f.read()
-        f.close()
-    except:
-        print >>sys.stderr,"Could not read query from file %s" % options.query_filename
-        sys.exit(1)
-else:
-    query_str = args[0]
+        self.query_encoding = query_encoding
+        self.debug = debug
+        self.analyze_only = analyze_only
 
-if options.query_encoding is not None and options.query_encoding != 'none':
-    try:
-        query_str = query_str.decode(options.query_encoding)
-    except:
-        print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
-        sys.exit(3)
+        self.q_dialect = self.determine_proper_dialect()
+        # TODO Isolate dialects of each Q instance
+        self.dialect_name = 'q'
+        csv.register_dialect(self.dialect_name, **self.q_dialect)
 
-query_str = query_str.strip()
+        self.table_creators = None
 
-if len(query_str) == 0:
-    print >>sys.stderr,"Query cannot be empty"   
-    sys.exit(1)
+        if auto_load:
+            self.load_data()
 
-if options.mode not in ['fluffy', 'relaxed', 'strict']:
-    print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
-    sys.exit(13)
+    input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
+                        'all' : csv.QUOTE_ALL,
+                        # nonnumeric is not supported for input quoting modes, since we determine the data types 
+                        # ourselves instead of letting the csv module try to identify the types
+                        'none' : csv.QUOTE_NONE }
 
-output_encoding = get_stdout_encoding(options.output_encoding)
-try:
-    STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
-except:
-    print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
-    sys.exit(200)
+    def determine_proper_dialect(self):
 
-# Create DB object
-db = Sqlite3DB()
+        input_quoting_mode_csv_numeral = QTextAsData.input_quoting_modes[self.input_quoting_mode]
 
-# Create SQL statment
-sql_object = Sql('%s' % query_str)
+        if self.keep_leading_whitespace_in_values:
+            skip_initial_space = False
+        else:
+            skip_initial_space = True
 
-# If the user flagged for a tab-delimited file then set the delimiter to tab
-if options.tab_delimited:
-    options.delimiter = '\t'
+        dialect = {'skipinitialspace': skip_initial_space,
+                    'delimiter': self.delimiter, 'quotechar': '"' }
+        dialect['quoting'] = input_quoting_mode_csv_numeral
+        dialect['doublequote'] = self.disable_double_double_quoting
 
-if options.tab_delimited_output:
-    options.output_delimiter = '\t'
+        if self.disable_escaped_double_quoting:
+            dialect['escapechar'] = '\\'
 
-if options.delimiter is None:
-    options.delimiter = ' '
-elif len(options.delimiter) != 1:
-    print >>sys.stderr, "Delimiter must be one character only"
-    sys.exit(5)
+        return dialect
 
-if options.keep_leading_whitespace_in_values:
-    skip_initial_space = False
-else:
-    skip_initial_space = True
+    def load_data(self):
+        ## RLRL TODO separate load and execute phases
+        pass
+
+    def execute(self,query_str):
+        # TODO Propagate warnings and errors to these lists so they can be returned properly
+        warnings = []
+        errors = []
+
+        # Create DB object
+        self.db = Sqlite3DB()
+
+        # Create SQL statment
+        sql_object = Sql('%s' % query_str)
+
+        # Create a line splitter
+        line_splitter = LineSplitter(self.delimiter, self.expected_column_count)
+
+        self.table_creators = []
+        # Get each "table name" which is actually the file name
+        for filename in sql_object.qtable_names:
+            # Create the matching database table and populate it
+            table_creator = TableCreator(self.db, filename, line_splitter, self.skip_header, self.gzipped_input, self.input_encoding,
+                                         mode=self.parsing_mode, expected_column_count=self.expected_column_count, input_delimiter=self.delimiter)
+            start_time = time.time()
+            table_creator.populate(self.dialect_name,self.analyze_only)
+            self.table_creators.append(table_creator)
+            if self.debug:
+                print >>sys.stderr, "TIMING - populate time is %4.3f" % (
+                    time.time() - start_time)
+
+            # Replace the logical table name with the real table name
+            sql_object.set_effective_table_name(filename, table_creator.table_name)
+
+        if self.analyze_only:
+            for table_creator in self.table_creators:
+                column_names = table_creator.column_inferer.get_column_names()
+                print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
+                for k in column_names:
+                    column_type = table_creator.column_inferer.get_column_dict()[k]
+                    print "  `%s` - %s" % (k, self.db.type_names[column_type].lower())
+            return
+
+        # Execute the query and fetch the data
+        db_results_obj = sql_object.execute_and_fetch(self.db)
+
+        return QOutput(
+            data = db_results_obj.results, 
+            column_name_list=db_results_obj.query_column_names,
+            warnings = warnings,
+            errors = errors)
+
+    def done(self):
+        if self.table_creators is None:
+            return
+
+        for table_creator in self.table_creators:
+            try:
+                table_creator.drop_table()
+            except:
+                # Support no-table select queries
+                pass
+
+    def analyze(self):
+        pass
 
 def quote_none_func(output_delimiter,v):
     return v
@@ -1011,7 +974,8 @@ def quote_none_func(output_delimiter,v):
 def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
-    if type(v) == str or type(v) == unicode and output_delimiter in v:
+    t = type(v)
+    if t == str or t == unicode and output_delimiter in v:
         return '"%s"' % (v)
     return v;
 
@@ -1025,188 +989,382 @@ def quote_nonnumeric_func(output_delimiter,v):
 def quote_all_func(output_delimiter,v):
     return '"%s"' % (v)
 
-input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
-                    'all' : csv.QUOTE_ALL,
-                    # nonnumeric is not supported for input quoting modes, since we determine the data types 
-                    # ourselves instead of letting the csv module try to identify the types
-                    'none' : csv.QUOTE_NONE }
+class QOutputPrinter(object):
+    output_quoting_modes = {   'minimal' : quote_minimal_func,
+                        'all' : quote_all_func,
+                        'nonnumeric' : quote_nonnumeric_func,
+                        'none' : quote_none_func }
 
-output_quoting_modes = {   'minimal' : quote_minimal_func,
-                    'all' : quote_all_func,
-                    'nonnumeric' : quote_nonnumeric_func,
-                    'none' : quote_none_func }
+    def __init__(self,
+        delimiter=' ',
+        beautify=False,
+        output_quoting_mode='minimal',
+        formatting=None,
+        output_header=False):
+        self.delimiter = delimiter
+        self.beautify = beautify
+        self.output_quoting_mode = output_quoting_mode
+        self.formatting = formatting
+        self.output_header = output_header
 
-if options.input_quoting_mode not in input_quoting_modes.keys():
-    print >>sys.stderr,"Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(input_quoting_modes.keys()),options.input_quoting_mode)
-    sys.exit(55)
+        self.output_field_quoting_func = QOutputPrinter.output_quoting_modes[self.output_quoting_mode]
 
-if options.output_quoting_mode not in output_quoting_modes.keys():
-    print >>sys.stderr,"Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(output_quoting_modes.keys()),options.input_quoting_mode)
-    sys.exit(56)
+    def print_output(self,f,results):
 
-input_quoting_mode_csv_numeral = input_quoting_modes[options.input_quoting_mode]
-output_field_quoting_func = output_quoting_modes[options.output_quoting_mode]
+        data = results.data
 
-q_dialect = {'skipinitialspace': skip_initial_space,
-             'delimiter': options.delimiter, 'quotechar': '"' }
+        # If the user requested beautifying the output
+        if self.beautify:
+            max_lengths = determine_max_col_lengths(data,self.output_field_quoting_func,self.delimiter)
 
-q_dialect['quoting'] = input_quoting_mode_csv_numeral
-q_dialect['doublequote'] = options.disable_double_double_quoting
+        if self.formatting:
+            formatting_dict = dict(
+                [(x.split("=")[0], x.split("=")[1]) for x in self.formatting.split(",")])
+        else:
+            formatting_dict = None
 
-if options.disable_escaped_double_quoting:
-    q_dialect['escapechar'] = '\\'
+        try:
+            if self.output_header and results.column_name_list is not None:
+                data.insert(0,results.column_name_list)
+            for rownum, row in enumerate(data):
+                row_str = []
+                for i, col in enumerate(row):
+                    if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
+                        fmt_str = formatting_dict[str(i + 1)]
+                    else:
+                        if self.beautify:
+                            fmt_str = "%%-%ss" % max_lengths[i]
+                        else:
+                            fmt_str = "%s"
 
-csv.register_dialect('q', **q_dialect)
-file_reading_method = 'csv'
+                    if col is not None:
+                        row_str.append(fmt_str % self.output_field_quoting_func(self.delimiter,col))
+                    else:
+                        row_str.append(fmt_str % "")
 
-if options.column_count is not None:
-    expected_column_count = int(options.column_count)
-else:
-    # infer automatically
-    expected_column_count = None
+                f.write(self.delimiter.join(row_str) + "\n")
+        except (UnicodeEncodeError, UnicodeError), e:
+            print >>sys.stderr, "Cannot encode data. Error:%s" % e
+            sys.exit(3)
+        except IOError, e:
+            if e.errno == 32:
+                # broken pipe, that's ok
+                pass
+            else:
+                # dont miss other problem for now
+                raise
+        except KeyboardInterrupt:
+            pass
 
-# Create a line splitter
-line_splitter = LineSplitter(options.delimiter, expected_column_count)
+        try:
+            # Prevent python bug when order of pipe shutdowns is reversed
+            sys.stdout.flush()
+        except IOError, e:
+            pass
 
-if options.encoding != 'none':
-    try:
-        codecs.lookup(options.encoding)
-    except LookupError:
-        print >>sys.stderr, "Encoding %s could not be found" % options.encoding
-        sys.exit(10)
+def run_standalone():
+    p = ConfigParser()
+    p.read([os.path.expanduser('~/.qrc'), '.qrc'])
+
+    def get_option_with_default(p, option_type, option, default):
+        if not p.has_option('options', option):
+            return default
+        if option_type == 'boolean':
+            return p.getboolean('options', option)
+        elif option_type == 'int':
+            return p.getint('options', option)
+        elif option_type == 'string':
+            return p.get('options', option)
+        elif option_type == 'escaped_string':
+            return p.get('options', option).decode('string-escape')
+        else:
+            raise Exception("Unknown option type")
+
+    default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
+    default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
+    default_delimiter = get_option_with_default(
+        p, 'escaped_string', 'delimiter', None)
+    default_output_delimiter = get_option_with_default(
+        p, 'escaped_string', 'output_delimiter', None)
+    default_skip_header = get_option_with_default(p, 'int', 'skip_header', 0)
+    default_formatting = get_option_with_default(p, 'string', 'formatting', None)
+    default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
+    default_output_encoding = get_option_with_default(p, 'string', 'encoding', None)
+    default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+    default_output_header = get_option_with_default(p, 'string', 'output_header', False)
+
+    parser = OptionParser(usage="""
+        q allows performing SQL-like statements on tabular text data.
+
+        Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+
+        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
+            When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+
+        Column types are detected automatically. Use -A in order to see the column name/type analysis.
+
+        Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
+
+        All sqlite3 SQL constructs are supported.
+
+        Examples:
+
+              Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
+            This example would print a count of each unique permission string in the current folder.
+
+          Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
+            This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+          Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+            This example will output the total size in MB per user+group in the /tmp subtree
 
 
-try:
-    table_creators = []
-    # Get each "table name" which is actually the file name
-    for filename in sql_object.qtable_names:
-        # Create the matching database table and populate it
-        table_creator = TableCreator(db, filename, line_splitter, options.skip_header, options.gzipped, options.encoding,
-                                     mode=options.mode, expected_column_count=expected_column_count, input_delimiter=options.delimiter)
-        start_time = time.time()
-        table_creator.populate(options.analyze_only)
-        table_creators.append(table_creator)
-        if DEBUG:
-            print >>sys.stderr, "TIMING - populate time is %4.3f" % (
-                time.time() - start_time)
+            See the help or https://github.com/harelba/q/ for more details.
+    """)
 
-        # Replace the logical table name with the real table name
-        sql_object.set_effective_table_name(filename, table_creator.table_name)
+    #-----------------------------------------------
+    parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
+                      help="Print version")
+    #-----------------------------------------------
+    input_data_option_group = OptionGroup(parser,"Input Data Options")
+    input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
+                      help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
+    input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
+                      help="Field delimiter. If none specified, then space is used as the delimiter.")
+    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
+                      help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
+    input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
+                      help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+    input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
+                      help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
+    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
+                      help="Analyze sample input and provide information about data types")
+    input_data_option_group.add_option("-m", "--mode", dest="mode", default="relaxed",
+                      help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
+    input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=None,
+                      help="Specific column count when using relaxed or strict mode")
+    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
+                      help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
+    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=True, action="store_false",
+                      help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
+                      help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+    input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
+                      help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
+    parser.add_option_group(input_data_option_group)
+    #-----------------------------------------------
+    output_data_option_group = OptionGroup(parser,"Output Options") 
+    output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
+                      help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
+                      help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
+    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
+    output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
+                      help="Beautify output according to actual values. Might be slow...")
+    output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
+                      help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
+    output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
+                      help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+    output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
+                      help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
+    parser.add_option_group(output_data_option_group)
+    #-----------------------------------------------
+    query_option_group = OptionGroup(parser,"Query Related Options") 
+    query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=None,
+                      help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
+    query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
+                      help="query text encoding. Experimental. Please send your feedback on this")
+    parser.add_option_group(query_option_group)
+    #-----------------------------------------------
 
-    if options.analyze_only:
-        for table_creator in table_creators:
-            column_names = table_creator.column_inferer.get_column_names()
-            print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
-            for k in column_names:
-                column_type = table_creator.column_inferer.get_column_dict()[k]
-                print "  `%s` - %s" % (k, db.type_names[column_type].lower())
+    (options, args) = parser.parse_args()
+
+    if options.version:
+        print_credentials()
         sys.exit(0)
 
-    # Execute the query and fetch the data
-    db_results_obj = sql_object.execute_and_fetch(db)
-    m = db_results_obj.results
-    output_column_name_list = db_results_obj.query_column_names
-except EmptyDataException:
-    print >>sys.stderr, "Warning - data is empty"
-    sys.exit(0)
-except FileNotFoundException, e:
-    print >>sys.stderr, e.msg
-    sys.exit(30)
-except sqlite3.OperationalError, e:
-    msg = str(e)
-    print >>sys.stderr, "query error: %s" % msg
-    if "no such column" in msg and options.skip_header:
-        print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
-    sys.exit(1)
-except ColumnCountMismatchException, e:
-    print >>sys.stderr, e.msg
-    sys.exit(2)
-except (UnicodeDecodeError, UnicodeError), e:
-    print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
-    sys.exit(3)
-except BadHeaderException, e:
-    print >>sys.stderr, "Bad header row: %s" % e.msg
-    sys.exit(35)
-except CannotUnzipStdInException,e:
-    print >>sys.stderr,"Cannot decompress standard input. Pipe the input through zcat in order to decompress."
-    sys.exit(36)
-except CouldNotConvertStringToNumericValueException,e:
-    print >>sys.stderr,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg
-    sys.exit(58)
-except CouldNotParseInputException,e:
-    print >>sys.stderr,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg
-    sys.exit(59)
+    if len(args) > 1:
+        print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
+        sys.exit(1)
 
-except KeyboardInterrupt:
-    print >>sys.stderr, "Interrupted"
-    sys.exit(0)
+    if len(args) == 0 and options.query_filename is None:
+        print_credentials()
+        print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
+        sys.exit(1)
 
-if options.output_delimiter:
-    # If output delimiter is specified, then we use it
-    output_delimiter = options.output_delimiter
-else:
-    # Otherwise,
-    if options.delimiter:
-        # if an input delimiter is specified, then we use it as the output as
-        # well
-        output_delimiter = options.delimiter
+    if options.query_filename is not None:
+        if len(args) != 0:
+            print >>sys.stderr,"Can't provide both a query file and a query on the command line"
+            sys.exit(1)
+        try:
+            f = file(options.query_filename)
+            query_str = f.read()
+            f.close()
+        except:
+            print >>sys.stderr,"Could not read query from file %s" % options.query_filename
+            sys.exit(1)
     else:
-        # if no input delimiter is specified, then we use space as the default
-        # (since no input delimiter means any whitespace)
-        output_delimiter = " "
+        query_str = args[0]
 
-# If the user requested beautifying the output
-if options.beautify:
-    max_lengths = determine_max_col_lengths(m,output_field_quoting_func,output_delimiter)
+    if options.query_encoding is not None and options.query_encoding != 'none':
+        try:
+            query_str = query_str.decode(options.query_encoding)
+        except:
+            print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
+            sys.exit(3)
 
-if options.formatting:
-    formatting_dict = dict(
-        [(x.split("=")[0], x.split("=")[1]) for x in options.formatting.split(",")])
-else:
-    formatting_dict = None
+    query_str = query_str.strip()
 
-try:
-    if options.output_header and output_column_name_list is not None:
-        m.insert(0,output_column_name_list)
-    for rownum, row in enumerate(m):
-        row_str = []
-        for i, col in enumerate(row):
-            if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
-                fmt_str = formatting_dict[str(i + 1)]
-            else:
-                if options.beautify:
-                    fmt_str = "%%-%ss" % max_lengths[i]
-                else:
-                    fmt_str = "%s"
+    if len(query_str) == 0:
+        print >>sys.stderr,"Query cannot be empty"   
+        sys.exit(1)
 
-            if col is not None:
-                row_str.append(fmt_str % output_field_quoting_func(output_delimiter,col))
-            else:
-                row_str.append(fmt_str % "")
+    if options.mode not in ['fluffy', 'relaxed', 'strict']:
+        print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
+        sys.exit(13)
 
-        STDOUT.write(output_delimiter.join(row_str) + "\n")
-except (UnicodeEncodeError, UnicodeError), e:
-    print >>sys.stderr, "Cannot encode data. Error:%s" % e
-    sys.exit(3)
-except IOError, e:
-    if e.errno == 32:
-        # broken pipe, that's ok
+    output_encoding = get_stdout_encoding(options.output_encoding)
+    try:
+        STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+    except:
+        print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
+        sys.exit(200)
+
+    # If the user flagged for a tab-delimited file then set the delimiter to tab
+    if options.tab_delimited:
+        options.delimiter = '\t'
+
+    if options.tab_delimited_output:
+        options.output_delimiter = '\t'
+
+    if options.delimiter is None:
+        options.delimiter = ' '
+    elif len(options.delimiter) != 1:
+        print >>sys.stderr, "Delimiter must be one character only"
+        sys.exit(5)
+
+    if options.input_quoting_mode not in QTextAsData.input_quoting_modes.keys():
+        print >>sys.stderr,"Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode)
+        sys.exit(55)
+
+    if options.output_quoting_mode not in QOutputPrinter.output_quoting_modes.keys():
+        print >>sys.stderr,"Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode)
+        sys.exit(56)
+
+    if options.column_count is not None:
+        expected_column_count = int(options.column_count)
+    else:
+        # infer automatically
+        expected_column_count = None
+
+    if options.encoding != 'none':
+        try:
+            codecs.lookup(options.encoding)
+        except LookupError:
+            print >>sys.stderr, "Encoding %s could not be found" % options.encoding
+            sys.exit(10)
+
+    if options.output_delimiter:
+        # If output delimiter is specified, then we use it
+        output_delimiter = options.output_delimiter
+    else:
+        # Otherwise,
+        if options.delimiter:
+            # if an input delimiter is specified, then we use it as the output as
+            # well
+            options.output_delimiter = options.delimiter
+        else:
+            # if no input delimiter is specified, then we use space as the default
+            # (since no input delimiter means any whitespace)
+            options.output_delimiter = " "
+
+    q_query = QTextAsData(
+        skip_header=options.skip_header,
+        delimiter=options.delimiter,
+        input_encoding=options.encoding,
+        gzipped_input=options.gzipped,
+        parsing_mode=options.mode,
+        expected_column_count=expected_column_count,
+        keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
+        disable_double_double_quoting=options.disable_double_double_quoting,
+        disable_escaped_double_quoting=options.disable_escaped_double_quoting,
+        input_quoting_mode=options.input_quoting_mode,
+        query_encoding=options.query_encoding,
+        debug=DEBUG,
+        analyze_only=options.analyze_only)
+
+    try:
+        q_output = q_query.execute(query_str)
+
+        if options.analyze_only:
+            sys.exit(0)
+
+    except EmptyDataException:
+        print >>sys.stderr, "Warning - data is empty"
+        sys.exit(0)
+    except FileNotFoundException, e:
+        print >>sys.stderr, e.msg
+        sys.exit(30)
+    except sqlite3.OperationalError, e:
+        msg = str(e)
+        print >>sys.stderr, "query error: %s" % msg
+        if "no such column" in msg and options.skip_header:
+            print >>sys.stderr, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'
+        sys.exit(1)
+    except ColumnCountMismatchException, e:
+        print >>sys.stderr, e.msg
+        sys.exit(2)
+    except (UnicodeDecodeError, UnicodeError), e:
+        print >>sys.stderr, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e
+        sys.exit(3)
+    except BadHeaderException, e:
+        print >>sys.stderr, "Bad header row: %s" % e.msg
+        sys.exit(35)
+    except CannotUnzipStdInException,e:
+        print >>sys.stderr,"Cannot decompress standard input. Pipe the input through zcat in order to decompress."
+        sys.exit(36)
+    except CouldNotConvertStringToNumericValueException,e:
+        print >>sys.stderr,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg
+        sys.exit(58)
+    except CouldNotParseInputException,e:
+        print >>sys.stderr,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg
+        sys.exit(59)
+
+    except KeyboardInterrupt:
+        print >>sys.stderr, "Interrupted"
+        sys.exit(0)
+
+    q_output_printer = QOutputPrinter(
+        delimiter=options.output_delimiter,
+        beautify=options.beautify,
+        output_quoting_mode=options.output_quoting_mode,
+        formatting=options.formatting,
+        output_header=options.output_header)
+
+    try:
+        q_output_printer.print_output(STDOUT,q_output)
+
+    except (UnicodeEncodeError, UnicodeError), e:
+        print >>sys.stderr, "Cannot encode data. Error:%s" % e
+        sys.exit(3)
+    except IOError, e:
+        if e.errno == 32:
+            # broken pipe, that's ok
+            pass
+        else:
+            # dont miss other problem for now
+            raise
+    except KeyboardInterrupt:
         pass
-    else:
-        # dont miss other problem for now
-        raise
-except KeyboardInterrupt:
-    pass
 
-try:
-    # Prevent python bug when order of pipe shutdowns is reversed
-    sys.stdout.flush()
-except IOError, e:
-    pass
+    try:
+        # Prevent python bug when order of pipe shutdowns is reversed
+        STDOUT.flush()
+    except IOError, e:
+        pass
+
+    q_query.done()
 
 
-try:
-    table_creator.drop_table()
-except:
-    # Support no-table select queries
-    pass
+if __name__ == '__main__':
+    run_standalone()

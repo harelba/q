@@ -237,6 +237,19 @@ class ColumnCountMismatchException(Exception):
     def __str(self):
         return repr(self.msg)
 
+class StrictModeColumnCountMismatchException(Exception):
+
+    def __init__(self,expected_col_count,actual_col_count):
+        self.expected_col_count = expected_col_count
+        self.actual_col_count = actual_col_count
+
+class FluffyModeColumnCountMismatchException(Exception):
+
+    def __init__(self,expected_col_count,actual_col_count):
+        self.expected_col_count = expected_col_count
+        self.actual_col_count = actual_col_count
+
+
 # Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
 #
 # A "qtable" is a filename which behaves like an SQL table...
@@ -589,6 +602,29 @@ def normalized_filename(filename):
     else:
         return filename
 
+class TableCreatorState(object):
+    NEW = 'NEW'
+    INITIALIZED = 'INITIALIZED'
+    ANALYZED = 'ANALYZED'
+    FULLY_READ = 'FULLY_READ'
+
+class MaterializedFileState(object):
+    def __init__(self,filename,f,encoding,dialect):
+        self.filename = filename
+        self.lines_read = 0
+        self.f = f
+        self.encoding = encoding
+        self.dialect = dialect
+
+    def read_file_using_csv(self):
+        csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
+        for col_vals in csv_reader:
+            self.lines_read += 1
+            yield col_vals
+
+    def close(self):
+        if self.f != sys.stdin:
+            self.f.close()
 
 class TableCreator(object):
 
@@ -620,47 +656,128 @@ class TableCreator(object):
         # so column inferer can do its work before this information is needed
         self.numeric_column_indices = None
 
-    def get_table_name(self):
-        return self.table_name
+        self.materialized_file_list = self.materialize_file_list()
+        self.materialized_file_dict = {}
 
-    def populate(self, dialect,analyze_only=False):
+        self.state = TableCreatorState.NEW
+
+    def materialize_file_list(self):
+        materialized_file_list = []
+
         # Get the list of filenames
         filenames = self.filenames_str.split("+")
+
         # for each filename (or pattern)
         for fileglob in filenames:
             # Allow either stdin or a glob match
             if fileglob == self.stdin_filename:
-                files_to_go_over = [self.stdin_filename]
+                materialized_file_list.append(self.stdin_filename)
             else:
-                files_to_go_over = glob.glob(fileglob)
+                materialized_file_list += glob.glob(fileglob)
 
-            # If there are no files to go over,
-            if len(files_to_go_over) == 0:
-                raise FileNotFoundException(
-                    "File %s has not been found" % fileglob)
+        # If there are no files to go over,
+        if len(materialized_file_list) == 0:
+            raise FileNotFoundException(
+                "No files have been found for '%s'" % self.filenames_str)
 
-            # For each match
-            for filename in files_to_go_over:
-                self.current_filename = filename
-                self.lines_read = 0
+        return materialized_file_list
 
-                # Check if it's standard input or a file
-                if filename == self.stdin_filename:
-                    if self.stdin_file is None:
-                        raise UnprovidedStdInException()
-                    f = self.stdin_file
-                    if self.gzipped:
-                        raise CannotUnzipStdInException()
-                else:
-                    if self.gzipped or filename.endswith('.gz'):
-                        f = gzip.GzipFile(fileobj=file(filename,'rb'))    
-                    else:
-                        f = file(filename,'rb')
+    def get_table_name(self):
+        return self.table_name
 
-                self.read_file_using_csv(f, analyze_only,dialect=dialect)
-                if not self.table_created:
-                    self.column_inferer.force_analysis()
-                    self._do_create_table()
+    def open_file(self,filename):
+        # Check if it's standard input or a file
+        if filename == self.stdin_filename:
+            if self.stdin_file is None:
+                raise UnprovidedStdInException()
+            f = self.stdin_file
+            if self.gzipped:
+                raise CannotUnzipStdInException()
+        else:
+            if self.gzipped or filename.endswith('.gz'):
+                f = gzip.GzipFile(fileobj=file(filename,'rb'))    
+            else:
+                f = file(filename,'rb')
+        return f
+
+    def _pre_populate(self,dialect):
+        # For each match
+        for filename in self.materialized_file_list:
+            if filename in self.materialized_file_dict.keys():
+                continue
+
+            f = self.open_file(filename)
+
+            mfs = MaterializedFileState(filename,f,self.encoding,dialect)
+            self.materialized_file_dict[filename] = mfs
+
+    def _populate_until_analyzed(self, dialect):
+        # For each match
+        for filename in self.materialized_file_list:
+            mfs = self.materialized_file_dict[filename]
+
+            try:
+                try:
+                    for col_vals in mfs.read_file_using_csv():
+                        self._insert_row(col_vals)
+                        if self.column_inferer.inferred:
+                            return
+                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
+                        raise EmptyDataException()
+                except StrictModeColumnCountMismatchException,e:
+                    raise ColumnCountMismatchException(
+                        'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
+                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
+                except FluffyModeColumnCountMismatchException,e:
+                    raise ColumnCountMismatchException(
+                        'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
+                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
+            finally:
+                self._flush_inserts()
+
+            if not self.table_created:
+                self.column_inferer.force_analysis()
+                self._do_create_table()
+
+    def _populate_until_finish(self,dialect):
+        # For each match
+        for filename in self.materialized_file_list:
+            mfs = self.materialized_file_dict[filename]
+
+            try:
+                try:
+                    for col_vals in mfs.read_file_using_csv():
+                        self._insert_row(col_vals)
+                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
+                        raise EmptyDataException()
+                except StrictModeColumnCountMismatchException,e:
+                    raise ColumnCountMismatchException(
+                        'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
+                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
+                except FluffyModeColumnCountMismatchException,e:
+                    raise ColumnCountMismatchException(
+                        'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
+                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
+            finally:
+                mfs.close()
+                self._flush_inserts()
+
+    def populate(self,dialect,stop_after_analysis=False):
+        if self.state == TableCreatorState.NEW:
+            self._pre_populate(dialect)    
+            self.state = TableCreatorState.INITIALIZED
+
+        if self.state == TableCreatorState.INITIALIZED:
+            self._populate_until_analyzed(dialect)
+            self.state = TableCreatorState.ANALYZED
+
+            if stop_after_analysis:
+                return
+
+        if self.state == TableCreatorState.ANALYZED:
+            self._populate_until_finish(dialect)
+            self.state = TableCreatorState.FULLY_READ
+            return
 
     def _flush_pre_creation_rows(self):
         for i, col_vals in enumerate(self.pre_creation_rows):
@@ -670,21 +787,6 @@ class TableCreator(object):
             self._insert_row(col_vals)
         self._flush_inserts()
         self.pre_creation_rows = []
-
-    def read_file_using_csv(self, f, analyze_only,dialect):
-        csv_reader = encoded_csv_reader(self.encoding, f, dialect=dialect)
-        try:
-            for col_vals in csv_reader:
-                self.lines_read += 1
-                self._insert_row(col_vals)
-                if analyze_only and self.column_inferer.inferred:
-                    return
-            if self.lines_read == 0 or (self.lines_read == 1 and self.skip_header):
-                raise EmptyDataException()
-        finally:
-            if f != sys.stdin:
-                f.close()
-            self._flush_inserts()
 
     def _insert_row(self, col_vals):
         # If table has not been created yet
@@ -729,8 +831,7 @@ class TableCreator(object):
         actual_col_count = len(col_vals)
         if self.mode == 'strict':
             if actual_col_count != expected_col_count:
-                raise ColumnCountMismatchException('Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                    expected_col_count, actual_col_count, normalized_filename(self.current_filename), self.lines_read))
+                raise StrictModeColumnCountMismatchException(expected_col_count,actual_col_count)
             return col_vals
 
         # in all non strict mode, we add dummy data to missing columns
@@ -751,8 +852,7 @@ class TableCreator(object):
 
         if self.mode == 'fluffy':
             if actual_col_count > expected_col_count:
-                raise ColumnCountMismatchException('Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                    normalized_filename(self.current_filename), self.lines_read, actual_col_count, expected_col_count))
+                raise FluffyModeColumnCountMismatchException(expected_col_count,actual_col_count)
             return col_vals
 
         raise Exception("Unidentified parsing mode %s" % self.mode)
@@ -778,11 +878,12 @@ class TableCreator(object):
         if not self.table_created:
             return
 
-        insert_row_stmt = self.db.generate_insert_row(
-            self.table_name, self.buffered_inserts[0][0])
-        params = [col_vals for col_names, col_vals in self.buffered_inserts]
+        if len(self.buffered_inserts) > 0:
+            insert_row_stmt = self.db.generate_insert_row(
+                self.table_name, self.buffered_inserts[0][0])
+            params = [col_vals for col_names, col_vals in self.buffered_inserts]
 
-        self.db.update_many(insert_row_stmt, params)
+            self.db.update_many(insert_row_stmt, params)
         # print self.db.execute_and_fetch(self.db.generate_end_transaction())
         self.buffered_inserts = []
 
@@ -959,7 +1060,7 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-'):
+    def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
         start_time = time.time()
 
         q_dialect = self.determine_proper_dialect(input_params)
@@ -979,12 +1080,14 @@ class QTextAsData(object):
             self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count, 
             input_delimiter=input_params.delimiter,stdin_file = stdin_file,stdin_filename = stdin_filename)
-        table_creator.populate(dialect_id,self.analyze_only)
+
+        table_creator.populate(dialect_id,stop_after_analysis)
+
         self.table_creators[filename] = table_creator
 
         return QDataLoad(filename,start_time,time.time())
 
-    def load_data(self,filename,input_params=QInputParams()):
+    def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         self._load_data(filename,input_params)
 
     def ensure_data_is_loaded(self,query_str,input_params,stdin_file,stdin_filename='-'):

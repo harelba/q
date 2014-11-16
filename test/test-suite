@@ -1348,7 +1348,7 @@ class ParsingModeTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(uneven_ls_output)
         cmd = '../bin/q -m relaxed "select count(*) from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
-       
+
         self.assertEquals(retcode, 0)
         self.assertEquals(len(e), 0)
 
@@ -1480,6 +1480,57 @@ class ParsingModeTests(AbstractQTestCase):
                            "/initrd.img.old", "/cdrom", "/home", "/vmlinuz", "/initrd.img"]
 
         self.assertEquals(o, expected_output)
+
+        self.cleanup(tmpfile)
+
+    def test_fluffy_mode_column_count_mismatch(self):
+        data_row = "column1 column2 column3 column4"
+        data_list = [data_row] * 1000
+        data_list[950] = "column1 column2 column3 column4 column5"
+        tmpfile = self.create_file_with_data("\n".join(data_list))
+
+        cmd = '../bin/q -m fluffy "select * from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+        self.assertTrue(e[0].startswith("Deprecated fluffy mode"))
+        self.assertTrue(' row 951 ' in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_strict_mode_column_count_mismatch__less_columns(self):
+        data_row = "column1 column2 column3 column4"
+        data_list = [data_row] * 1000
+        data_list[750] = "column1 column3 column4"
+        tmpfile = self.create_file_with_data("\n".join(data_list))
+
+        cmd = '../bin/q -m strict "select * from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+        self.assertTrue(e[0].startswith("Strict mode - Expected 4 columns instead of 3 columns"))
+        self.assertTrue(' row 751.' in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_strict_mode_column_count_mismatch__more_columns(self):
+        data_row = "column1 column2 column3 column4"
+        data_list = [data_row] * 1000
+        data_list[750] = "column1 column2 column3 column4 column5"
+        tmpfile = self.create_file_with_data("\n".join(data_list))
+
+        cmd = '../bin/q -m strict "select * from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEquals(retcode,0)
+        self.assertEquals(len(o),0)
+        self.assertEquals(len(e),1)
+        self.assertTrue(e[0].startswith("Strict mode - Expected 4 columns instead of 5 columns"))
+        self.assertTrue(' row 751.' in e[0])
 
         self.cleanup(tmpfile)
 
@@ -1807,6 +1858,17 @@ class BasicModuleTests(AbstractQTestCase):
 
         for k in input_params.__dict__.keys():
             self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
+
+    def test_table_analysis(self):
+        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+
+        q = QTextAsData()
+
+        q_analysis = q.analyze(tmpfile1.name)
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
 def suite():
     tl = unittest.TestLoader()

@@ -711,7 +711,7 @@ class TableCreator(object):
             mfs = MaterializedFileState(filename,f,self.encoding,dialect)
             self.materialized_file_dict[filename] = mfs
 
-    def _populate_until_analyzed(self, dialect):
+    def _populate(self,dialect,stop_after_analysis=False):
         # For each match
         for filename in self.materialized_file_list:
             mfs = self.materialized_file_dict[filename]
@@ -720,7 +720,7 @@ class TableCreator(object):
                 try:
                     for col_vals in mfs.read_file_using_csv():
                         self._insert_row(col_vals)
-                        if self.column_inferer.inferred:
+                        if stop_after_analysis and self.column_inferer.inferred:
                             return
                     if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
                         raise EmptyDataException()
@@ -733,34 +733,13 @@ class TableCreator(object):
                         'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
                         normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
             finally:
+                if not stop_after_analysis:
+                    mfs.close()
                 self._flush_inserts()
 
             if not self.table_created:
                 self.column_inferer.force_analysis()
                 self._do_create_table()
-
-    def _populate_until_finish(self,dialect):
-        # For each match
-        for filename in self.materialized_file_list:
-            mfs = self.materialized_file_dict[filename]
-
-            try:
-                try:
-                    for col_vals in mfs.read_file_using_csv():
-                        self._insert_row(col_vals)
-                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
-                        raise EmptyDataException()
-                except StrictModeColumnCountMismatchException,e:
-                    raise ColumnCountMismatchException(
-                        'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
-                except FluffyModeColumnCountMismatchException,e:
-                    raise ColumnCountMismatchException(
-                        'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
-            finally:
-                mfs.close()
-                self._flush_inserts()
 
     def populate(self,dialect,stop_after_analysis=False):
         if self.state == TableCreatorState.NEW:
@@ -768,14 +747,14 @@ class TableCreator(object):
             self.state = TableCreatorState.INITIALIZED
 
         if self.state == TableCreatorState.INITIALIZED:
-            self._populate_until_analyzed(dialect)
+            self._populate(dialect,stop_after_analysis=True)
             self.state = TableCreatorState.ANALYZED
 
             if stop_after_analysis:
                 return
 
         if self.state == TableCreatorState.ANALYZED:
-            self._populate_until_finish(dialect)
+            self._populate(dialect,stop_after_analysis=False)
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -960,19 +939,44 @@ class QDataLoad(object):
         return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename,self.start_time,self.duration())
     __repr__ = __str__
 
-class QOutput(object):
-    def __init__(self,data=None,column_name_list=None,warnings=[],error=None,data_loads=[]):
-        self.data = data
-        self.column_name_list = column_name_list
-        self.warnings = warnings
-        self.error = error
+class QTableStructure(object):
+    def __init__(self,filenames_str,materialized_file_list,column_names,column_types):
+        self.filenames_str = filenames_str
+        self.materialized_file_list = materialized_file_list
+        self.column_names = column_names
+        self.column_types = column_types
+
+    def __str__(self):
+        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
+            self.filenames_str,len(self.materialized_file_list),self.column_names,self.column_types)
+    __repr__ = __str__
+
+class QMetadata(object):
+    def __init__(self,table_structures=[],output_column_name_list=None,data_loads=[]):
+        self.table_structures = table_structures
+        self.output_column_name_list = output_column_name_list
         self.data_loads = data_loads
 
-    def error_occurred(self):
-        return self.error is not None
+    def __str__(self):
+        return "QMetadata<table_count=%s,output_column_name_list=%s,data_load_count=%s" % (
+            len(self.table_structures),self.output_column_name_list,len(self.data_loads))
+    __repr__ = __str__
+
+class QOutput(object):
+    def __init__(self,data=None,metadata=None,warnings=[],error=None):
+        self.data = data
+        self.metadata = metadata
+
+        self.warnings = warnings
+        self.error = error
+        if error is None:
+            self.status = 'ok'
+        else:
+            self.status = 'error'
 
     def __str__(self):
         s = []
+        s.append('status=%s' % self.status)
         if self.error is not None:
             s.append("error=%s" % self.error.msg)
         if len(self.warnings) > 0:
@@ -981,11 +985,10 @@ class QOutput(object):
             s.append("row_count=%s" % len(self.data))
         else:
             s.append("row_count=None")
-        if self.column_name_list is not None:
-            s.append("column_names=[%s]" % ",".join(self.column_name_list))
+        if self.metadata is not None:
+            s.append("metadata=<%s>" % self.metadata)
         else:
-            s.append("column_names=None")
-        s.append("data_load_count=%s" % len(self.data_loads))
+            s.append("metadata=None")
         return "QOutput<%s>" % ",".join(s)
     __repr__ = __str__
 
@@ -1019,12 +1022,8 @@ class QInputParams(object):
         return "QInputParams(...)"
 
 class QTextAsData(object):
-    def __init__(self,default_input_params=QInputParams(),
-        analyze_only=False
-    ):
+    def __init__(self,default_input_params=QInputParams()):
         self.default_input_params = default_input_params
-
-        self.analyze_only = analyze_only
 
         self.table_creators = {}
 
@@ -1088,17 +1087,14 @@ class QTextAsData(object):
         return QDataLoad(filename,start_time,time.time())
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        self._load_data(filename,input_params)
+        self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
-    def ensure_data_is_loaded(self,query_str,input_params,stdin_file,stdin_filename='-'):
+    def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
         data_loads = []
-
-        # Create SQL statment
-        sql_object = Sql('%s' % query_str)
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            data_load = self._load_data(filename,input_params,stdin_file=stdin_file,stdin_filename=stdin_filename)
+            data_load = self._load_data(filename,input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
 
@@ -1108,10 +1104,12 @@ class QTextAsData(object):
         for filename in sql_object.qtable_names:
             sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
 
-    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
+    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False):
         warnings = []
         error = None
         data_loads = []
+        table_structures = None
+
         db_results_obj = None
 
         effective_input_params = self.default_input_params.merged_with(input_params)
@@ -1124,25 +1122,27 @@ class QTextAsData(object):
                 error = QError(EncodedQueryException(),"Query should be in unicode. Please make sure to provide a unicode literal string or decode it using proper the character encoding.",91)
                 return QOutput(error = error)
 
-        try:
-            data_loads += self.ensure_data_is_loaded(query_str,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename)
+        # Create SQL statment
+        sql_object = Sql('%s' % query_str)
 
-            # Create SQL statment
-            sql_object = Sql(query_str)
+        try:
+            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+
+            table_structures = self._create_table_structures_list()
 
             self.materialize_sql_object(sql_object)
 
-            if self.analyze_only:
-                for filename,table_creator in self.table_creators.iteritems():
-                    column_names = table_creator.column_inferer.get_column_names()
-                    print "Table for file: %s" % normalized_filename(table_creator.filenames_str)
-                    for k in column_names:
-                        column_type = table_creator.column_inferer.get_column_dict()[k]
-                        print "  `%s` - %s" % (k, self.db.type_names[column_type].lower())
-                return QOutput()
-
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.db)
+
+            return QOutput(
+                data = db_results_obj.results, 
+                metadata = QMetadata(
+                    table_structures=table_structures,
+                    output_column_name_list=db_results_obj.query_column_names,
+                    data_loads=data_loads),
+                warnings = warnings,
+                error = error)
 
         except EmptyDataException,e:
             warnings.append(QWarning(e,"Warning - data is empty"))
@@ -1172,15 +1172,10 @@ class QTextAsData(object):
         except Exception, e:
             error = QError(e,repr(e),199)
 
-        if db_results_obj is not None:
-            return QOutput(
-                data = db_results_obj.results, 
-                column_name_list=db_results_obj.query_column_names,
-                warnings = warnings,
-                error = error,
-                data_loads = data_loads)
-        else:
-            return QOutput(warnings = warnings,error = error , data_loads = data_loads)
+        return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
+
+    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
+        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False)
 
     def unload(self):
 
@@ -1192,8 +1187,19 @@ class QTextAsData(object):
                 pass
         self.table_creators = {}
 
-    def analyze(self):
-        pass
+    def _create_table_structures_list(self):
+        table_structures = []
+        for filename,table_creator in self.table_creators.iteritems():
+            column_names = table_creator.column_inferer.get_column_names()
+            column_types = [self.db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
+            table_structure = QTableStructure(table_creator.filenames_str,table_creator.materialized_file_list,column_names,column_types)
+            table_structures.append(table_structure)
+        return table_structures
+
+    def analyze(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
+        q_output = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=True)
+
+        return q_output
 
 def quote_none_func(output_delimiter,v):
     return v
@@ -1235,7 +1241,6 @@ class QOutputParams(object):
     def __repr__(self):
         return "QOutputParams(...)"
 
-
 class QOutputPrinter(object):
     output_quoting_modes = {   'minimal' : quote_minimal_func,
                         'all' : quote_all_func,
@@ -1247,14 +1252,30 @@ class QOutputPrinter(object):
 
         self.output_field_quoting_func = QOutputPrinter.output_quoting_modes[output_params.output_quoting_mode]
 
-    def print_output(self,f,results):
-
-        if results.error_occurred():
+    def print_errors_and_warnings(self,f,results):
+        if results.status == 'error':
             error = results.error
-            print >>sys.stderr,error.msg
+            print >>f,error.msg
 
         for warning in results.warnings:
-            print >>sys.stderr,"%s" % warning.msg
+            print >>f,"%s" % warning.msg
+
+    def print_analysis(self,f_out,f_err,results):
+        self.print_errors_and_warnings(f_err,results)
+
+        if results.metadata is None:
+            return
+
+        if results.metadata.table_structures is None:
+            return
+
+        for table_structure in results.metadata.table_structures:
+            print >>f_out,"Table for file: %s" % normalized_filename(table_structure.filenames_str)
+            for n,t in zip(table_structure.column_names,table_structure.column_types):
+                print >>f_out,"  `%s` - %s" % (n,t)
+
+    def print_output(self,f_out,f_err,results):
+        self.print_errors_and_warnings(f_err,results)
 
         data = results.data
 
@@ -1272,8 +1293,8 @@ class QOutputPrinter(object):
             formatting_dict = None
 
         try:
-            if self.output_params.output_header and results.column_name_list is not None:
-                data.insert(0,results.column_name_list)
+            if self.output_params.output_header and results.metadata.output_column_name_list is not None:
+                data.insert(0,results.metadata.output_column_name_list)
             for rownum, row in enumerate(data):
                 row_str = []
                 for i, col in enumerate(row):
@@ -1290,7 +1311,7 @@ class QOutputPrinter(object):
                     else:
                         row_str.append(fmt_str % "")
 
-                f.write(self.output_params.delimiter.join(row_str) + "\n")
+                f_out.write(self.output_params.delimiter.join(row_str) + "\n")
         except (UnicodeEncodeError, UnicodeError), e:
             print >>sys.stderr, "Cannot encode data. Error:%s" % e
             sys.exit(3)
@@ -1306,7 +1327,7 @@ class QOutputPrinter(object):
 
         try:
             # Prevent python bug when order of pipe shutdowns is reversed
-            f.flush()
+            f_out.flush()
         except IOError, e:
             pass
 
@@ -1537,10 +1558,13 @@ def run_standalone():
         disable_escaped_double_quoting=options.disable_escaped_double_quoting,
         input_quoting_mode=options.input_quoting_mode)
 
-    q_query = QTextAsData(
-        default_input_params=default_input_params,analyze_only=options.analyze_only)
+    q_query = QTextAsData(default_input_params=default_input_params)
 
-    q_output = q_query.execute(query_str,stdin_file=sys.stdin)
+    if options.analyze_only:
+        q_output = q_query.analyze(query_str,stdin_file=sys.stdin)
+    else:
+        q_output = q_query.execute(query_str,stdin_file=sys.stdin)
+
     q_query.unload()
 
     output_params = QOutputParams(
@@ -1553,7 +1577,10 @@ def run_standalone():
     q_output_printer = QOutputPrinter(output_params)
 
     try:
-        q_output_printer.print_output(STDOUT,q_output)
+        if options.analyze_only:
+            q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
+        else:
+            q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
     except (UnicodeEncodeError, UnicodeError), e:
         print >>sys.stderr, "Cannot encode data. Error:%s" % e
@@ -1568,7 +1595,7 @@ def run_standalone():
     except KeyboardInterrupt:
         pass
 
-    if q_output.error_occurred():
+    if q_output.status == 'error':
         sys.exit(q_output.error.errorcode)
 
 

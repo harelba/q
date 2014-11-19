@@ -386,11 +386,15 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -A -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
+        self.assertNotEquals(retcode, 0)
+        self.assertEquals(len(o),4)
+        self.assertEquals(len(e),2)
         self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
         self.assertEquals(o[1].strip(), '`name` - text')
         self.assertEquals(o[2].strip(), '`value1` - int')
         self.assertEquals(o[3].strip(), '`value2` - int')
+        self.assertEquals(e[0].strip(),'query error: no such column: c1')
+        self.assertTrue(e[1].startswith('Warning - There seems to be a '))
 
         self.cleanup(tmpfile)
 
@@ -1641,13 +1645,13 @@ class BasicModuleTests(AbstractQTestCase):
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select * from %s' % tmpfile.name)
 
-        self.assertFalse(r.error_occurred())
+        self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),2)
-        self.assertEquals(r.column_name_list,['a','b','c'])
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r.data_loads),1)
-        self.assertEquals(r.data_loads[0].filename,tmpfile.name)
+        self.assertEquals(len(r.metadata.data_loads),1)
+        self.assertEquals(r.metadata.data_loads[0].filename,tmpfile.name)
 
         self.cleanup(tmpfile)
 
@@ -1659,19 +1663,19 @@ class BasicModuleTests(AbstractQTestCase):
 
         r2 = q.execute('select * from %s' % tmpfile.name)
 
-        self.assertFalse(r1.error_occurred())
+        self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
         self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.column_name_list,['a','b','c'])
+        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(r1.data_loads[0].filename,tmpfile.name)
+        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
 
-        self.assertFalse(r2.error_occurred())
-        self.assertEquals(len(r1.data_loads),1)
-        self.assertEquals(r1.data_loads[0].filename,tmpfile.name)
-        self.assertEquals(len(r2.data_loads),0)
+        self.assertTrue(r2.status == 'ok')
+        self.assertEquals(len(r1.metadata.data_loads),1)
+        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEquals(len(r2.metadata.data_loads),0)
         self.assertEquals(r2.data,r1.data)
-        self.assertEquals(r2.column_name_list,r2.column_name_list)
+        self.assertEquals(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
         self.assertEquals(len(r2.warnings),0)
 
         self.cleanup(tmpfile)
@@ -1682,13 +1686,13 @@ class BasicModuleTests(AbstractQTestCase):
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select * from -',stdin_file=file(tmpfile.name,'rb'))
 
-        self.assertFalse(r.error_occurred())
+        self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),2)
-        self.assertEquals(r.column_name_list,['a','b','c'])
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r.data_loads),1)
-        self.assertEquals(r.data_loads[0].filename,'-')
+        self.assertEquals(len(r.metadata.data_loads),1)
+        self.assertEquals(r.metadata.data_loads[0].filename,'-')
 
         self.cleanup(tmpfile)
 
@@ -1698,13 +1702,13 @@ class BasicModuleTests(AbstractQTestCase):
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select a from my_stdin_data',stdin_file=file(tmpfile.name,'rb'),stdin_filename='my_stdin_data')
 
-        self.assertFalse(r.error_occurred())
+        self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),2)
-        self.assertEquals(r.column_name_list,['a'])
+        self.assertEquals(r.metadata.output_column_name_list,['a'])
         self.assertEquals(r.data,[(1,),(4,)])
-        self.assertEquals(len(r.data_loads),1)
-        self.assertEquals(r.data_loads[0].filename,'my_stdin_data')
+        self.assertEquals(len(r.metadata.data_loads),1)
+        self.assertEquals(r.metadata.data_loads[0].filename,'my_stdin_data')
 
         self.cleanup(tmpfile)
 
@@ -1715,24 +1719,24 @@ class BasicModuleTests(AbstractQTestCase):
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r1 = q.execute('select * from -',stdin_file=file(tmpfile1.name,'rb'))
 
-        self.assertFalse(r1.error_occurred())
+        self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
         self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.column_name_list,['a','b','c'])
+        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r1.data_loads),1)
-        self.assertEquals(r1.data_loads[0].filename,'-')
+        self.assertEquals(len(r1.metadata.data_loads),1)
+        self.assertEquals(r1.metadata.data_loads[0].filename,'-')
 
         r2 = q.execute('select * from -',stdin_file=file(tmpfile2.name,'rb'))
 
-        self.assertFalse(r2.error_occurred())
+        self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
         self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.column_name_list,['d','e','f'])
+        self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
         self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
-        self.assertEquals(len(r2.data_loads),1)
-        self.assertEquals(r2.data_loads[0].filename,'-')
+        self.assertEquals(len(r2.metadata.data_loads),1)
+        self.assertEquals(r2.metadata.data_loads[0].filename,'-')
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -1744,33 +1748,33 @@ class BasicModuleTests(AbstractQTestCase):
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r1 = q.execute('select * from my_stdin_data1',stdin_file=file(tmpfile1.name,'rb'),stdin_filename='my_stdin_data1')
 
-        self.assertFalse(r1.error_occurred())
+        self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
         self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.column_name_list,['a','b','c'])
+        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r1.data_loads),1)
-        self.assertEquals(r1.data_loads[0].filename,'my_stdin_data1')
+        self.assertEquals(len(r1.metadata.data_loads),1)
+        self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
         r2 = q.execute('select * from my_stdin_data2',stdin_file=file(tmpfile2.name,'rb'),stdin_filename='my_stdin_data2')
 
-        self.assertFalse(r2.error_occurred())
+        self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
         self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.column_name_list,['d','e','f'])
+        self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
         self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
-        self.assertEquals(len(r2.data_loads),1)
-        self.assertEquals(r2.data_loads[0].filename,'my_stdin_data2')
+        self.assertEquals(len(r2.metadata.data_loads),1)
+        self.assertEquals(r2.metadata.data_loads[0].filename,'my_stdin_data2')
 
         r3 = q.execute('select aa.*,bb.* from my_stdin_data1 aa join my_stdin_data2 bb')
 
-        self.assertFalse(r3.error_occurred())
+        self.assertTrue(r3.status == 'ok')
         self.assertEquals(len(r3.warnings),0)
         self.assertEquals(len(r3.data),4)
-        self.assertEquals(r3.column_name_list,['a','b','c','d','e','f'])
+        self.assertEquals(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
         self.assertEquals(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r3.data_loads),0)
+        self.assertEquals(len(r3.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -1786,12 +1790,12 @@ class BasicModuleTests(AbstractQTestCase):
 
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
-        self.assertFalse(r.error_occurred())
+        self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),4)
-        self.assertEquals(r.column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
         self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r.data_loads),0)
+        self.assertEquals(len(r.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -1807,12 +1811,12 @@ class BasicModuleTests(AbstractQTestCase):
 
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
-        self.assertFalse(r.error_occurred())
+        self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),4)
-        self.assertEquals(r.column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
         self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r.data_loads),0)
+        self.assertEquals(len(r.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -1829,19 +1833,19 @@ class BasicModuleTests(AbstractQTestCase):
 
         r = q.execute('select * from %s' % tmpfile.name)
 
-        self.assertTrue(r.error_occurred())
+        self.assertTrue(r.status == 'error')
 
         overwriting_input_params = QInputParams(skip_header=True,delimiter=' ')
 
         r2 = q.execute('select * from %s' % tmpfile.name,input_params=overwriting_input_params)
 
-        self.assertFalse(r2.error_occurred())
+        self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
         self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.column_name_list,['a','b','c'])
+        self.assertEquals(r2.metadata.output_column_name_list,['a','b','c'])
         self.assertEquals(r2.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r2.data_loads),1)
-        self.assertEquals(r2.data_loads[0].filename,tmpfile.name)
+        self.assertEquals(len(r2.metadata.data_loads),1)
+        self.assertEquals(r2.metadata.data_loads[0].filename,tmpfile.name)
 
         self.cleanup(tmpfile)
 
@@ -1859,16 +1863,15 @@ class BasicModuleTests(AbstractQTestCase):
         for k in input_params.__dict__.keys():
             self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
 
-    def test_table_analysis(self):
-        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+    def test_table_analysis_with_syntax_error(self):
 
         q = QTextAsData()
 
-        q_analysis = q.analyze(tmpfile1.name)
+        q_output = q.analyze("bad syntax")
 
-        self.cleanup(tmpfile1)
-        self.cleanup(tmpfile2)
+        self.assertTrue(q_output.status == 'error')
+        self.assertTrue(q_output.error.msg.startswith('query error'))
+
 
 def suite():
     tl = unittest.TestLoader()

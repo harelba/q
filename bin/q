@@ -47,6 +47,7 @@ import traceback
 import csv
 import hashlib
 import uuid
+import cStringIO
 
 DEBUG = False
 
@@ -609,12 +610,13 @@ class TableCreatorState(object):
     FULLY_READ = 'FULLY_READ'
 
 class MaterializedFileState(object):
-    def __init__(self,filename,f,encoding,dialect):
+    def __init__(self,filename,f,encoding,dialect,is_stdin):
         self.filename = filename
         self.lines_read = 0
         self.f = f
         self.encoding = encoding
         self.dialect = dialect
+        self.is_stdin = is_stdin
 
     def read_file_using_csv(self):
         csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
@@ -708,7 +710,9 @@ class TableCreator(object):
 
             f = self.open_file(filename)
 
-            mfs = MaterializedFileState(filename,f,self.encoding,dialect)
+            is_stdin = filename == self.stdin_filename
+
+            mfs = MaterializedFileState(filename,f,self.encoding,dialect,is_stdin)
             self.materialized_file_dict[filename] = mfs
 
     def _populate(self,dialect,stop_after_analysis=False):
@@ -939,10 +943,19 @@ class QDataLoad(object):
         return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename,self.start_time,self.duration())
     __repr__ = __str__
 
+class QMaterializedFile(object):
+    def __init__(self,filename,is_stdin):
+        self.filename = filename
+        self.is_stdin = is_stdin
+
+    def __str__(self):
+        return "QMaterializedFile<filename=%s,is_stdin=%s>" % (self.filename,self.is_stdin)
+    __repr__ = __str__
+
 class QTableStructure(object):
-    def __init__(self,filenames_str,materialized_file_list,column_names,column_types):
+    def __init__(self,filenames_str,materialized_files,column_names,column_types):
         self.filenames_str = filenames_str
-        self.materialized_file_list = materialized_file_list
+        self.materialized_files = materialized_files
         self.column_names = column_names
         self.column_types = column_types
 
@@ -1089,6 +1102,14 @@ class QTextAsData(object):
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
+    def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
+        sf = cStringIO.StringIO(str_data)
+        try:
+            self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
+        finally:
+            if sf is not None:
+                sf.close()
+
     def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
         data_loads = []
 
@@ -1187,12 +1208,20 @@ class QTextAsData(object):
                 pass
         self.table_creators = {}
 
+    def _create_materialized_files(self,table_creator):
+        d = table_creator.materialized_file_dict
+        m = {}
+        for filename,mfs in d.iteritems():
+            m[filename] = QMaterializedFile(filename,mfs.is_stdin)
+        return m
+
     def _create_table_structures_list(self):
         table_structures = []
         for filename,table_creator in self.table_creators.iteritems():
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
-            table_structure = QTableStructure(table_creator.filenames_str,table_creator.materialized_file_list,column_names,column_types)
+            materialized_files = self._create_materialized_files(table_creator)
+            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types)
             table_structures.append(table_structure)
         return table_structures
 
@@ -1275,6 +1304,22 @@ class QOutputPrinter(object):
                 print >>f_out,"  `%s` - %s" % (n,t)
 
     def print_output(self,f_out,f_err,results):
+        try:
+            self._print_output(f_out,f_err,results)
+        except (UnicodeEncodeError, UnicodeError), e:
+            print >>f_err, "Cannot encode data. Error:%s" % e
+            sys.exit(3)
+        except IOError, e:
+            if e.errno == 32:
+                # broken pipe, that's ok
+                pass
+            else:
+                # dont miss other problems for now
+                raise
+        except KeyboardInterrupt:
+            pass
+
+    def _print_output(self,f_out,f_err,results):
         self.print_errors_and_warnings(f_err,results)
 
         data = results.data
@@ -1452,13 +1497,9 @@ def run_standalone():
         print_credentials()
         sys.exit(0)
 
-    if len(args) > 1:
-        print >>sys.stderr,"Must provide query as one parameter, enclosed in quotes, or through a file with the -f parameter"
-        sys.exit(1)
-
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
-        print >>sys.stderr,"Must provide a query in the command line, or through the a file with the -f parameter"
+        print >>sys.stderr,"Must provide at least one query in the command line, or through the a file with the -f parameter"
         sys.exit(1)
 
     if options.query_filename is not None:
@@ -1467,26 +1508,26 @@ def run_standalone():
             sys.exit(1)
         try:
             f = file(options.query_filename)
-            query_str = f.read()
+            query_strs = [f.read()]
             f.close()
         except:
             print >>sys.stderr,"Could not read query from file %s" % options.query_filename
             sys.exit(1)
     else:
-        query_str = args[0]
+        query_strs = args
 
     if options.query_encoding is not None and options.query_encoding != 'none':
         try:
-            query_str = query_str.decode(options.query_encoding)
-        except:
-            print >>sys.stderr,"Could not decode query using the provided query encoding (%s)" % options.query_encoding
+            for idx in range(len(query_strs)):
+                query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
+
+                if len(query_strs[idx]) == 0:
+                    print >>sys.stderr,"Query cannot be empty (query number %s)" % (idx+1)
+                    sys.exit(1)
+
+        except Exception,e:
+            print >>sys.stderr,"Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding)
             sys.exit(3)
-
-    query_str = query_str.strip()
-
-    if len(query_str) == 0:
-        print >>sys.stderr,"Query cannot be empty"   
-        sys.exit(1)
 
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
         print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
@@ -1557,15 +1598,7 @@ def run_standalone():
         disable_double_double_quoting=options.disable_double_double_quoting,
         disable_escaped_double_quoting=options.disable_escaped_double_quoting,
         input_quoting_mode=options.input_quoting_mode)
-
-    q_query = QTextAsData(default_input_params=default_input_params)
-
-    if options.analyze_only:
-        q_output = q_query.analyze(query_str,stdin_file=sys.stdin)
-    else:
-        q_output = q_query.execute(query_str,stdin_file=sys.stdin)
-
-    q_query.unload()
+    q_engine = QTextAsData(default_input_params=default_input_params)
 
     output_params = QOutputParams(
         delimiter=options.output_delimiter,
@@ -1573,30 +1606,22 @@ def run_standalone():
         output_quoting_mode=options.output_quoting_mode,
         formatting=options.formatting,
         output_header=options.output_header)
-
     q_output_printer = QOutputPrinter(output_params)
 
-    try:
+    for query_str in query_strs:
         if options.analyze_only:
+            q_output = q_engine.analyze(query_str,stdin_file=sys.stdin)
             q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
         else:
+            q_output = q_engine.execute(query_str,stdin_file=sys.stdin)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
-    except (UnicodeEncodeError, UnicodeError), e:
-        print >>sys.stderr, "Cannot encode data. Error:%s" % e
-        sys.exit(3)
-    except IOError, e:
-        if e.errno == 32:
-            # broken pipe, that's ok
-            pass
-        else:
-            # dont miss other problems for now
-            raise
-    except KeyboardInterrupt:
-        pass
+        if q_output.status == 'error':
+            sys.exit(q_output.error.errorcode)
 
-    if q_output.status == 'error':
-        sys.exit(q_output.error.errorcode)
+    q_engine.unload()
+
+    sys.exit(0)
 
 
 if __name__ == '__main__':

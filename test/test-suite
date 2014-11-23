@@ -10,8 +10,8 @@
 #
 
 import unittest
-import pprint
-
+import json
+from json import JSONEncoder
 from subprocess import PIPE, Popen, STDOUT
 import sys
 import os
@@ -596,7 +596,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertEquals(e[0],'Query cannot be empty')
+        self.assertEquals(e[0],'Query cannot be empty (query number 1)')
 
     def test_empty_query_in_command_line(self):
         cmd = '../bin/q -d , "  "'
@@ -606,17 +606,50 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertEquals(e[0],'Query cannot be empty')
+        self.assertEquals(e[0],'Query cannot be empty (query number 1)')
 
-    def test_too_many_command_line_parameters(self):
-        cmd = '../bin/q -d , select *'
+    def test_failure_in_query_stops_processing_queries(self):
+        cmd = '../bin/q -d , "select 500" "select 300" "wrong-query" "select 8000"'
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 1)
         self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEquals(len(o), 2)
+        self.assertEquals(o[0],'500')
+        self.assertEquals(o[1],'300')
 
-        self.assertTrue(e[0].startswith('Must provide query as one parameter'))
+    def test_multiple_queries_in_command_line(self):
+        cmd = '../bin/q -d , "select 500" "select 300+100" "select 300" "select 200"'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 4)
+
+        self.assertEquals(o[0],'500')
+        self.assertEquals(o[1],'400')
+        self.assertEquals(o[2],'300')
+        self.assertEquals(o[3],'200')
+
+    def test_literal_calculation_query(self):
+        cmd = '../bin/q -d , "select 1+40/6"'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 1)
+
+        self.assertEquals(o[0],'7')
+
+    def test_literal_calculation_query_float_result(self):
+        cmd = '../bin/q -d , "select 1+40/6.0"'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 1)
+
+        self.assertEquals(o[0],'7.66666666667')
 
     def test_use_query_file(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
@@ -647,7 +680,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o),0)
         self.assertEquals(len(e),1)
 
-        self.assertTrue(e[0].startswith('Could not decode query using the provided query encoding'))
+        self.assertTrue(e[0].startswith('Could not decode query number 1 using the provided query encoding (ascii)'))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -1871,6 +1904,99 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertTrue(q_output.status == 'error')
         self.assertTrue(q_output.error.msg.startswith('query error'))
+
+    def test_execute_response(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+
+        q = QTextAsData()
+
+        q_output = q.execute("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
+
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),2)
+        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertTrue(q_output.metadata is not None)
+
+        metadata = q_output.metadata
+
+        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
+
+        table_structure = metadata.table_structures[0]
+
+        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
+        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
+        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertTrue(len(table_structure.materialized_files.keys()),1)
+        self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
+        self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+
+        self.cleanup(tmpfile)
+
+    def test_analyze_response(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+
+        q = QTextAsData()
+
+        q_output = q.analyze("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
+
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),2)
+        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertTrue(q_output.metadata is not None)
+
+        metadata = q_output.metadata
+
+        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
+
+        table_structure = metadata.table_structures[0]
+
+        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
+        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
+        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertTrue(len(table_structure.materialized_files.keys()),1)
+        self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
+        self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+
+        self.cleanup(tmpfile)
+
+    def test_load_data_from_string(self):
+        input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
+
+        q = QTextAsData()
+
+        q.load_data_from_string('my_data',input_str,QInputParams(skip_header=True,delimiter=','))
+
+        q_output = q.execute('select column2,column3 from my_data')
+
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertTrue(len(q_output.data),1000)
+        self.assertEquals(len(set(q_output.data)),1)
+        self.assertEquals(list(set(q_output.data))[0],(2.5,'value3'))
+
+        metadata = q_output.metadata
+
+        self.assertTrue(metadata.output_column_name_list,['column2','column3'])
+        self.assertEquals(len(metadata.data_loads),0)
+        self.assertTrue(len(metadata.table_structures),1)
+
+        table_structure = metadata.table_structures[0]
+
+        self.assertEquals(table_structure.column_names,['column1','column2','column3'])
+        self.assertEquals(table_structure.column_types,['text','float','text'])
+        self.assertEquals(table_structure.filenames_str,'my_data')
+        self.assertTrue(len(table_structure.materialized_files.keys()),1)
+        self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
+        self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
 
 
 def suite():

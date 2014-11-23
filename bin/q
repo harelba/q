@@ -961,7 +961,7 @@ class QTableStructure(object):
 
     def __str__(self):
         return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
-            self.filenames_str,len(self.materialized_file_list),self.column_names,self.column_types)
+            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types)
     __repr__ = __str__
 
 class QMetadata(object):

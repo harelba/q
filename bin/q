@@ -680,7 +680,7 @@ class TableCreator(object):
         # If there are no files to go over,
         if len(materialized_file_list) == 0:
             raise FileNotFoundException(
-                "No files have been found for '%s'" % self.filenames_str)
+                "No files matching '%s' have been found" % self.filenames_str)
 
         return materialized_file_list
 
@@ -1129,7 +1129,7 @@ class QTextAsData(object):
         warnings = []
         error = None
         data_loads = []
-        table_structures = None
+        table_structures = []
 
         db_results_obj = None
 

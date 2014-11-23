@@ -13,7 +13,7 @@ This is the python API development branch. Objectives are as follows:
 
 Most of these are currently implemented and I will appreciate your review and comments. Making it a proper module including installation for the different platform seems to require changing all installation code, so if you have any elegant idea on how to make it happen without me needing to change all installations, please drop me a line.
 
-To test the API, go to the bin/ folder and run ipython/python (or create a script there).
+To test the API, go to the bin/ folder and run ipython/python (or create a script there). This is just temporary, as the proper solution for making this a package should not contain any symbolic links and should not reside in any `bin/` folder...
 
 ````
 cd bin/

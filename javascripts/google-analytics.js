@@ -18,7 +18,7 @@ window.onload = function() {
       if (x != -1) {
         url = url.substr(0,x);
       }
-      if (url.match(/^https?:\/\/.+(\.rpm|\.deb|\/q|\.tar\.gz|\.zip|\.bat|\.exe)$/i)) {
+      if (url.match(/^https?:\/\/.+(\.rpm|\.deb|\/q|\.tar\.gz|\.zip|\.bat|\.exe|python-api)$/i)) {
         cnt = cnt + 1;
         a[i].onclick = function() {
 		  var that = this;

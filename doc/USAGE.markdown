@@ -128,14 +128,14 @@ Files with .gz extension are considered to be gzipped and decompressed on the fl
 q supports multiple parsing modes:
 
 * `relaxed` - This is the default mode. It tries to lean towards simplicity of use. When a row doesn't contains enough columns, they'll be filled with nulls, and when there are too many, the extra values will be merged to the last column. Defining the number of expected columns in this mode is done using the `-c` parameter. If it is not provided, then the number of columns is detected automatically (In most use cases, there is no need to specify `-c`)
-* `strict` - Strict mode is for hardcoce csv/tsv parsing. Whenever a row doesn't contain the proper number of columns, processing will stop. `-c` must be provided when using this mode
+* `strict` - Strict mode is for hardcore csv/tsv parsing. Whenever a row doesn't contain the proper number of columns, processing will stop. `-c` must be provided when using this mode
 * `fluffy` - This mode should not be used, and is just some kind of "backward compatible" parsing mode which was used by q previously. It's left as a separate parsing mode on purpose, in order to accomodate existing users. If you are such a user, please open a bug for your use case, and I'll see how I can incorporate it into the other modes. It is reasonable to say that this mode will be removed in the future.
 
 ### Output formatting option
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
 
 * X - column number - This is the SELECTed column (or expression) number, not the one from the original table. E.g, 1 is the first SELECTed column, 3 is the third SELECTed column.
-* f - A python formatting string - See http://docs.python.org/release/2.4.4/lib/typesseq-strings.html for details if needed.
+* f - A python formatting string - See http://docs.python.org/release/2.4.4/hlib/typesseq-strings.html for details if needed.
 ** Example: `-f 3=%-10s,5=%4.3f,1=%x`
 
 ## EXAMPLES

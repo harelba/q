@@ -135,7 +135,7 @@ q supports multiple parsing modes:
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:
 
 * X - column number - This is the SELECTed column (or expression) number, not the one from the original table. E.g, 1 is the first SELECTed column, 3 is the third SELECTed column.
-* f - A python formatting string - See http://docs.python.org/release/2.4.4/hlib/typesseq-strings.html for details if needed.
+* f - A python formatting string - See http://docs.python.org/release/2.4.4/lib/typesseq-strings.html for details if needed.
 ** Example: `-f 3=%-10s,5=%4.3f,1=%x`
 
 ## EXAMPLES

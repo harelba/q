@@ -14,6 +14,9 @@ Download links for all OSs are [here](http://harelba.github.io/q/install.html).
 
 Go [here](http://harelba.github.io/q/examples.html) for more examples.
 
+## Python API
+A development branch for exposing q's capabilities as a <strong>Python module</strong> can be viewed <a href="https://github.com/harelba/q/tree/expose-as-python-api">here</a>, along with examples of the alpha version of the API.<br/>Existing functionality as a command-line tool will not be affected by this. Your input will be most appreciated.
+
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 

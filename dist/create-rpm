@@ -1,20 +1,21 @@
 #!/bin/bash
 
+# Works for x86_64, need to see how to compile for multiple architectures
+
 #
-# Simplistic RPM creation logic. See q.spec.template for actual spec
-#
-# Version number should be provided as input in the command line
+# Commit tag and Version number should be provided as input in the command line
 #
 # requires:
 #   * installation of ronn
 #   * installation of rpmbuild
+#   * pyinstaller needs to be installed
 #
 # Output rpm is generated inside build/rpm/RPMS/noarch/
 #
 
-if [ $# -ne 1 ];
+if [ $# -ne 2 ];
 then
-	echo 'create-rpm <version>'
+	echo 'create-rpm <commit-hash> <version>'
 	exit 1
 fi
 
@@ -27,19 +28,13 @@ base_folder=$(dirname $0)
 
 pushd ${base_folder}
 
-VERSION=$1
-LOCAL=yes
+COMMIT_HASH=$1
+SHORT_HASH=${COMMIT_HASH:0:7}
+VERSION=$2
 REAL_PACKAGE_NAME=q
 RPM_PACKAGE_NAME=q-text-as-data
 
 FULL_NAME_FOLDER=${RPM_PACKAGE_NAME}-${VERSION}
-
-rm -rf build/
-rm -rf ${FULL_NAME_FOLDER}
-rm -rf tmp.tar.gz
-
-mkdir -p build/rpm
-mkdir ${FULL_NAME_FOLDER}
 
 if [ ! -e ${RPM_PACKAGE_NAME}.spec.template ];
 then
@@ -47,30 +42,12 @@ then
 	exit 1
 fi
 
-cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$1/" > ${FULL_NAME_FOLDER}/${RPM_PACKAGE_NAME}.spec
+rm -vf ~/rpmbuild/SOURCES/q-${COMMIT_HASH}.tar.gz
 
-if [ "$LOCAL" == "yes" ];
-then
-	echo "Creating source codebase version ${VERSION} from local copy"
-	cp -r `ls -d1 ../* | egrep -v "dist|test"` ${FULL_NAME_FOLDER}/
-else
-	echo "Creating source codebase version ${VERSION} from github archive"
-	wget -O tmp.tar.gz "https://github.com/harelba/${REAL_PACKAGE_NAME}/archive/${VERSION}.tar.gz" 
-	tar xvzf tmp.tar.gz --strip-components=1 -C ${FULL_NAME_FOLDER}/
-	rm -f tmp.tar.gz
-fi
+curl -o ~/rpmbuild/SOURCES/q-${COMMIT_HASH}.tar.gz -L -R "https://github.com/harelba/q/tarball/${COMMIT_HASH}"
 
-ronn ${FULL_NAME_FOLDER}/doc/USAGE.markdown
-rm -f ${FULL_NAME_FOLDER}/doc/USAGE.html
-rm -rf ${FULL_NAME_FOLDER}/dist ${FULL_NAME_FOLDER}/test
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" | sed "s/COMMIT_HASH_PLACEHOLDER/${COMMIT_HASH}/g" | sed "s/SHORT_HASH_PLACEHOLDER/${SHORT_HASH}/g" > ~/rpmbuild/SPECS/${RPM_PACKAGE_NAME}.spec
 
-echo "Creating tar file"
-TAR_FILE_NAME=${RPM_PACKAGE_NAME}-${VERSION}.tar.gz
-tar cvfz ${TAR_FILE_NAME} ${FULL_NAME_FOLDER}/*
-
-rpmbuild --define "_topdir `pwd`/build/rpm" -ta ${TAR_FILE_NAME}
-
-rm -f ${TAR_FILE_NAME}
-rm -rf ${FULL_NAME_FOLDER}
+rpmbuild --noclean -v -bb ~/rpmbuild/SPECS/${RPM_PACKAGE_NAME}.spec
 
 popd

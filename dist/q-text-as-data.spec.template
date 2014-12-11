@@ -1,3 +1,7 @@
+%global _enable_debug_package 0
+%global debug_package %{nil}
+%global __os_install_post %{nil}
+
 Name:		q-text-as-data
 Version:	VERSION_PLACEHOLDER
 Release:	1%{?dist}
@@ -6,31 +10,44 @@ Summary:	q - Text as Data
 Group:		Applications/Text
 License:	GPLv3
 URL:		https://github.com/harelba/q
-Source0:	%{name}-%{version}.tar.gz
-BuildArch:	noarch
+Source:		q-COMMIT_HASH_PLACEHOLDER.tar.gz
+BuildArch:	x86_64
 
 %description
 q allows to perform SQL-like statements on tabular text data.
 
+
 %prep
-%setup  
+%setup -qn harelba-q-SHORT_HASH_PLACEHOLDER
+
+%build
+ls -ltr
+pyinstaller -D --distpath=compiled-dist bin/q
+ronn doc/USAGE.markdown
 
 %install
-rm -rf ${RPM_BUILD_ROOT}
+rm -vrf ${RPM_BUILD_ROOT}/
+export DONT_STRIP=1
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
-install -Dm 755 bin/q ${RPM_BUILD_ROOT}%{_bindir}/
-install -Dm 755 bin/q ${RPM_BUILD_ROOT}%{_bindir}/
+install -d -m 0755 ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data
+install -Dm 0644 compiled-dist/q/* ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data/
+ln -s  %{_libdir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
 install -m 0644 doc/USAGE ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 
 %files
 %defattr(-,root,root,-)
-%doc README.markdown doc/*
-%{_bindir}/q
+%doc README.markdown doc/AUTHORS doc/CHANGELOG.markdown doc/IMPLEMENTATION.markdown doc/INSTALL.markdown doc/LICENSE doc/RATIONALE.markdown doc/THANKS doc/USAGE.markdown 
+%attr(755,root,root) %{_bindir}/q
+%attr(755,root,root) %{_libdir}/q-text-as-data/q
+%{_libdir}/q-text-as-data
 %doc %_mandir/man1/q.1.gz
 
 %changelog
+*Sat Nov 29 2014 Harel Ben-Attia <harelba@gmail.com> 1.5.0-1
+- Changed to use compiled version of q
+- Moved stuff from create-rpm script into the rpm spec itself
 *Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1
 - Changed RPM package name to q-text-as-data
 - Fixed RPM creation logic after folder restructuring

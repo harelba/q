@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sudo apt-get install gem
+sudo gem install ruby-ronn
+pyinstaller

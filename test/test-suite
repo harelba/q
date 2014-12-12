@@ -1043,10 +1043,6 @@ class BasicTests(AbstractQTestCase):
         self._internal_test_consistency_of_chaining_output_to_input(input_data,'all','all')
 
     def test_utf8_with_bom_encoding(self):
-        return 
-        # DOES NOT PASS due to csv python module issue http://bugs.python.org/issue7185 . Need to find a workaround.
-        # Trying to wrap the file object passed to the csv module using a proper codec fails because of csv module internals.
-
         utf_8_data_with_bom = '\xef\xbb\xbf"typeid","limit","apcost","date","checkpointId"\n"1","2","5","1,2,3,4,5,6,7","3000,3001,3002"\n"2","2","5","1,2,3,4,5,6,7","3003,3004,3005"\n'
         tmp_data_file = self.create_file_with_data(utf_8_data_with_bom,encoding=None)
 

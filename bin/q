@@ -27,7 +27,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.5.0" # not released yet
+q_version = "1.5.0" 
 
 __all__ = [ 'QTextAsData' ]
 
@@ -617,8 +617,19 @@ class MaterializedFileState(object):
         self.encoding = encoding
         self.dialect = dialect
         self.is_stdin = is_stdin
+        self.skipped_bom = False
 
     def read_file_using_csv(self):
+        # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
+        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
+        # multiple people.
+        if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
+            try:
+                BOM = self.f.read(3)
+                if BOM != '\xef\xbb\xbf':
+                    raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
+            except Exception,e:
+                raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
         csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
         for col_vals in csv_reader:
             self.lines_read += 1

@@ -4,16 +4,19 @@
 ## Change log
 **Fri Dec 12 2014 Harel Ben-Attia <harelba@gmail.com> 1.5.0-1**
 - Full input/output support for double-quoting fields with delimiters
+- Multiple query support in one command line, reusing previously loaded data in subsequent queries
+- Support literal SELECT statements (e.g. SELECT 5+12.5/3)
 - Full code restructuring (Internally working now using a full python API which will become public in the next version)
 - Added sha1 function 
 - Solved the following bugs/pull-requests:
-  - [#63](../../../issues/63) - Unicode string support in regexp function
+  - [#10](../../../issues/10) - Reuse of previously loaded data when running multiple queries in one command line 
   - [#64](../../../issues/64) - Full support for literal SELECT statements without a table (e.g. SELECT 5+12.5) 
   - [#56](../../../issues/56),[#78](../../../issues/78) - Proper double quote handling, including multiline fields, for both input and output according to csv standards 
-  - [#10](../../../issues/10) - Reuse of previously loaded data when running multiple queries in one command line 
   - [#69](../../../issues/69) - Added warning suppression when the user provides a specific column count
   - [#40](../../../issues/40) - Code restructuring cleaning, creating a full python API
   - [#60](../../../issues/60) - Fixed RPM packaging
+  - [#68](../../../issues/68) - UTF-8 with BOM files cause column naming issues
+  - [#63](../../../issues/63) - Unicode string support in regexp function
 **Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1**
 - 2.5x Speed improvement due to better bulk loading
 - Output header support

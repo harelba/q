@@ -2,4 +2,6 @@
 
 sudo apt-get install gem
 sudo gem install ruby-ronn
-pyinstaller
+sudo apt-get install rpm
+sudo apt-get install alien
+pyinstaller (For windows version creation)

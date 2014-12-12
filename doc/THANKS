@@ -1,7 +1,3 @@
-  Copyright (C) 1992, 1997-2002, 2004-2014 Free Software Foundation, Inc.
+  Copyright (C) 2012-2014 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)
 
-  Copying and distribution of this file, with or without modification,
-  are permitted in any medium without royalty provided the copyright
-  notice and this notice are preserved.
-
-Thank you Jens Neu for writing the initial RPM package spec
+Thank you Jens Neu for writing the initial RPM package spec, and to https://github.com/barsnick for additional RPM help

@@ -11,7 +11,7 @@ Group:		Applications/Text
 License:	GPLv3
 URL:		https://github.com/harelba/q
 Source:		q-COMMIT_HASH_PLACEHOLDER.tar.gz
-BuildArch:	x86_64
+BuildArch:	noarch
 
 %description
 q allows to perform SQL-like statements on tabular text data.
@@ -22,15 +22,13 @@ q allows to perform SQL-like statements on tabular text data.
 
 %build
 ls -ltr
-pyinstaller -D --distpath=compiled-dist bin/q
 ronn doc/USAGE.markdown
 
 %install
 rm -vrf ${RPM_BUILD_ROOT}/
-export DONT_STRIP=1
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data
-install -Dm 0644 compiled-dist/q/* ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data/
+install -Dm 0644 bin/q ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data/
 ln -s  %{_libdir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
 install -m 0644 doc/USAGE ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
@@ -45,8 +43,7 @@ gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 %doc %_mandir/man1/q.1.gz
 
 %changelog
-*Sat Nov 29 2014 Harel Ben-Attia <harelba@gmail.com> 1.5.0-1
-- Changed to use compiled version of q
+*Fri Dec 12 2014 Harel Ben-Attia <harelba@gmail.com> 1.5.0-1
 - Moved stuff from create-rpm script into the rpm spec itself
 *Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1
 - Changed RPM package name to q-text-as-data

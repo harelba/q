@@ -56,7 +56,7 @@ Options:
                         Same as -d <tab>. Just a shorthand for handling
                         standard tab delimited file You can use $'\t' if you
                         want (this is how Linux expects to provide tabs in the
-                        command line)
+                        command line
     -e ENCODING, --encoding=ENCODING
                         Input file encoding. Defaults to UTF-8. set to none
                         for not setting any encoding - faster, but at your own
@@ -67,8 +67,8 @@ Options:
                         data types
     -m MODE, --mode=MODE
                         Data parsing mode. fluffy, relaxed and strict. In
-                        strict mode, the -c column-count parameter must 
-                        be supplied as well
+                        strict mode, the -c column-count parameter must be
+                        supplied as well
     -c COLUMN_COUNT, --column-count=COLUMN_COUNT
                         Specific column count when using relaxed or strict
                         mode
@@ -77,6 +77,20 @@ Options:
                         strips leading whitespace off values, in order to
                         provide out-of-the-box usability for simple use cases.
                         If you need to preserve whitespace, use this flag.
+    --disable-double-double-quoting
+                        Disable support for double double-quoting for escaping
+                        the double quote character. By default, you can use ""
+                        inside double quoted fields to escape double quotes.
+                        Mainly for backward compatibility.
+    --disable-escaped-double-quoting
+                        Disable support for escaped double-quoting for
+                        escaping the double quote character. By default, you
+                        can use \" inside double quoted fields to escape
+                        double quotes. Mainly for backward compatibility.
+    -w INPUT_QUOTING_MODE, --input-quoting-mode=INPUT_QUOTING_MODE
+                        Input quoting mode. Possible values are all, minimal
+                        and none. Note the slightly misleading parameter name,
+                        and see the matching -W parameter for output quoting.
 
   Output Options:
     -D OUTPUT_DELIMITER, --output-delimiter=OUTPUT_DELIMITER
@@ -102,6 +116,11 @@ Options:
     -E OUTPUT_ENCODING, --output-encoding=OUTPUT_ENCODING
                         Output encoding. Defaults to 'none', leading to
                         selecting the system/terminal encoding
+    -W OUTPUT_QUOTING_MODE, --output-quoting-mode=OUTPUT_QUOTING_MODE
+                        Output quoting mode. Possible values are all, minimal,
+                        nonnumeric and none. Note the slightly misleading
+                        parameter name, and see the matching -w parameter for
+                        input quoting.
 
   Query Related Options:
     -q QUERY_FILENAME, --query-filename=QUERY_FILENAME
@@ -111,7 +130,6 @@ Options:
     -Q QUERY_ENCODING, --query-encoding=QUERY_ENCODING
                         query text encoding. Experimental. Please send your
                         feedback on this
-
 ````
 
 ### Table names

@@ -1,6 +1,9 @@
 # q - Treating Text as a Database
 
+
 ## Change log
+**Fri Dec 12 2014 Harel Ben-Attia <harelba@gmail.com> 1.5.0-1**
+- TBD
 **Sat Jun 14 2014 Harel Ben-Attia <harelba@gmail.com> 1.4.0-1**
 - 2.5x Speed improvement due to better bulk loading
 - Output header support

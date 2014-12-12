@@ -2,3 +2,4 @@ build
 q.spec
 q.1
 *.pyc
+.vagrant

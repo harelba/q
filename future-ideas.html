@@ -78,12 +78,12 @@
 <a name="future-ideas" class="anchor" href="#future-ideas"><span class="octicon octicon-link"></span></a>Future Ideas</h2>
 
 <ul>
-<li>Faster reuse of previous data loading</li>
+<li>Expose q's capabilities through a python module as well</li>
 <li>Allow working with external DB</li>
-<li>Real parsing of the SQL, allowing smarter execution of queries.</li>
-<li>Smarter batch insertion to the database</li>
 <li>Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.</li>
+<li>Better parsing of the SQL, allowing smarter execution of queries.</li>
 </ul>
+<p>Reuse of previously loaded data is partially implemented. The internal API fully supports it, but the exposure to the command line is limited. If you run multiple queries on the same command (e.g. <code>q "select AAA" "select BBB" "select CCC"</code> then any data loaded for a query will be reused in the next ones if it's the same file. Support for data reuse over multiple command-line invoactions will be supported in the future.</p>
 
 
   </body>

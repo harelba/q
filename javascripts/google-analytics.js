@@ -18,11 +18,19 @@ window.onload = function() {
       if (x != -1) {
         url = url.substr(0,x);
       }
-      if (url.match(/^https?:\/\/.+(\.rpm|\.deb|\/q|\.tar\.gz|\.zip|\.bat|\.exe)$/i)) {
+      var url_test = url.match(/^https?:\/\/.+(\.rpm|\.deb|\/q|\.tar\.gz|\.zip|\.bat|\.exe)$/i);
+      if (url_test) {
+        if (url_test.length > 1) {
+          var event_action = url_test[1];
+        } 
+        else {
+          var event_action = 'unknown_action';
+        }
+	a[i].event_action = event_action;
         cnt = cnt + 1;
         a[i].onclick = function() {
 		  var that = this;
-          ga('send', 'event', 'Downloads', 'Click', this.getAttribute('href'));
+	          ga('send', 'event', 'Downloads', 'Click on ' + this.event_action, this.getAttribute('href'));
 		  setTimeout(function() {
 			location.href = that.href;
 		  },500); 

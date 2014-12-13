@@ -1,16 +1,8 @@
 #!/bin/bash
 
-# Works for x86_64, need to see how to compile for multiple architectures
-
 #
 # Commit tag and Version number should be provided as input in the command line
 #
-# requires:
-#   * installation of ronn
-#   * installation of rpmbuild
-#   * pyinstaller needs to be installed
-#
-# Output rpm is generated inside build/rpm/RPMS/noarch/
 #
 
 if [ $# -ne 2 ];
@@ -24,9 +16,15 @@ command -v rpmbuild &>/dev/null || { echo >&2 "rpmbuild needs to be installed.";
 
 set -e 
 
-base_folder=$(dirname $0)
+base_folder=`readlink -m $(dirname $0)`
 
-pushd ${base_folder}
+pushd ${base_folder} >/dev/null
+
+rpm_build_area=${base_folder}/rpm_build_area
+rm -rf ${rpm_build_area:=/non-existent-dir}
+mkdir -p ${rpm_build_area}/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
+
+echo RPM build area is in ${rpm_build_area}
 
 COMMIT_HASH=$1
 SHORT_HASH=${COMMIT_HASH:0:7}
@@ -42,12 +40,12 @@ then
 	exit 1
 fi
 
-rm -vf ~/rpmbuild/SOURCES/q-${COMMIT_HASH}.tar.gz
+rm -vf ${rpm_build_area}/SOURCES/q-${COMMIT_HASH}.tar.gz
 
-curl -o ~/rpmbuild/SOURCES/q-${COMMIT_HASH}.tar.gz -L -R "https://github.com/harelba/q/tarball/${COMMIT_HASH}"
+curl -o ${rpm_build_area}/SOURCES/q-${COMMIT_HASH}.tar.gz -L -R "https://github.com/harelba/q/tarball/${COMMIT_HASH}"
 
-cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" | sed "s/COMMIT_HASH_PLACEHOLDER/${COMMIT_HASH}/g" | sed "s/SHORT_HASH_PLACEHOLDER/${SHORT_HASH}/g" > ~/rpmbuild/SPECS/${RPM_PACKAGE_NAME}.spec
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" | sed "s/COMMIT_HASH_PLACEHOLDER/${COMMIT_HASH}/g" | sed "s/SHORT_HASH_PLACEHOLDER/${SHORT_HASH}/g" > ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 
-rpmbuild -v -bb ~/rpmbuild/SPECS/${RPM_PACKAGE_NAME}.spec
+rpmbuild -v --define "_topdir ${rpm_build_area}" -bb ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 
-popd
+popd >/dev/null

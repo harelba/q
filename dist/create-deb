@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ $# -ne 1 ];
+then
+        echo 'create-deb <rpm-package-filename>'
+        exit 1
+fi
+
+command -v alien &>/dev/null || { echo >&2 "alien needs to be installed."; exit 1; }
+
+alien -d -k $1

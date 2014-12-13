@@ -27,19 +27,19 @@ ronn doc/USAGE.markdown
 %install
 rm -vrf ${RPM_BUILD_ROOT}/
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
-install -d -m 0755 ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data
-install -Dm 0644 bin/q ${RPM_BUILD_ROOT}%{_libdir}/q-text-as-data/
-ln -s  %{_libdir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
+install -d -m 0755 ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data
+install -Dm 0644 bin/q ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data/
+ln -s  %{_datadir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_mandir}/man1/
 install -m 0644 doc/USAGE ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 
 %files
 %defattr(-,root,root,-)
+%{_bindir}/q
 %doc README.markdown doc/AUTHORS doc/CHANGELOG.markdown doc/IMPLEMENTATION.markdown doc/INSTALL.markdown doc/LICENSE doc/RATIONALE.markdown doc/THANKS doc/USAGE.markdown 
-%attr(755,root,root) %{_bindir}/q
-%attr(755,root,root) %{_libdir}/q-text-as-data/q
-%{_libdir}/q-text-as-data
+%attr(755,root,root) %{_datadir}/q-text-as-data/q
+%{_datadir}/q-text-as-data
 %doc %_mandir/man1/q.1.gz
 
 %changelog

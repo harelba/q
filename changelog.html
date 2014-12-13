@@ -72,6 +72,30 @@
 <h2>
 <a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
 
+<p><strong>Fri Dec 12 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.5.0-1</strong></p>
+
+<ul>
+<li>Full input/output support for double-quoting fields with delimiters</li>
+<li>Multiple query support in one command line, reusing previously loaded data in subsequent queries</li>
+<li>Support literal SELECT statements (e.g. SELECT 5+12.5/3)</li>
+<li>Full code restructuring (Internally working now using a full python API which will become public in the next version)</li>
+<li>Added sha1 function. You can use 'select sha1(c3) from ...'</li>
+<li>Solved the following bugs/pull-requests:
+
+<ul>
+<li><a href="https://github.com/harelba/q/issues/10">#10</a> - Reuse of previously loaded data when running multiple queries in one command line</li>
+<li><a href="https://github.com/harelba/q/issues/64">#64</a> - Full support for literal SELECT statements without a table (e.g. SELECT 5+12.5)</li>
+<li><a href="https://github.com/harelba/q/issues/56">#56</a> - Proper double quote handling, including multiline fields, for both input and output according to csv standards</li>
+<li><a href="https://github.com/harelba/q/issues/69">#69</a> - Added warning suppression when the user provides a specific column count</li>
+<li><a href="https://github.com/harelba/q/issues/40">#40</a> - Code restructuring cleaning, creating a full python API (will be published in the next version)</li>
+<li><a href="https://github.com/harelba/q/issues/60">#60</a> - Fixed RPM packaging</li>
+<li><a href="https://github.com/harelba/q/issues/68">#68</a> - UTF-8 with BOM files cause column naming issues</li>
+<li><a href="https://github.com/harelba/q/issues/63">#63</a> - Unicode string support in regexp function</li>
+</ul>
+</li>
+</ul>
+
+
 <p><strong>Sat Jun 14 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.4.0-1</strong></p>
 
 <ul>

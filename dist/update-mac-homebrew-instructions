@@ -1,0 +1,60 @@
+
+Instructions to bump the version of q in homebrew
+
+1. Sync your fork with homebrew original fork
+
+	git checkout master
+
+	git pull upstream master
+
+	git push origin master
+
+2. Create a branch for the version bump
+
+	git checkout -b q<version-number>
+
+3. Edit the file Library/Formula/q.rb.
+
+	a. Change the url to the new tar.gz file:
+
+	b. Change the sha1 checksum
+
+		$ wget "https://github.com/harelba/q/archive/<version>.tar.gz"
+
+		$ sha1sum <version>.tar.gz
+		<checksum> <filename>
+
+		$ Change the checksum in q.rb's "sha1" line to the new checksum
+
+	c. Verify by running the following:
+
+		delete the <version>.tar.gz file from the folder
+
+		$ s=`curl -L \`grep url q.rb | awk '{print $2}' | tr -d '"'\` | sha1sum | awk '{print $1}'`
+
+		$ echo $s
+		<checksum>
+		
+		$ grep $s *.rb
+
+		The output should contain (and only contain) the sha1 line in q.rb
+
+4. Check the diff
+
+	git diff | vi -
+
+5. Commit the change
+
+6. Push it as a separate branch to your repository:
+
+	git push origin q<version-number>
+
+7. Go the homebrew fork in github, and press "compare and pull-request" on the just-pushed branch
+
+8. Review the diff and make sure that the pull-request is from <fork>/<branch> to homebrew/master (should be the default)
+
+9. Press "create pull-request" button
+
+10. If everything is fine, you'll be confirmed after several hours
+
+

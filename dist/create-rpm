@@ -46,6 +46,6 @@ curl -o ${rpm_build_area}/SOURCES/q-${COMMIT_HASH}.tar.gz -L -R "https://github.
 
 cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" | sed "s/COMMIT_HASH_PLACEHOLDER/${COMMIT_HASH}/g" | sed "s/SHORT_HASH_PLACEHOLDER/${SHORT_HASH}/g" > ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 
-rpmbuild -v --define "_topdir ${rpm_build_area}" -bb ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
+rpmbuild -v --define "_topdir ${rpm_build_area}" -ba ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 
 popd >/dev/null

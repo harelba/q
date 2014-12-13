@@ -1,0 +1,41 @@
+
+Instructions for creating a windows package for q:
+
+1. Prepare the environment:
+
+	a. Drive Q: needs to point to the source code folder (use VirtualBox's shared folder or checkout from it and map it to Q:)
+
+	b. Create C:\q-build-environment folder 
+
+	c. Install the following:
+
+		1. Python 2.7 (32 bit) - Make sure to add python.exe to the path in the installation instructions
+		2. Pywin32 - pywin32-219.win32-py2.7.exe (make sure it's 32 bit)
+		3. PyInstaller 2.1 (Extract the zip file into c:\q-build-environment\ so the files will reside in c:\q-build-environment\PyInstaller-2.1\)
+		4. NSIS - nsis-2.46-setup.exe (into c:\q-build-environment\nsis)
+
+2. Go to q:\dist and remove the folder
+
+3. Remove the folder win_output, win_build and any setup*.exe files from q:\dist
+
+4. Run the following to compile q.exe:
+
+	python.exe c:\q-build-environment\PyInstaller-2.1\pyinstaller.py -F --distpath=win_output --workpath=win_build q:\bin\q
+
+	output will reside in win_output\
+
+5. Run the following in order to package it to an installer:
+
+	Make sure to set the version number properly - Note that windows requires versions to be in the format X.X.X.X
+
+	c:\q-build-environment\nsis\makensis.exe -DVERSION=<version-number> q-TextAsData-with-path.nsi
+
+	setup.exe will reside in the current folder
+
+6. Rename the file to the proper version:
+
+	ren q:\dist\setup.exe q:\dist\setup-<version-number>.exe
+
+7. Put the file in the packages-for-q repository
+
+

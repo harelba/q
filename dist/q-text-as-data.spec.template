@@ -37,7 +37,7 @@ gzip ${RPM_BUILD_ROOT}%{_mandir}/man1/q.1
 %files
 %defattr(-,root,root,-)
 %{_bindir}/q
-%doc README.markdown doc/AUTHORS doc/CHANGELOG.markdown doc/IMPLEMENTATION.markdown doc/INSTALL.markdown doc/LICENSE doc/RATIONALE.markdown doc/THANKS doc/USAGE.markdown 
+%doc README.markdown doc/AUTHORS doc/CHANGELOG.markdown doc/IMPLEMENTATION.markdown doc/LICENSE doc/RATIONALE.markdown doc/THANKS doc/USAGE.markdown 
 %attr(755,root,root) %{_datadir}/q-text-as-data/q
 %{_datadir}/q-text-as-data
 %doc %_mandir/man1/q.1.gz

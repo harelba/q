@@ -1582,14 +1582,27 @@ class ParsingModeTests(AbstractQTestCase):
 class FormattingTests(AbstractQTestCase):
 
     def test_column_formatting(self):
-        cmd = 'seq 1 10 | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -"'
+        cmd = 'seq 1 10 | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -" -c 1'
 
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 1)
+        self.assertEquals(len(e), 0)
 
         self.assertEquals(o[0], '55.000 5.500')
+
+    def test_column_formatting_with_output_header(self):
+        cmd = 'seq 1 10 | sed "1i column_name" | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 2)
+        self.assertEquals(len(e), 0)
+
+        self.assertEquals(o[0], 'mysum myavg')
+        self.assertEquals(o[1], '55.000 5.500')
 
 
 class SqlTests(AbstractQTestCase):

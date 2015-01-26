@@ -27,7 +27,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.5.0" 
+q_version = "1.6.0notreleasedyet" 
 
 __all__ = [ 'QTextAsData' ]
 
@@ -1353,8 +1353,9 @@ class QOutputPrinter(object):
                 data.insert(0,results.metadata.output_column_name_list)
             for rownum, row in enumerate(data):
                 row_str = []
+                skip_formatting = rownum == 0 and self.output_params.output_header
                 for i, col in enumerate(row):
-                    if formatting_dict is not None and str(i + 1) in formatting_dict.keys():
+                    if formatting_dict is not None and str(i + 1) in formatting_dict.keys() and not skip_formatting:
                         fmt_str = formatting_dict[str(i + 1)]
                     else:
                         if self.output_params.beautify:
@@ -1371,6 +1372,9 @@ class QOutputPrinter(object):
         except (UnicodeEncodeError, UnicodeError), e:
             print >>sys.stderr, "Cannot encode data. Error:%s" % e
             sys.exit(3)
+        except TypeError,e:
+            print >>sys.stderr, "Error while formatting output: %s" % e
+            sys.exit(4)
         except IOError, e:
             if e.errno == 32:
                 # broken pipe, that's ok

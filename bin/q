@@ -49,7 +49,9 @@ import hashlib
 import uuid
 import cStringIO
 
-DEBUG = False
+csv.field_size_limit(sys.maxsize)
+
+DEBUG = True
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -1287,8 +1289,9 @@ class QOutputPrinter(object):
                         'nonnumeric' : quote_nonnumeric_func,
                         'none' : quote_none_func }
 
-    def __init__(self,output_params):
+    def __init__(self,output_params,show_tracebacks=False):
         self.output_params = output_params
+        self.show_tracebacks = show_tracebacks
 
         self.output_field_quoting_func = QOutputPrinter.output_quoting_modes[output_params.output_quoting_mode]
 
@@ -1296,6 +1299,8 @@ class QOutputPrinter(object):
         if results.status == 'error':
             error = results.error
             print >>f,error.msg
+            if self.show_tracebacks:
+                print >>f,error.traceback
 
         for warning in results.warnings:
             print >>f,"%s" % warning.msg
@@ -1621,7 +1626,7 @@ def run_standalone():
         output_quoting_mode=options.output_quoting_mode,
         formatting=options.formatting,
         output_header=options.output_header)
-    q_output_printer = QOutputPrinter(output_params)
+    q_output_printer = QOutputPrinter(output_params,show_tracebacks=DEBUG)
 
     for query_str in query_strs:
         if options.analyze_only:

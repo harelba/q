@@ -15,35 +15,26 @@ Instructions to bump the version of q in homebrew
 
 3. Edit the file Library/Formula/q.rb.
 
-	a. Change the url to the new tar.gz file:
+	a. Change the url to the new tar.gz file
 
-	b. Change the sha1 checksum
+	b. Change the sha256 checksum
 
-		$ wget "https://github.com/harelba/q/archive/<version>.tar.gz"
+		$ curl -sL "https://github.com/harelba/q/archive/<version>.tar.gz" | shasum -a 256
+		<checksum> -
 
-		$ sha1sum <version>.tar.gz
-		<checksum> <filename>
-
-		$ Change the checksum in q.rb's "sha1" line to the new checksum
+		$ Change the checksum in q.rb's "sha256" line to the new checksum
 
 	c. Verify by running the following:
 
-		delete the <version>.tar.gz file from the folder
+		$ brew fetch -s q
 
-		$ s=`curl -L \`grep url q.rb | awk '{print $2}' | tr -d '"'\` | sha1sum | awk '{print $1}'`
-
-		$ echo $s
-		<checksum>
-		
-		$ grep $s *.rb
-
-		The output should contain (and only contain) the sha1 line in q.rb
+		The output should show the new SHA256 without any warning
 
 4. Check the diff
 
 	git diff | vi -
 
-5. Commit the change
+5. Commit the change as "q <version>"
 
 6. Push it as a separate branch to your repository:
 

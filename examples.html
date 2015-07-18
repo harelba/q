@@ -182,7 +182,7 @@ avahi 2
 <br/><br/>
 <p><strong><a name="example7"></a>Example 7 - JOIN two files</strong></p>
 
-<p>The following command joins an ls output (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) and a file containing rows of group-name,email (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-examples">group-emails-example</a>) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause. 
+<p>The following command joins an ls output (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) and a file containing rows of group-name,email (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-example">group-emails-example</a>) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause. 
 </p>
 
 <pre class="code_example_wrapper"><code class="code_example">q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"

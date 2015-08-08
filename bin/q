@@ -1519,7 +1519,7 @@ def run_standalone():
 
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
-        print >>sys.stderr,"Must provide at least one query in the command line, or through a file with the -f parameter"
+        print >>sys.stderr,"Must provide at least one query in the command line, or through a file with the -q parameter"
         sys.exit(1)
 
     if options.query_filename is not None:

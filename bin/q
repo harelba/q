@@ -48,10 +48,11 @@ import csv
 import hashlib
 import uuid
 import cStringIO
+import math
 
 csv.field_size_limit(sys.maxsize)
 
-DEBUG = True
+DEBUG = False
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -82,6 +83,32 @@ class Sqlite3DBResults(object):
         self.query_column_names = query_column_names
         self.results = results
 
+def percentile(l, p):
+    # TODO Alpha implementation, need to provide multiple interpolation methods, and add tests
+    if not l:
+        return None
+    k = p*(len(l) - 1)
+    f = math.floor(k)
+    c = math.ceil(k)
+    if c == f:
+        return l[int(k)]
+    return (c-k) * l[int(f)] + (k-f) * l[int(c)]
+
+class StrictPercentile(object):
+    def __init__(self):
+        self.values = []
+        self.p = None
+    def step(self,value,p):
+        if self.p is None:
+          self.p = p
+        self.values.append(value)
+
+    def finalize(self):
+        if len(self.values) == 0 or (self.p < 0 or self.p > 1):
+            return None 
+        else:
+            return percentile(sorted(self.values),self.p)
+
 class Sqlite3DB(object):
 
     def __init__(self, show_sql=SHOW_SQL):
@@ -97,6 +124,7 @@ class Sqlite3DB(object):
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
         self.conn.create_function("sha1", 1, sha1)
+        self.conn.create_aggregate("percentile",2,StrictPercentile)
 
     def is_numeric_type(self, column_type):
         return column_type in self.numeric_column_types

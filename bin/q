@@ -740,7 +740,7 @@ class TableCreator(object):
             if self.gzipped or filename.endswith('.gz'):
                 f = gzip.GzipFile(fileobj=file(filename,'rb'))    
             else:
-                f = file(filename,'rb')
+                f = file(filename,'rbU')
         return f
 
     def _pre_populate(self,dialect):

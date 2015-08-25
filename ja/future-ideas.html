@@ -72,15 +72,15 @@
     <div id="main_content_wrap" class="outer">
       <div id="main_content" class="inner">
 <h2>
-<a name="future-ideas" class="anchor" href="#future-ideas"><span class="octicon octicon-link"></span></a>Future Ideas</h2>
+<a name="future-ideas" class="anchor" href="#future-ideas"><span class="octicon octicon-link"></span></a>将来のアイデア</h2>
 
 <ul>
-<li>Expose q's capabilities through a python module as well. An <a href="https://github.com/harelba/q/blob/expose-as-python-api/README.markdown">alpha version of the API</a> is ready - Your review will be most welcome</li>
-<li>Allow working with external DB</li>
-<li>Provide mechanisms beyond SELECT - INSERT and CREATE TABLE SELECT and such.</li>
-<li>Better parsing of the SQL, allowing smarter execution of queries.</li>
+<li>python モジュールを通して、q の機能を使用できるようにする。 <a href="https://github.com/harelba/q/blob/expose-as-python-api/README.markdown">アルファ版</a> は既に準備できており、レビューを歓迎しています。</li>
+<li>外部 DB との連携</li>
+<li>SELECT だけでなく、 INSERT や CREATE TABLE SELECT のような機構を提供する。</li>
+<li>SQL のパースをより良く、スマートなクエリ実行を許可する。</li>
 </ul>
-<p>Reuse of previously loaded data is partially implemented. The internal API fully supports it, but the exposure to the command line is limited. If you run multiple queries on the same command (e.g. <code>q "select AAA" "select BBB" "select CCC"</code> then any data loaded for a query will be reused in the next ones if it's the same file. Support for data reuse over multiple command-line invoactions will be supported in the future.</p>
+<p>直前にロードされたデータの再利用は一部のみ実装されています。内部 API ではフルサポートしていますが、コマンドラインでの使用は限定的になっています。 もし、同じコマンドを複数クエリとして実行すると (例 <code>q "select AAA" "select BBB" "select CCC"</code> もし、同じファイル内であれば、クエリは直前に実行されたデータに対しての実行となります。 複数コマンドラインのクエリ実行でのデータ再利用は将来的にサポートするつもりです。</p>
 
 
   </body>

@@ -73,59 +73,59 @@
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>Current stable version is <code>1.5.0</code>. Choose your preferred packaging:</p>
+<p>現在の安定版は <code>1.5.0</code> です。あなたの望むパッケージを選んでください:</p>
 
 
 <table align="center">
    <tbody>
       <tr>
-         <td width="30%" align="center"><strong>Format</strong></td>
-         <td width="40%" align="center"><strong>Instructions</strong></td>
-         <td width="30%" align="center"><strong>Comments</strong></td>
+         <td width="30%" align="center"><strong>プラットフォーム</strong></td>
+         <td width="40%" align="center"><strong>インストール方法</strong></td>
+         <td width="30%" align="center"><strong>コメント</strong></td>
       </tr>
       <tr>
          <td><span class="icon">​</span>Mac</td>
-         <td> Run <code>brew update</code> and then <code>brew install q</code>  </td>
+         <td> <code>brew update</code> を実行後に <code>brew install q</code> を実行してください。</td>
          <td>  </td>
       </tr>
       <tr>
-         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm?source=install_page&table=1"><span class="icon">​</span>RPM Package</a></td>
-         <td> Download the package and run <code>rpm -ivh &lt;package-filename&gt;</code> or <code>rpm -U &lt;package-filename&gt;</code> if already have an older version of q.</td>
-         <td> A man page is available for this release. Just enter <code>man q</code>. </td>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm?source=install_page&table=1"><span class="icon">​</span>RPM パッケージ</a></td>
+         <td> パッケージをダウンロードした後、 <code>rpm -ivh &lt;package-filename&gt;</code> を実行。もし古いバージョンの q がインストールされている場合は、 <code>rpm -U &lt;package-filename&gt;</code> を実行してください。</td>
+         <td> このリリースバージョンでは man が使用できます。 <code>man q</code> を叩くだけです。 </td>
       </tr>
       <tr>
-         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb?source=install_page&table=1"><span class="icon">​</span>Debian Package</a></td>
-         <td> Download the package and run <code>sudo dpkg -i &lt;package-filename&gt;<code> </td>
-         <td> A man page is available for this release. Just enter <code>man q</code>. </td>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb?source=install_page&table=1"><span class="icon">​</span>Debian パッケージ</a></td>
+         <td> パッケージをダウンロードした後、 <code>sudo dpkg -i &lt;package-filename&gt;<code> </td>
+         <td> このリリースバージョンでは man が使用できます。 <code>man q</code> を叩くだけです。 </td>
       </tr>
       <tr>
-         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe?source=install_page&table=1"><span class="icon">​</span>Windows Installer</a></td>
-         <td> Run the installer executable and hit next next next... <code>q.exe</code> will be added to the PATH so you can access it everywhere. </td>
-         <td> Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done. </td>
+         <td><a class="ext-link" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe?source=install_page&table=1"><span class="icon">​</span>Windows インストーラー</a></td>
+         <td> インストーラーを起動し、「次へ」を連打してください。 <code>q.exe</code> が PATH に追加されるのでどこからでも実行可能です。 </td>
+         <td> Windows は PATH に追加しただけでは、コマンドが反映されません。cmd を立ち上げ直す必要があります。 </td>
       </tr>
       <tr>
-         <td><a class="ext-link" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q?source=install_page&table=1"><span class="icon">​</span>Single file download</a></td>
-         <td> Download the file into a location in the PATH and make it executable using <code>chmod +x q</code>.</td>
-         <td> Python 2.5 and above is required. If you're using python 2.4, just run <code>pip install sqlite</code> and you're all set. </td>
+         <td><a class="ext-link" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q?source=install_page&table=1"><span class="icon">​</span>単体ファイル</a></td>
+         <td> パスが通っている所に配置し、 <code>chmod +x q</code> コマンドで実行権限を付加してください。</td>
+         <td> Python 2.5 以上が必要です。 もし python 2.4 を使用しているなら、<code>pip install sqlite</code> を実行するだけで構いません。 </td>
       </tr>
       <tr>
          <td><a class="ext-link" href="https://aur.archlinux.org/packages/q/"><span class="icon">​</span>Arch Linux</a></td>
-         <td> See <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> or use your favorite <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a></td>
-         <td> The link refers to a PKGBUILD.  </td>
+         <td> <a href="https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages">installing packages</a> を見るか、お気に入りの <a href="https://wiki.archlinux.org/index.php/Aur_helpers">AUR helper</a> を使用してください。</td>
+         <td> リンク先は PKGBUILD についての説明です。 </td>
 		</tr>
 
       <tr>
-         <td colspan="3" align="center"><strong>Source Code Archives</strong></td>
+         <td colspan="3" align="center"><strong>ソースコードアーカイブ</strong></td>
       </tr>
 
       <tr>
          <td> <a href="https://github.com/harelba/q/archive/1.5.0.tar.gz?source=install_page&table=1">tar.gz</a> </td>
-         <td> Full source tree for the latest stable version.</td>
+         <td> 最新版のすべてのソースツリーが同梱されています。</td>
          <td></td>
       </tr>
       <tr>
          <td> <a href="https://github.com/harelba/q/archive/1.5.0.zip?source=install_page&table=1">zip</a> </td>
-         <td> Full source tree for the latest stable version.</td>
+         <td> 最新版のすべてのソースツリーが同梱されています。</td>
          <td> </td>
       </tr>
 
@@ -137,7 +137,7 @@
 </table>
 
 <br/>
-	<h4 style="text-align:center;">You shouldn't really need the older version, but if you do, they're all in <a target="_blank" href="https://github.com/harelba/packages-for-q">here</a>. Please let me know if you plan on using an older version, and why</h4>
+	<h4 style="text-align:center;">古いバージョンは必要としないはずですが、もし必要ならば <a target="_blank" href="https://github.com/harelba/packages-for-q">ここ</a>にすべて置いてあります。何のためにどう使うかを教えて頂けると助かります。</h4>
 
 
   </body>

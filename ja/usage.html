@@ -209,59 +209,55 @@
 <h3>
 <a name="parsing-modes" class="anchor" href="#parsing-modes"><span class="octicon octicon-link"></span></a>パースモード</h3>
 
-<p>q supports multiple parsing modes:</p>
+<p>q は複数のパースモードをサポートしています:</p>
 
 <ul>
 <li>
-<code>relaxed</code> - This is the default mode. It tries to lean towards simplicity of use. When a row doesn't contains enough columns, they'll be filled with nulls, and when there are too many, the extra values will be merged to the last column. Defining the number of expected columns in this mode is done using the <code>-c</code> parameter. If it is not provided, then the number of columns is detected automatically (In most use cases, there is no need to specify <code>-c</code>)</li>
+<code>relaxed</code> - デフォルトのモードです。 シンプルで便利な方向に傾くようになっています。 列が十分なカラムを含んでいない場合、null で埋め、逆に多すぎる場合は最後のカラムにマージされます。 このモードでは、予期されるカラムの数を定義する場合、<code>-c</code> パラメータを使ってください。 もし、このパラメータを指定しない場合、カラム数は自動的に検出されます。 (ほとんどの場合、明示的に <code>-c</code> を使用することはないでしょう)</li>
 <li>
-<code>strict</code> - Strict mode is for hardcore csv/tsv parsing. Whenever a row doesn't contain the proper number of columns, processing will stop. <code>-c</code> must be provided when using this mode</li>
+<code>strict</code> - 厳密なモードは、csv/tsv を厳密にチェックするのに向いています。 あらかじめ指定したカラム数でなかった場合は、処理が中止されます。このモードを使用する時は <code>-c</code> を必ず指定してください。</li>
 <li>
-<code>fluffy</code> - This mode should not be used, and is just some kind of "backward compatible" parsing mode which was used by q previously. It's left as a separate parsing mode on purpose, in order to accomodate existing users. If you are such a user, please open a bug for your use case, and I'll see how I can incorporate it into the other modes. It is reasonable to say that this mode will be removed in the future.</li>
+<code>fluffy</code> - このモードは使われるべきではなく、以前 q で使用されていた後方互換のためのパースモードです。 既存のユーザに適応させるために、残してあると考えてください。もしあなたがそのようなユーザである場合、 github の issue としてバグ報告をしてください。私は、いかに他のモードにそれを組み入れるかを検討します。将来的に、このモードは削除されるのが妥当だと考えています。</li>
 </ul><h3>
-<a name="output-formatting-option" class="anchor" href="#output-formatting-option"><span class="octicon octicon-link"></span></a>Output formatting option</h3>
+<a name="output-formatting-option" class="anchor" href="#output-formatting-option"><span class="octicon octicon-link"></span></a>出力フォーマットオプション</h3>
 
-<p>The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:</p>
+<p>F のフォーマットは、コンマ区切りの X=f のリストで、X はカラム番号であり、f は python のフォーマットです:</p>
 
 <ul>
-<li>X - column number - This is the SELECTed column (or expression) number, not the one from the original table. E.g, 1 is the first SELECTed column, 3 is the third SELECTed column.</li>
-<li>f - A python formatting string - See <a href="http://docs.python.org/release/2.4.4/lib/typesseq-strings.html">http://docs.python.org/release/2.4.4/lib/typesseq-strings.html</a> for details if needed.
-** Example: <code>-f 3=%-10s,5=%4.3f,1=%x</code>
+<li>X - カラム番号 - SELECT の結果に対してのカラム番号です。読み込み元となるテーブルに対してではありません。SELECT されたカラムの一番最初が 1 であり、3つ目が　3 です。</li>
+<li>f - python のフォーマット文字列 - 必要であれば、<a href="http://docs.python.org/release/2.4.4/lib/typesseq-strings.html">http://docs.python.org/release/2.4.4/lib/typesseq-strings.html</a> を参照してください。
+** 例: <code>-f 3=%-10s,5=%4.3f,1=%x</code>
 </li>
 </ul><h2>
-<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>EXAMPLES</h2>
+<a name="examples" class="anchor" href="#examples"><span class="octicon octicon-link"></span></a>使用例</h2>
 
-<p>Example 1: <code>ls -ltrd * | q "select c1,count(1) from - group by c1"</code></p>
+<p>例 1: <code>ls -ltrd * | q "select c1,count(1) from - group by c1"</code></p>
 
-<pre><code>This example would print a count of each unique permission string in the current folder.
-</code></pre>
+<pre><code>この例は、現在のディレクトリの中で、それぞれのパーミッション文字列をカウントし、その結果を表示します。</code></pre>
 
-<p>Example 2: <code>seq 1 1000 | q "select avg(c1),sum(c1) from -"</code></p>
+<p>例 2: <code>seq 1 1000 | q "select avg(c1),sum(c1) from -"</code></p>
 
-<pre><code>This example would provide the average and the sum of the numbers in the range 1 to 1000
-</code></pre>
+<pre><code>この例は、1 〜 1000 の範囲の数字の平均と総和を表示します。</code></pre>
 
-<p>Example 3: <code>sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"</code></p>
+<p>例 3: <code>sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"</code></p>
 
-<pre><code>This example will output the total size in MB per user+group in the /tmp subtree
-</code></pre>
+<pre><code>この例は、/tmp サブツリー内の、ユーザとグループごとに MB 単位で合計サイズを表示します。</code></pre>
 
-<p>Example 4: <code>ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"</code></p>
+<p>例 4: <code>ps -ef | q -H "select UID,count(*) cnt from - group by UID order by cnt desc limit 3"</code></p>
 
-<pre><code>This example will show process counts per UID, calculated from ps data. Note that the column names provided by ps are being used as column name in the query (The -H flag activates that option)
-</code></pre>
+<pre><code>この例は、ps コマンドで計算されたデータをもとに、UID ごとにプロセス数を表示します。カラム名は ps によって提供されるものを、 -H フラグを立てることで有効にしてクエリ内で使用しています。</code></pre>
 
 <h2>
-<a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>AUTHOR</h2>
+<a name="author" class="anchor" href="#author"><span class="octicon octicon-link"></span></a>作者</h2>
 
 <p>Harel Ben-Attia (<a href="mailto:harelba@gmail.com">harelba@gmail.com</a>)</p>
 
 <p><a href="https://twitter.com/harelba">@harelba</a> on Twitter</p>
 
-<p>Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.</p>
+<p>どんなフィードバックや提案や不満も歓迎しています。もちろん、協力してくれるのも大歓迎です。</p>
 
 <h2>
-<a name="copyright" class="anchor" href="#copyright"><span class="octicon octicon-link"></span></a>COPYRIGHT</h2>
+<a name="copyright" class="anchor" href="#copyright"><span class="octicon octicon-link"></span></a>著作権</h2>
 
 <p>Copyright (C) 2012--2014 Harel Ben Attia</p>
 

@@ -72,48 +72,48 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
 <h2>
-<a name="synopsis" class="anchor" href="#synopsis"><span class="octicon octicon-link"></span></a>SYNOPSIS</h2>
+<a name="synopsis" class="anchor" href="#synopsis"><span class="octicon octicon-link"></span></a>概要</h2>
 
 <pre><code>`q &lt;flags&gt; &lt;query&gt;`
 
-Simplest execution is `q "SELECT * FROM myfile"` which prints the entire file.
+最もシンプルなコマンドは `q "SELECT * FROM myfile"` で、ファイル全体を表示します。
 </code></pre>
 
 <h2>
-<a name="description" class="anchor" href="#description"><span class="octicon octicon-link"></span></a>DESCRIPTION</h2>
+<a name="description" class="anchor" href="#description"><span class="octicon octicon-link"></span></a>説明</h2>
 
-<p>q allows performing SQL-like statements on tabular text data. Its purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.</p>
+<p>q は SQL ライクな命令を表形式のテキストデータに対して実行することができます。SQL の強力な表現を Linux のコマンドラインで実行できるようにし、より簡単にテキストデータを扱えるようにするために作られました。</p>
 
-<p>Query should be an SQL-like query which contains filenames instead of table names (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes).</p>
+<p>クエリはテーブル名の代わりにファイル名を含めます。(もしくは、標準入力の - でも可能) クエリは1つのパラメータとして渡してください。(すなわち、クオートで囲む)</p>
 
-<p>Use <code>-H</code> to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. q "SELECT c3,c8 from ...").</p>
+<p><code>-H</code> オプションを渡すと、ヘッダー行をカラム名として認識します。この場合、カラム名は自動的に検出され、クエリ中で使用することができます。もし、このオプションを使用しない場合は、カラムは左から cX (Xは1から始まる) として名付けられます。(例 q "SELECT c3,c8 from ...")</p>
 
-<p>Use <code>-d</code> to specify the input delimiter.</p>
+<p><code>-d</code> オプションを使うと入力データのデリミタを指定できます。</p>
 
-<p>Column types are auto detected by the tool, no casting is needed.</p>
+<p>カラムの型は自動検出されるので、キャストは不要です。</p>
 
-<p>Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard.</p>
+<p>カラム名にスペースを含む必要がある時は、SQLite 標準の通り、クエリ中でバックティック(``)で囲んでください。</p>
 
-<p>Query/Input/Output encodings are fully supported (and q tries to provide out-of-the-box usability in that area). Please use <code>-e</code>,<code>-E</code> and <code>-Q</code> to control encoding if needed.</p>
+<p>クエリ/入力データ/出力データのエンコードは完全サポートしています。(q はこの部分に関して、追加設定なしのユーザビリティを試みています) それぞれ、必要に応じて、<code>-e</code>,<code>-E</code> and <code>-Q</code> オプションを使用してください。</p>
 
-<p>All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table).</p>
+<p>それぞれのテーブルにエイリアスを設定し、ファイルをまたいだ JOIN を含めて、SQLite3 の SQL 構造を全てサポートしています。</p>
 
-<p>See <a href="https://github.com/harelba/q">https://github.com/harelba/q</a> for more details.</p>
+<p>さらに詳細を知りたい場合は、<a href="https://github.com/harelba/q">https://github.com/harelba/q</a> を参照してください。</p>
 
 <h2>
-<a name="query" class="anchor" href="#query"><span class="octicon octicon-link"></span></a>QUERY</h2>
+<a name="query" class="anchor" href="#query"><span class="octicon octicon-link"></span></a>クエリ</h2>
 
-<p>q gets one parameter - An SQL-like query. </p>
+<p>q は "SQL ライクなクエリ"、たった1つをパラメータとして取得します</p>
 
-<p>Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.</p>
+<p>標準的な SQL 表現、条件文(WHERE、HAVING 両方とも)、GROUP BY、ORDER BY 等が使えます。</p>
 
-<p>JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.</p>
+<p>JOIN は WHERE 節のサブクエリとしてはサポートしていますが、FROM 節で使用するのは現時点で、未対応です。JOIN するときに、テーブルにエイリアスを設定して使ってください。</p>
 
-<p>The SQL syntax itself is sqlite's syntax. For details look at <a href="http://www.sqlite.org/lang.html">http://www.sqlite.org/lang.html</a> or search the net for examples.</p>
+<p>SQL 文法は、SQLite の文法と同じです。詳細は <a href="http://www.sqlite.org/lang.html">http://www.sqlite.org/lang.html</a> を参照するか、インターネットで例を検索してみてください。</p>
 
-<p><strong>NOTE:</strong> Full type detection is implemented, so there is no need for any casting or anything.</p>
+<p><strong>重要:</strong> 型検出が実装されているので、キャスト等の操作は一切不要です。</p>
 
-<p><strong>NOTE2:</strong> When using the <code>-O</code> output header option, use column name aliases if you want to control the output column names. For example, <code>q -O -H "select count(*) cnt,sum(*) as mysum from -"</code> would output <code>cnt</code> and <code>mysum</code> as the output header column names.</p>
+<p><strong>重要2:</strong> 出力ヘッダーオプションである、<code>-O</code> を使用して、出力ヘッダのカラム名を制御したい場合、カラム名をエイリアスとして明示的に指定してください。たとえば、<code>q -O -H "select count(*) as cnt,sum(*) as mysum from -"</code> とすると、<code>cnt</code> と <code>mysum</code> が出力ヘッダーとして名前がつきます。</p>
 
 <h2>
 <a name="runtime-options" class="anchor" href="#runtime-options"><span class="octicon octicon-link"></span></a>RUNTIME OPTIONS</h2>
@@ -194,20 +194,20 @@ Simplest execution is `q "SELECT * FROM myfile"` which prints the entire file.
 </code></pre>
 
 <h3>
-<a name="table-names" class="anchor" href="#table-names"><span class="octicon octicon-link"></span></a>Table names</h3>
+<a name="table-names" class="anchor" href="#table-names"><span class="octicon octicon-link"></span></a>テーブル名</h3>
 
-<p>The table names are the actual file names that you want to read from. Path names are allowed. Use "-" if you want to read from stdin (e.g. <code>q "SELECT * FROM -"</code>)</p>
+<p>テーブル名は読み込みたいファイル名となります。パスも許可されています。もし標準入力からデータを読みたい場合は "-" を使ってください。(例:<code>q "SELECT * FROM -"</code>)</p>
 
-<p>Multiple files can be concatenated by using one of both of the following ways:</p>
+<p>複数ファイルは以下の方法で連結することができます。</p>
 
 <ul>
-<li>Separating the filenames with a + sign: <code>SELECT * FROM datafile1+datafile2+datefile3</code>.</li>
-<li>Using glob matching: <code>SELECT * FROM mydata*.dat</code>
+<li>ファイル名を + で繋ぐ: <code>SELECT * FROM datafile1+datafile2+datefile3</code></li>
+<li>glob マッチを使用する: <code>SELECT * FROM mydata*.dat</code></code>
 </li>
-</ul><p>Files with .gz extension are considered to be gzipped and decompressed on the fly.</p>
+</ul><p>.gz 拡張子を持つファイルは、中間ファイルを出力せずとも演算できます。<code>-z</code> オプションを使用してください。</p>
 
 <h3>
-<a name="parsing-modes" class="anchor" href="#parsing-modes"><span class="octicon octicon-link"></span></a>Parsing Modes</h3>
+<a name="parsing-modes" class="anchor" href="#parsing-modes"><span class="octicon octicon-link"></span></a>パースモード</h3>
 
 <p>q supports multiple parsing modes:</p>
 

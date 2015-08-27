@@ -71,20 +71,20 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
 <h2>
-<a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>Implementation</h2>
+<a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>実装</h2>
 
-<p>The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now).</p>
+<p>外部の依存関係を不要にするために、インメモリデータベースを使っている Python で書かれています。JOIN を含め、SELECT 文をサポートしています。(現在はサブクエリは WHERE 節のみにおいてサポートしています。)</p>
 
-<p>Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.</p>
+<p>データサイズのチェックと限界については実装していないので、データサイズが大きすぎないように確認するのはユーザの責任としています。</p>
 
-<p>Please make sure to read the limitations section as well.</p>
+<p>同様に、制限のページについても読んでください。</p>
 
-<p>Code wise, I'm planning for a big refactoring, and I have added full test suite in the latest version, so it'll be easier to do properly.</p>
+<p>賢明なコードを目指し、大規模なリファクタリングの計画を立てて、最新のバージョンの完全なテストスイートを追加しました。従って、適切にすることがより簡単になりました。</p>
 
 <h2>
-<a name="tests" class="anchor" href="#tests"><span class="octicon octicon-link"></span></a>Tests</h2>
+<a name="tests" class="anchor" href="#tests"><span class="octicon octicon-link"></span></a>テスト</h2>
 
-<p>The code includes a test suite runnable through <code>test/test-all</code>. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. Additional ideas related to testing are most welcome.</p>
+<p>コードは、 <code>test/test-all</code> を通して実行可能なテストスイートを含んでいます。 もしあなたがプルリクエストを作成する時、そのテストが失敗しないことを確認して頂けるとありがたいです。テストと関連した追加のアイデアは、大いに歓迎します。</p>
 
   </body>
 </html>

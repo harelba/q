@@ -181,7 +181,7 @@ avahi 2
 <br/><br/>
 <p><strong><a name="example7"></a>例 7 - 2 つのファイルを JOIN する</strong></p>
 
-<p>The following command joins an ls output (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) and a file containing rows of group-name,email (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-example">group-emails-example</a>) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause. 
+<p>以下のコマンドは ls のアウトプット (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) とグループ名とEメールの列を含むファイル (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-example">group-emails-example</a>) を JOIN して、ファイル名と、グループに紐付く各emailに対応するemailの列を提供します。 出力を簡潔にするために WHERE 節を使って実現される ppp と呼ばれる具体的なファイル名でフィルタリングも行っている。
 </p>
 
 <pre class="code_example_wrapper"><code class="code_example">q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"
@@ -193,9 +193,10 @@ avahi 2
 ppp dip.2@otherdomain.com
 </pre></div>
 
-<p>You can see that the <code>ppp</code> filename appears twice, each time matched to one of the emails of the group dip to which it belongs. Take a look at the files <code>exampledatafile</code> and <code>group-emails-example</code> for the data.</p>
+<p>email が紐付いているグループディップの email のうちの1つにマッチするたびに、<code>ppp</code> ファイル名が2回出現していることがわかると思います。
+<code>exampledatafile</code> と <code>group-emails-example</code> を見て確認してみてください。</p>
 
-<p>Column name detection is supported for JOIN scenarios as well. Just specify <code>-H</code> in the command line and make sure that the source files contain the header rows.</p>
+<p>カラム名検出は JOIN 使用時もサポートされています。読み込み元ファイルのヘッダ列にカラム名が存在することを確認した上で、<code>-H</code> オプションを指定してください。</p>
 
   </body>
 </html>

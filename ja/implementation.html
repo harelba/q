@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="q : q - Text as Data" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
+
+    <title>実装</title>
+    <script type="text/javascript" src="../javascripts/google-analytics.js"></script>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <img id="q-logo" src="../images/q-logo1.png"/>
+          <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+
+          <h1 id="project_title">q</h1>
+          <h2 id="project_tagline">q - Text as Data</h2>
+
+
+	  <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
+
+            <section id="downloads">
+              <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+              <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+              <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+              <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+              <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+              <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+            </section>
+        </header>
+    </div>
+
+    <div id="sidenav">
+        <h1 id="general">一般</h1>
+        <ul>
+        <li><a href="index.html">ホーム</a></li>
+        <li><a href="install.html">ダウンロードとインストール</a></li>
+        <li><a href="requirements.html">動作条件</a></li>
+        <li><a href="limitations.html">制約</a></li>
+        <li><a href="future-ideas.html">将来のアイデア</a></li>
+        </ul>
+        <h1 id="documentation">ドキュメント</h1>
+        <ul>
+        <li><a href="usage.html">使い方</a></li>
+        <li><a href="examples.html">使用例</a></li>
+        <li><a href="tutorial.html">チュートリアル</a></li>
+        </ul>
+        <h1 id="other">舞台裏</h1>
+        <ul>
+        <li><a href="changelog.html">更新履歴</a></li>
+        <li><a href="implementation.html">実装</a></li>
+        <li><a href="rationale.html">設計原理</a></li>
+        </ul>
+        <h1 id="author">作者</h1>
+        <ul>
+        <li><a href="contact.html">連絡先</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+        </ul>
+        <h1 id="social">Social</h1>
+        <ul>
+        <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+        </ul>
+    </div>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+<h2>
+<a name="implementation" class="anchor" href="#implementation"><span class="octicon octicon-link"></span></a>実装</h2>
+
+<p>外部の依存関係を不要にするために、インメモリデータベースを使っている Python で書かれています。JOIN を含め、SELECT 文をサポートしています。(現在はサブクエリは WHERE 節のみにおいてサポートしています。)</p>
+
+<p>データサイズのチェックと限界については実装していないので、データサイズが大きすぎないように確認するのはユーザの責任としています。</p>
+
+<p>同様に、制限のページについても読んでください。</p>
+
+<p>賢明なコードを目指し、大規模なリファクタリングの計画を立てて、最新のバージョンの完全なテストスイートを追加しました。従って、適切にすることがより簡単になりました。</p>
+
+<h2>
+<a name="tests" class="anchor" href="#tests"><span class="octicon octicon-link"></span></a>テスト</h2>
+
+<p>コードは、 <code>test/test-all</code> を通して実行可能なテストスイートを含んでいます。 もしあなたがプルリクエストを作成する時、そのテストが失敗しないことを確認して頂けるとありがたいです。テストと関連した追加のアイデアは、大いに歓迎します。</p>
+
+  </body>
+</html>

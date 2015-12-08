@@ -1271,6 +1271,10 @@ class QTextAsData(object):
 
         return q_output
 
+def escape_double_quotes_if_needed(v):
+    x = v.replace('"','""')
+    return x
+
 def quote_none_func(output_delimiter,v):
     return v
 
@@ -1278,19 +1282,22 @@ def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
     t = type(v)
-    if t == str or t == unicode and output_delimiter in v:
-        return '"%s"' % (v)
+    if t == str or t == unicode and ((output_delimiter in v) or ('"' in v)):
+        return '"%s"' % (escape_double_quotes_if_needed(v))
     return v;
 
 def quote_nonnumeric_func(output_delimiter,v):
     if v is None:
         return v
     if type(v) == str or type(v) == unicode:
-        return '"%s"' % (v)
+        return '"%s"' % (escape_double_quotes_if_needed(v))
     return v;
 
 def quote_all_func(output_delimiter,v):
-    return '"%s"' % (v)
+    if type(v) == str or type(v) == unicode:
+        return '"%s"' % (escape_double_quotes_if_needed(v))
+    else:
+        return '"%s"' % v
 
 class QOutputParams(object):
     def __init__(self,

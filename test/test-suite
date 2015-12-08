@@ -870,7 +870,7 @@ class BasicTests(AbstractQTestCase):
     def test_none_input_quoting_mode_in_relaxed_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = '../bin/q -d " " -m relaxed -D , -w none "select * from %s"' % tmp_data_file.name
+        cmd = '../bin/q -d " " -m relaxed -D , -w none -W none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode,0)
@@ -879,7 +879,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(o[0],'"quoted,data",23')
         self.assertEquals(o[1],'unquoted-data,54,')
-
+	
         self.cleanup(tmp_data_file)
 
     def test_none_input_quoting_mode_in_strict_mode(self):
@@ -1593,7 +1593,10 @@ class FormattingTests(AbstractQTestCase):
         self.assertEquals(o[0], '55.000 5.500')
 
     def test_column_formatting_with_output_header(self):
-        cmd = 'seq 1 10 | sed "1i column_name" | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        # Required in order to maintain compatibility between GNU and POSIX sed
+        # (simplistic 1i column_name sed command did not run properly on mac machines)
+        sed_cmd = "'1i\\'$'\\n''column_name'$'\\n'"
+        cmd = 'seq 1 10 | sed ' + sed_cmd + ' | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
 
         retcode, o, e = run_command(cmd)
 

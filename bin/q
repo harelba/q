@@ -669,6 +669,13 @@ class MaterializedFileState(object):
         if self.f != sys.stdin:
             self.f.close()
 
+def default_open_file_func(filename):
+    # Check if it's standard input or a file
+    if filename == '-':
+        return sys.stdin
+    else:
+        return file(filename,'rb')
+
 class TableCreator(object):
 
     def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,stdin_file=None,stdin_filename='-'):
@@ -684,6 +691,7 @@ class TableCreator(object):
         self.input_delimiter = input_delimiter
         self.stdin_file = stdin_file
         self.stdin_filename = stdin_filename
+        self.open_file_func = default_open_file_func
 
         self.column_inferer = TableColumnInferer(
             mode, expected_column_count, input_delimiter, skip_header)
@@ -729,19 +737,13 @@ class TableCreator(object):
         return self.table_name
 
     def open_file(self,filename):
-        # Check if it's standard input or a file
-        if filename == self.stdin_filename:
-            if self.stdin_file is None:
-                raise UnprovidedStdInException()
-            f = self.stdin_file
-            if self.gzipped:
+        f = self.open_file_func(filename)
+        if self.gzipped or filename.endswith('.gz'):
+            if f == sys.stdin:
                 raise CannotUnzipStdInException()
+            return gzip.GzipFile(fileobj=f)    
         else:
-            if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=file(filename,'rb'))    
-            else:
-                f = file(filename,'rb')
-        return f
+            return f
 
     def _pre_populate(self,dialect):
         # For each match

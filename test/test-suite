@@ -1740,7 +1740,19 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select * from -',stdin_file=file(tmpfile.name,'rb'))
+
+        def open_file(filename,default_open_file_func):
+            if filename == '-':
+                return file(tmpfile.name,'rb')
+            else:
+                return default_open_file_func(filename)
+
+        def close_file(filename,f,default_close_file_func):
+            if filename != '-':
+                f.close()
+
+        q.set_file_functions(open_file,close_file)
+        r = q.execute('select * from -',open_file_func=open_file,close_file_func=close_file)
 
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
@@ -2022,14 +2034,14 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
 
 
-def suite():
+def suite(l):
     tl = unittest.TestLoader()
-    basic_stuff = tl.loadTestsFromTestCase(BasicTests)
-    parsing_mode = tl.loadTestsFromTestCase(ParsingModeTests)
-    sql = tl.loadTestsFromTestCase(SqlTests)
-    formatting = tl.loadTestsFromTestCase(FormattingTests)
-    basic_module_stuff = tl.loadTestsFromTestCase(BasicModuleTests)
-    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting])
+    m = sys.modules[__name__]
+    return unittest.TestSuite([tl.loadTestsFromTestCase(getattr(m,x)) for x in l])
 
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+    if len(sys.argv) > 1:
+        l = sys.argv[1:]
+    else:
+        l = ['BasicTests','ParsingModeTests','SqlTests','FormattingTests','BasicModuleTests']
+    unittest.TextTestRunner(verbosity=2).run(suite(l))

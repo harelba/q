@@ -639,15 +639,46 @@ class TableCreatorState(object):
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
+def default_open_file_func(filename,chained_func=lambda x: None):
+    # Check if it's standard input or a file
+    if filename == '-':
+        return sys.stdin
+    else:
+        return file(filename,'rb')
+
+def default_close_file_func(filename,f,chained_func=lambda x: None):
+    # RLRL REmoving this exposes a bug in csv_reader = ... Happens due to reusing the same
+    # filename twice (and closing/reopening is not tidy)
+    return
+    if filename != '-':
+        f.close()
+
+
 class MaterializedFileState(object):
-    def __init__(self,filename,f,encoding,dialect,is_stdin):
+    def __init__(self,filename,encoding,dialect,gzipped=False,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
         self.filename = filename
         self.lines_read = 0
-        self.f = f
         self.encoding = encoding
         self.dialect = dialect
-        self.is_stdin = is_stdin
+        self.is_stdin = filename == '-' # RLRL TODO
         self.skipped_bom = False
+        self.gzipped = gzipped
+        self.open_file_func = open_file_func
+        self.close_file_func = close_file_func
+
+        self.f = self._open_file(filename)
+
+    def _open_file(self,filename):
+        f = self.open_file_func(filename,default_open_file_func)
+        if self.gzipped or filename.endswith('.gz'):
+            if f == sys.stdin:
+                raise CannotUnzipStdInException()
+            return gzip.GzipFile(fileobj=f)    
+        else:
+            return f
+
+    def _close_file(self):
+        self.close_file_func(self.filename,self.f,default_close_file_func)
 
     def read_file_using_csv(self):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
@@ -666,19 +697,12 @@ class MaterializedFileState(object):
             yield col_vals
 
     def close(self):
-        if self.f != sys.stdin:
-            self.f.close()
+        self._close_file()
 
-def default_open_file_func(filename):
-    # Check if it's standard input or a file
-    if filename == '-':
-        return sys.stdin
-    else:
-        return file(filename,'rb')
 
 class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,stdin_file=None,stdin_filename='-'):
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
         self.db = db
         self.filenames_str = filenames_str
         self.skip_header = skip_header
@@ -689,9 +713,8 @@ class TableCreator(object):
         self.mode = mode
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
-        self.stdin_file = stdin_file
-        self.stdin_filename = stdin_filename
-        self.open_file_func = default_open_file_func
+        self.open_file_func = open_file_func
+        self.close_file_func = close_file_func
 
         self.column_inferer = TableColumnInferer(
             mode, expected_column_count, input_delimiter, skip_header)
@@ -721,8 +744,8 @@ class TableCreator(object):
         # for each filename (or pattern)
         for fileglob in filenames:
             # Allow either stdin or a glob match
-            if fileglob == self.stdin_filename:
-                materialized_file_list.append(self.stdin_filename)
+            if fileglob == '-': #self.stdin_filename:
+                materialized_file_list.append('-') #stdin removal needed
             else:
                 materialized_file_list += glob.glob(fileglob)
 
@@ -736,26 +759,14 @@ class TableCreator(object):
     def get_table_name(self):
         return self.table_name
 
-    def open_file(self,filename):
-        f = self.open_file_func(filename)
-        if self.gzipped or filename.endswith('.gz'):
-            if f == sys.stdin:
-                raise CannotUnzipStdInException()
-            return gzip.GzipFile(fileobj=f)    
-        else:
-            return f
-
     def _pre_populate(self,dialect):
         # For each match
         for filename in self.materialized_file_list:
             if filename in self.materialized_file_dict.keys():
                 continue
 
-            f = self.open_file(filename)
-
-            is_stdin = filename == self.stdin_filename
-
-            mfs = MaterializedFileState(filename,f,self.encoding,dialect,is_stdin)
+            mfs = MaterializedFileState(filename,self.encoding,dialect,gzipped=self.gzipped,
+                open_file_func=self.open_file_func,close_file_func=self.close_file_func)
             self.materialized_file_dict[filename] = mfs
 
     def _populate(self,dialect,stop_after_analysis=False):
@@ -1115,7 +1126,7 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
+    def _load_data(self,filename,input_params=QInputParams(),open_file_func=default_open_file_func,close_file_func=default_close_file_func,stop_after_analysis=False):
         start_time = time.time()
 
         q_dialect = self.determine_proper_dialect(input_params)
@@ -1134,7 +1145,7 @@ class QTextAsData(object):
         table_creator = TableCreator(
             self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count, 
-            input_delimiter=input_params.delimiter,stdin_file = stdin_file,stdin_filename = stdin_filename)
+            input_delimiter=input_params.delimiter,open_file_func=open_file_func,close_file_func=close_file_func)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
@@ -1142,23 +1153,23 @@ class QTextAsData(object):
 
         return QDataLoad(filename,start_time,time.time())
 
-    def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
+    def load_data(self,filename,input_params=QInputParams(),open_file_func=default_open_file_func,close_file_func=default_close_file_func,stop_after_analysis=False):
+        self._load_data(filename,input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=stop_after_analysis)
 
-    def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
+    def load_data_from_string(self,filename,str_data,input_params=QInputParams(),open_file_func=default_open_file_func,close_file_func=default_close_file_func,stop_after_analysis=False):
         sf = cStringIO.StringIO(str_data)
         try:
-            self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
+            self._load_data(filename,input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=stop_after_analysis)
         finally:
             if sf is not None:
                 sf.close()
 
-    def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
+    def _ensure_data_is_loaded(self,sql_object,input_params,open_file_func=default_open_file_func,close_file_func=default_close_file_func,stop_after_analysis=False):
         data_loads = []
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            data_load = self._load_data(filename,input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_load = self._load_data(filename,input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
 
@@ -1168,7 +1179,7 @@ class QTextAsData(object):
         for filename in sql_object.qtable_names:
             sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
 
-    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False):
+    def _execute(self,query_str,input_params=None,open_file_func=default_open_file_func,close_file_func=default_close_file_func,stop_after_analysis=False):
         warnings = []
         error = None
         data_loads = []
@@ -1190,7 +1201,7 @@ class QTextAsData(object):
         sql_object = Sql('%s' % query_str)
 
         try:
-            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
 
@@ -1238,8 +1249,8 @@ class QTextAsData(object):
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
 
-    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
-        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False)
+    def execute(self,query_str,input_params=None,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
+        return self._execute(query_str,input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=False)
 
     def unload(self):
 
@@ -1268,8 +1279,8 @@ class QTextAsData(object):
             table_structures.append(table_structure)
         return table_structures
 
-    def analyze(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
-        q_output = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=True)
+    def analyze(self,query_str,input_params=None,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
+        q_output = self._execute(query_str,input_params,open_file_func=open_file_func,close_file_func=close_file_func,stop_after_analysis=True)
 
         return q_output
 
@@ -1667,10 +1678,10 @@ def run_standalone():
 
     for query_str in query_strs:
         if options.analyze_only:
-            q_output = q_engine.analyze(query_str,stdin_file=sys.stdin)
+            q_output = q_engine.analyze(query_str)
             q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
         else:
-            q_output = q_engine.execute(query_str,stdin_file=sys.stdin)
+            q_output = q_engine.execute(query_str)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
         if q_output.status == 'error':

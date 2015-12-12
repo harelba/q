@@ -1575,7 +1575,7 @@ class ParsingModeTests(AbstractQTestCase):
 
         cmd = '../bin/q -m strict "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
-
+       
         self.assertNotEquals(retcode,0)
         self.assertEquals(len(o),0)
         self.assertEquals(len(e),1)
@@ -1718,97 +1718,90 @@ class SqlTests(AbstractQTestCase):
 
 class BasicModuleTests(AbstractQTestCase):
 
-    # def test_simple_query(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+    def test_simple_query(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-    #     r = q.execute('select * from %s' % tmpfile.name)
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        r = q.execute('select * from %s' % tmpfile.name)
 
-    #     self.assertTrue(r.status == 'ok')
-    #     self.assertEquals(len(r.warnings),0)
-    #     self.assertEquals(len(r.data),2)
-    #     self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
-    #     self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-    #     self.assertEquals(len(r.metadata.data_loads),1)
-    #     self.assertEquals(r.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertTrue(r.status == 'ok')
+        self.assertEquals(len(r.warnings),0)
+        self.assertEquals(len(r.data),2)
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
+        self.assertEquals(r.data,[(1,2,3),(4,5,6)])
+        self.assertEquals(len(r.metadata.data_loads),1)
+        self.assertEquals(r.metadata.data_loads[0].filename,tmpfile.name)
 
-    #     self.cleanup(tmpfile)
+        self.cleanup(tmpfile)
 
-    # def test_loaded_data_reuse(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+    def test_loaded_data_reuse(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-    #     r1 = q.execute('select * from %s' % tmpfile.name)
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        r1 = q.execute('select * from %s' % tmpfile.name)
 
-    #     r2 = q.execute('select * from %s' % tmpfile.name)
+        r2 = q.execute('select * from %s' % tmpfile.name)
 
-    #     self.assertTrue(r1.status == 'ok')
-    #     self.assertEquals(len(r1.warnings),0)
-    #     self.assertEquals(len(r1.data),2)
-    #     self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
-    #     self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-    #     self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertTrue(r1.status == 'ok')
+        self.assertEquals(len(r1.warnings),0)
+        self.assertEquals(len(r1.data),2)
+        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
+        self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
+        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
 
-    #     self.assertTrue(r2.status == 'ok')
-    #     self.assertEquals(len(r1.metadata.data_loads),1)
-    #     self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
-    #     self.assertEquals(len(r2.metadata.data_loads),0)
-    #     self.assertEquals(r2.data,r1.data)
-    #     self.assertEquals(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
-    #     self.assertEquals(len(r2.warnings),0)
+        self.assertTrue(r2.status == 'ok')
+        self.assertEquals(len(r1.metadata.data_loads),1)
+        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEquals(len(r2.metadata.data_loads),0)
+        self.assertEquals(r2.data,r1.data)
+        self.assertEquals(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
+        self.assertEquals(len(r2.warnings),0)
 
-    #     self.cleanup(tmpfile)
+        self.cleanup(tmpfile)
 
-    # def test_stdin_injection(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+    def test_stdin_injection(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
 
-    #     def open_file(filename,default_open_file_func):
-    #         if filename == '-':
-    #             return file(tmpfile.name,'rb')
-    #         else:
-    #             return default_open_file_func(filename)
+        def open_file(filenames_str,default_open_file_func):
+            if filenames_str == '-':
+                return (file(tmpfile.name,'rb'),[tmpfile.name])
+            else:
+                return default_open_file_func(filenames_str)
 
-    #     def close_file(filename,f,default_close_file_func):
-    #         if filename != '-':
-    #             f.close()
+        def close_file(filenames_str,f,default_close_file_func):
+            if filenames_str != '-':
+                f.close()
 
-    #     r = q.execute('select * from -',open_file_func=open_file,close_file_func=close_file)
+        r = q.execute('select * from -',open_file_func=open_file,close_file_func=close_file)
 
-    #     self.assertTrue(r.status == 'ok')
-    #     self.assertEquals(len(r.warnings),0)
-    #     self.assertEquals(len(r.data),2)
-    #     self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
-    #     self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-    #     self.assertEquals(len(r.metadata.data_loads),1)
-    #     self.assertEquals(r.metadata.data_loads[0].filename,'-')
+        self.assertTrue(r.status == 'ok')
+        self.assertEquals(len(r.warnings),0)
+        self.assertEquals(len(r.data),2)
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
+        self.assertEquals(r.data,[(1,2,3),(4,5,6)])
+        self.assertEquals(len(r.metadata.data_loads),1)
+        self.assertEquals(r.metadata.data_loads[0].filename,'-')
 
-    #     self.cleanup(tmpfile)
+        self.cleanup(tmpfile)
 
     def test_named_stdin_injection(self):
         tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-        ######### RLRL
-        #########
-        ##### The reason for failure is the fact that the glob.glob() materializing is done outside
-        ##### of the MaterializaedFileState object and not delegated into the open_file_func
-        ##### Need to push materialize_file_list to that Class and to the open_file_func itself
-        def open_file(filename,default_open_file_func):
-            print "opening %s" % filename
-            if filename == 'my_stdin_data':
-                return file(tmpfile.name,'rb')
+        def open_file(filenames_str,default_open_file_func):
+            if filenames_str == 'my_stdin_data':
+                return (file(tmpfile.name,'rb'),[tmpfile.name])
             else:
-                return default_open_file_func(filename)
+                return default_open_file_func(filenames_str)
 
-        def close_file(filename,f,default_close_file_func):
-            if filename != '-':
+        def close_file(filenames_str,f,default_close_file_func):
+            if filenames_str != '-':
                 f.close()
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select a from my_stdin_data',open_file_func=open_file,close_file_func=close_file)
 
-        print r
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
         self.assertEquals(len(r.data),2)
@@ -1823,8 +1816,26 @@ class BasicModuleTests(AbstractQTestCase):
     #     tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
     #     tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
 
+    #     def open_file1(filenames_str,default_open_file_func):
+    #         print "111",filenames_str
+    #         if filenames_str == '-':
+    #             return (file(tmpfile1.name,'rb'),[tmpfile1.name])
+    #         else:
+    #             return default_open_file_func(filenames_str)
+
+    #     def open_file2(filenames_str,default_open_file_func):
+    #         print "222",filenames_str
+    #         if filenames_str == '-':
+    #             return (file(tmpfile2.name,'rb'),[tmpfile2.name])
+    #         else:
+    #             return default_open_file_func(filenames_str)
+
+    #     def close_file(filenames_str,f,default_close_file_func):
+    #         if filenames_str != '-':
+    #             f.close()
+
     #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-    #     r1 = q.execute('select * from -',stdin_file=file(tmpfile1.name,'rb'))
+    #     r1 = q.execute('select * from -',open_file_func=open_file1,close_file_func=close_file)
 
     #     self.assertTrue(r1.status == 'ok')
     #     self.assertEquals(len(r1.warnings),0)
@@ -1834,7 +1845,8 @@ class BasicModuleTests(AbstractQTestCase):
     #     self.assertEquals(len(r1.metadata.data_loads),1)
     #     self.assertEquals(r1.metadata.data_loads[0].filename,'-')
 
-    #     r2 = q.execute('select * from -',stdin_file=file(tmpfile2.name,'rb'))
+    #     print "running 2"
+    #     r2 = q.execute('select * from -',open_file_func=open_file2,close_file_func=close_file)
 
     #     self.assertTrue(r2.status == 'ok')
     #     self.assertEquals(len(r2.warnings),0)
@@ -1848,230 +1860,289 @@ class BasicModuleTests(AbstractQTestCase):
     #     self.cleanup(tmpfile1)
     #     self.cleanup(tmpfile2)
 
-    # def test_multiple_stdin_injection(self):
-    #     tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-    #     tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
+    def test_multiple_stdin_injection(self):
+        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
 
-    #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-    #     r1 = q.execute('select * from my_stdin_data1',stdin_file=file(tmpfile1.name,'rb'),stdin_filename='my_stdin_data1')
+        def open_file1(filenames_str,default_open_file_func):
+            if filenames_str == 'my_stdin_data1':
+                return file(tmpfile1.name,'rb'),[tmpfile1.name]
+            else:
+                return default_open_file_func(filenames_str)
 
-    #     self.assertTrue(r1.status == 'ok')
-    #     self.assertEquals(len(r1.warnings),0)
-    #     self.assertEquals(len(r1.data),2)
-    #     self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
-    #     self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-    #     self.assertEquals(len(r1.metadata.data_loads),1)
-    #     self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
+        def open_file2(filenames_str,default_open_file_func):
+            if filenames_str == 'my_stdin_data2':
+                return file(tmpfile2.name,'rb'),[tmpfile2.name]
+            else:
+                return default_open_file_func(filenames_str)
 
-    #     r2 = q.execute('select * from my_stdin_data2',stdin_file=file(tmpfile2.name,'rb'),stdin_filename='my_stdin_data2')
+        def close_file(filenames_str,f,default_close_file_func):
+            f.close()
 
-    #     self.assertTrue(r2.status == 'ok')
-    #     self.assertEquals(len(r2.warnings),0)
-    #     self.assertEquals(len(r2.data),2)
-    #     self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
-    #     self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
-    #     # There should be another data load, even though it's the same 'filename' as before
-    #     self.assertEquals(len(r2.metadata.data_loads),1)
-    #     self.assertEquals(r2.metadata.data_loads[0].filename,'my_stdin_data2')
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        r1 = q.execute('select * from my_stdin_data1',open_file_func=open_file1,close_file_func=close_file)
 
-    #     r3 = q.execute('select aa.*,bb.* from my_stdin_data1 aa join my_stdin_data2 bb')
+        self.assertTrue(r1.status == 'ok')
+        self.assertEquals(len(r1.warnings),0)
+        self.assertEquals(len(r1.data),2)
+        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
+        self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
+        self.assertEquals(len(r1.metadata.data_loads),1)
+        self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
-    #     self.assertTrue(r3.status == 'ok')
-    #     self.assertEquals(len(r3.warnings),0)
-    #     self.assertEquals(len(r3.data),4)
-    #     self.assertEquals(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
-    #     self.assertEquals(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-    #     self.assertEquals(len(r3.metadata.data_loads),0)
+        r2 = q.execute('select * from my_stdin_data2',open_file_func=open_file2,close_file_func=close_file)
 
-    #     self.cleanup(tmpfile1)
-    #     self.cleanup(tmpfile2)
+        self.assertTrue(r2.status == 'ok')
+        self.assertEquals(len(r2.warnings),0)
+        self.assertEquals(len(r2.data),2)
+        self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
+        self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
+        # There should be another data load, even though it's the same 'filename' as before
+        self.assertEquals(len(r2.metadata.data_loads),1)
+        self.assertEquals(r2.metadata.data_loads[0].filename,'my_stdin_data2')
 
-    # def test_different_input_params_for_different_files(self):
-    #     tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-    #     tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+        r3 = q.execute('select aa.*,bb.* from my_stdin_data1 aa join my_stdin_data2 bb')
 
-    #     q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        self.assertTrue(r3.status == 'ok')
+        self.assertEquals(len(r3.warnings),0)
+        self.assertEquals(len(r3.data),4)
+        self.assertEquals(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
+        self.assertEquals(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEquals(len(r3.metadata.data_loads),0)
 
-    #     q.load_data(tmpfile1.name,QInputParams(skip_header=True,delimiter=' '))
-    #     q.load_data(tmpfile2.name,QInputParams(skip_header=False,delimiter='\t'))
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
-    #     r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
+    def test_different_input_params_for_different_files(self):
+        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
 
-    #     self.assertTrue(r.status == 'ok')
-    #     self.assertEquals(len(r.warnings),0)
-    #     self.assertEquals(len(r.data),4)
-    #     self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
-    #     self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-    #     self.assertEquals(len(r.metadata.data_loads),0)
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
 
-    #     self.cleanup(tmpfile1)
-    #     self.cleanup(tmpfile2)
+        q.load_data(tmpfile1.name,QInputParams(skip_header=True,delimiter=' '))
+        q.load_data(tmpfile2.name,QInputParams(skip_header=False,delimiter='\t'))
 
-    # def test_different_input_params_for_different_files(self):
-    #     tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-    #     tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+        r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
-    #     q = QTextAsData()
+        self.assertTrue(r.status == 'ok')
+        self.assertEquals(len(r.warnings),0)
+        self.assertEquals(len(r.data),4)
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEquals(len(r.metadata.data_loads),0)
 
-    #     q.load_data(tmpfile1.name,QInputParams(skip_header=True,delimiter=' '))
-    #     q.load_data(tmpfile2.name,QInputParams(skip_header=False,delimiter='\t'))
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
-    #     r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
+    def test_different_input_params_for_different_files2(self):
+        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
 
-    #     self.assertTrue(r.status == 'ok')
-    #     self.assertEquals(len(r.warnings),0)
-    #     self.assertEquals(len(r.data),4)
-    #     self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
-    #     self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-    #     self.assertEquals(len(r.metadata.data_loads),0)
+        q = QTextAsData()
 
-    #     self.cleanup(tmpfile1)
-    #     self.cleanup(tmpfile2)
+        q.load_data(tmpfile1.name,QInputParams(skip_header=True,delimiter=' '))
+        q.load_data(tmpfile2.name,QInputParams(skip_header=False,delimiter='\t'))
 
-    # def test_input_params_override(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
-    #     default_input_params = QInputParams()
+        self.assertTrue(r.status == 'ok')
+        self.assertEquals(len(r.warnings),0)
+        self.assertEquals(len(r.data),4)
+        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEquals(len(r.metadata.data_loads),0)
 
-    #     for k in default_input_params.__dict__.keys():
-    #         setattr(default_input_params,k,'GARBAGE')
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
-    #     q = QTextAsData(default_input_params)
+    def test_input_params_override(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     r = q.execute('select * from %s' % tmpfile.name)
+        default_input_params = QInputParams()
 
-    #     self.assertTrue(r.status == 'error')
+        for k in default_input_params.__dict__.keys():
+            setattr(default_input_params,k,'GARBAGE')
 
-    #     overwriting_input_params = QInputParams(skip_header=True,delimiter=' ')
+        q = QTextAsData(default_input_params)
 
-    #     r2 = q.execute('select * from %s' % tmpfile.name,input_params=overwriting_input_params)
+        r = q.execute('select * from %s' % tmpfile.name)
 
-    #     self.assertTrue(r2.status == 'ok')
-    #     self.assertEquals(len(r2.warnings),0)
-    #     self.assertEquals(len(r2.data),2)
-    #     self.assertEquals(r2.metadata.output_column_name_list,['a','b','c'])
-    #     self.assertEquals(r2.data,[(1,2,3),(4,5,6)])
-    #     self.assertEquals(len(r2.metadata.data_loads),1)
-    #     self.assertEquals(r2.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertTrue(r.status == 'error')
 
-    #     self.cleanup(tmpfile)
+        overwriting_input_params = QInputParams(skip_header=True,delimiter=' ')
 
-    # def test_input_params_merge(self):
-    #     input_params = QInputParams()
+        r2 = q.execute('select * from %s' % tmpfile.name,input_params=overwriting_input_params)
 
-    #     for k in input_params.__dict__.keys():
-    #         setattr(input_params,k,'GARBAGE')
+        self.assertTrue(r2.status == 'ok')
+        self.assertEquals(len(r2.warnings),0)
+        self.assertEquals(len(r2.data),2)
+        self.assertEquals(r2.metadata.output_column_name_list,['a','b','c'])
+        self.assertEquals(r2.data,[(1,2,3),(4,5,6)])
+        self.assertEquals(len(r2.metadata.data_loads),1)
+        self.assertEquals(r2.metadata.data_loads[0].filename,tmpfile.name)
 
-    #     merged_input_params = input_params.merged_with(QInputParams())
+        self.cleanup(tmpfile)
 
-    #     for k in merged_input_params.__dict__.keys():
-    #         self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
+    def test_input_params_merge(self):
+        input_params = QInputParams()
 
-    #     for k in input_params.__dict__.keys():
-    #         self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
+        for k in input_params.__dict__.keys():
+            setattr(input_params,k,'GARBAGE')
 
-    # def test_table_analysis_with_syntax_error(self):
+        merged_input_params = input_params.merged_with(QInputParams())
 
-    #     q = QTextAsData()
+        for k in merged_input_params.__dict__.keys():
+            self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
 
-    #     q_output = q.analyze("bad syntax")
+        for k in input_params.__dict__.keys():
+            self.assertTrue(getattr(merged_input_params,k) != 'GARBAGE')
 
-    #     self.assertTrue(q_output.status == 'error')
-    #     self.assertTrue(q_output.error.msg.startswith('query error'))
+    def test_table_analysis_with_syntax_error(self):
 
-    # def test_execute_response(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        q = QTextAsData()
 
-    #     q = QTextAsData()
+        q_output = q.analyze("bad syntax")
 
-    #     q_output = q.execute("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
+        self.assertTrue(q_output.status == 'error')
+        self.assertTrue(q_output.error.msg.startswith('query error'))
 
-    #     self.assertTrue(q_output.status == 'ok')
-    #     self.assertTrue(q_output.error is None)
-    #     self.assertEquals(len(q_output.warnings),0)
-    #     self.assertEquals(len(q_output.data),2)
-    #     self.assertEquals(q_output.data,[ (1,3),(4,6) ])
-    #     self.assertTrue(q_output.metadata is not None)
+    def test_materialized_files_in_response(self):
+        tmpfile1 = self.create_file_with_data("1 2 3\n4 5 6")
+        tmpfile2 = self.create_file_with_data("1 2 3\n4 5 6")
 
-    #     metadata = q_output.metadata
+        q = QTextAsData()
 
-    #     self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
-    #     self.assertEquals(len(metadata.data_loads),1)
-    #     self.assertEquals(len(metadata.table_structures),1)
+        TABLE_NAME = '%s+%s' % (tmpfile1.name,tmpfile2.name)
+        q_output = q.execute("select c1,c3 from %s" % TABLE_NAME,QInputParams(skip_header=False))
 
-    #     table_structure = metadata.table_structures[0]
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),4)
+        self.assertEquals(q_output.data,[ (1,3),(4,6),(1,3),(4,6) ])
+        self.assertTrue(q_output.metadata is not None)
 
-    #     self.assertEquals(table_structure.column_names,[ 'a','b','c'])
-    #     self.assertEquals(table_structure.column_types,[ 'int','int','int'])
-    #     self.assertEquals(table_structure.filenames_str,tmpfile.name)
-    #     self.assertTrue(len(table_structure.materialized_files.keys()),1)
-    #     self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
-    #     self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+        metadata = q_output.metadata
 
-    #     self.cleanup(tmpfile)
+        self.assertEquals(metadata.output_column_name_list, [ 'c1','c3'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
 
-    # def test_analyze_response(self):
-    #     tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        table_structure = metadata.table_structures[0]
 
-    #     q = QTextAsData()
+        self.assertEquals(table_structure.column_names,[ 'c1','c2','c3'])
+        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
+        self.assertEquals(table_structure.filenames_str,TABLE_NAME)
+        self.assertEquals(len(table_structure.materialized_files.keys()),1)
+        self.assertEquals(len(table_structure.materialized_files[TABLE_NAME]),2)
+        self.assertEquals(table_structure.materialized_files[TABLE_NAME][0].filename,tmpfile1.name)
+        self.assertEquals(table_structure.materialized_files[TABLE_NAME][1].filename,tmpfile2.name)
+        
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
-    #     q_output = q.analyze("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
 
-    #     self.assertTrue(q_output.status == 'ok')
-    #     self.assertTrue(q_output.error is None)
-    #     self.assertEquals(len(q_output.warnings),0)
-    #     self.assertEquals(len(q_output.data),2)
-    #     self.assertEquals(q_output.data,[ (1,3),(4,6) ])
-    #     self.assertTrue(q_output.metadata is not None)
+    def test_execute_response(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     metadata = q_output.metadata
+        q = QTextAsData()
 
-    #     self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
-    #     self.assertEquals(len(metadata.data_loads),1)
-    #     self.assertEquals(len(metadata.table_structures),1)
+        q_output = q.execute("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
 
-    #     table_structure = metadata.table_structures[0]
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),2)
+        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertTrue(q_output.metadata is not None)
 
-    #     self.assertEquals(table_structure.column_names,[ 'a','b','c'])
-    #     self.assertEquals(table_structure.column_types,[ 'int','int','int'])
-    #     self.assertEquals(table_structure.filenames_str,tmpfile.name)
-    #     self.assertTrue(len(table_structure.materialized_files.keys()),1)
-    #     self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
-    #     self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+        metadata = q_output.metadata
 
-    #     self.cleanup(tmpfile)
+        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
 
-    # def test_load_data_from_string(self):
-    #     input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
+        table_structure = metadata.table_structures[0]
 
-    #     q = QTextAsData()
+        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
+        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
+        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertEquals(len(table_structure.materialized_files.keys()),1)
+        self.assertEquals(table_structure.materialized_files[tmpfile.name][0].filename,tmpfile.name)
+        
+        self.cleanup(tmpfile)
 
-    #     q.load_data_from_string('my_data',input_str,QInputParams(skip_header=True,delimiter=','))
+    def test_analyze_response(self):
+        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
-    #     q_output = q.execute('select column2,column3 from my_data')
+        q = QTextAsData()
 
-    #     self.assertTrue(q_output.status == 'ok')
-    #     self.assertTrue(q_output.error is None)
-    #     self.assertEquals(len(q_output.warnings),0)
-    #     self.assertTrue(len(q_output.data),1000)
-    #     self.assertEquals(len(set(q_output.data)),1)
-    #     self.assertEquals(list(set(q_output.data))[0],(2.5,'value3'))
+        q_output = q.analyze("select a,c from %s" % tmpfile.name,QInputParams(skip_header=True))
 
-    #     metadata = q_output.metadata
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),2)
+        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertTrue(q_output.metadata is not None)
 
-    #     self.assertTrue(metadata.output_column_name_list,['column2','column3'])
-    #     self.assertEquals(len(metadata.data_loads),0)
-    #     self.assertTrue(len(metadata.table_structures),1)
+        metadata = q_output.metadata
 
-    #     table_structure = metadata.table_structures[0]
+        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
 
-    #     self.assertEquals(table_structure.column_names,['column1','column2','column3'])
-    #     self.assertEquals(table_structure.column_types,['text','float','text'])
-    #     self.assertEquals(table_structure.filenames_str,'my_data')
-    #     self.assertTrue(len(table_structure.materialized_files.keys()),1)
-    #     self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
-    #     self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
+        table_structure = metadata.table_structures[0]
 
+        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
+        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
+        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertEquals(len(table_structure.materialized_files.keys()),1)
+        self.assertEquals(table_structure.materialized_files[tmpfile.name][0].filename,tmpfile.name)
+
+        self.cleanup(tmpfile)
+
+    def test_load_data_from_string(self):
+        input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
+
+        q = QTextAsData()
+
+        def open_file(filenames_str,default_open_file_func):
+            import cStringIO
+            if filenames_str == 'my_data':
+                sf = cStringIO.StringIO(input_str)
+                return sf,['my_string_data__not_actually_from_a_file']
+            else:
+                default_open_file_func(filenames_str)
+
+        def close_file(filenames_str,f,default_close_file_func):
+            f.close()
+
+        # q.load_data_from_string('my_data',input_str,QInputParams(skip_header=True,delimiter=','))
+
+        q_output = q.execute('select column2,column3 from my_data',input_params=QInputParams(skip_header=True,delimiter=','),open_file_func=open_file,close_file_func=close_file)
+
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEquals(len(q_output.warnings),0)
+        self.assertEquals(len(q_output.data),1000)
+        self.assertEquals(len(set(q_output.data)),1)
+        self.assertEquals(list(set(q_output.data))[0],(2.5,'value3'))
+
+        metadata = q_output.metadata
+
+        self.assertTrue(metadata.output_column_name_list,['column2','column3'])
+        self.assertEquals(len(metadata.data_loads),1)
+        self.assertEquals(len(metadata.table_structures),1)
+
+        table_structure = metadata.table_structures[0]
+        self.assertEquals(table_structure.column_names,['column1','column2','column3'])
+        self.assertEquals(table_structure.column_types,['text','float','text'])
+        self.assertEquals(table_structure.filenames_str,'my_data')
+        self.assertEquals(len(table_structure.materialized_files.keys()),1)
+        self.assertEquals(table_structure.materialized_files['my_data'][0].filename,'my_string_data__not_actually_from_a_file')
+
+        
 
 def suite(l):
     tl = unittest.TestLoader()

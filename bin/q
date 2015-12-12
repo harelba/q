@@ -46,9 +46,9 @@ from ConfigParser import ConfigParser
 import traceback
 import csv
 import hashlib
-import uuid
 import cStringIO
 import math
+import fileinput
 
 csv.field_size_limit(sys.maxsize)
 
@@ -240,6 +240,21 @@ class CannotUnzipStdInException(Exception):
     def __init__(self):
         pass
 
+class FileFuncException(Exception):
+
+    def __init__(self,function):
+        self.function = function
+
+class OpenFileFuncException(FileFuncException):
+
+    def __init__(self,function):
+        super(OpenFileFuncException,self).__init__(function)
+
+class CloseFileFuncException(FileFuncException):
+
+    def __init__(self,function):
+        super(OpenFileFuncException,self).__init__(function)
+ 
 class UnprovidedStdInException(Exception):
 
     def __init__(self):
@@ -251,6 +266,7 @@ class EmptyDataException(Exception):
         pass
 
 
+# TODO Remove the reference to "files" all around, since now it's just streams of "file objects"
 class FileNotFoundException(Exception):
 
     def __init__(self, msg):
@@ -639,46 +655,74 @@ class TableCreatorState(object):
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
-def default_open_file_func(filename,chained_func=lambda x: None):
-    # Check if it's standard input or a file
-    if filename == '-':
-        return sys.stdin
-    else:
-        return file(filename,'rb')
+def _materialize_file_list(filenames_str):
+    materialized_file_list = []
 
-def default_close_file_func(filename,f,chained_func=lambda x: None):
+    # Get the list of filenames
+    filenames = filenames_str.split("+")
+
+    # for each filename (or pattern)
+    for fileglob in filenames:
+        materialized_file_list += glob.glob(fileglob)
+
+    return materialized_file_list
+
+def default_open_file_func(filenames_str,chained_func=lambda x: (None,None)):
+    # Check if it's standard input or a file
+    if filenames_str == '-':
+        return (sys.stdin,['-'])
+    else:
+        file_list = _materialize_file_list(filenames_str)
+        if len(file_list) == 0:
+            raise FileNotFoundException(
+                "No files matching '%s' have been found" % filenames_str)
+
+        if len(file_list) == 1:
+            return file(file_list[0],mode='rb'),file_list
+        else:
+            return (fileinput.input(files=file_list,mode='rb',openhook=fileinput.hook_compressed),file_list)
+
+def default_close_file_func(filenames_str,f,chained_func=lambda x: None):
     # RLRL REmoving this exposes a bug in csv_reader = ... Happens due to reusing the same
     # filename twice (and closing/reopening is not tidy)
     return
-    if filename != '-':
+    if filenames_str != '-':
         f.close()
 
-
 class MaterializedFileState(object):
-    def __init__(self,filename,encoding,dialect,gzipped=False,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
-        self.filename = filename
+    def __init__(self,filenames_str,encoding,dialect,gzipped=False,open_file_func=default_open_file_func,close_file_func=default_close_file_func):
+        self.filenames_str = filenames_str
         self.lines_read = 0
         self.encoding = encoding
         self.dialect = dialect
-        self.is_stdin = filename == '-' # RLRL TODO
         self.skipped_bom = False
         self.gzipped = gzipped
         self.open_file_func = open_file_func
         self.close_file_func = close_file_func
 
-        self.f = self._open_file(filename)
+        self.f,self.file_list = self._open_file(filenames_str)
 
-    def _open_file(self,filename):
-        f = self.open_file_func(filename,default_open_file_func)
-        if self.gzipped or filename.endswith('.gz'):
+    def _open_file(self,filenames_str):
+        try:
+            result = self.open_file_func(filenames_str,default_open_file_func)
+            f,file_list = result
+        except FileNotFoundException,e:
+            raise e
+        except Exception,e:
+            raise OpenFileFuncException(self.open_file_func)
+
+        if self.gzipped and type(f) == file:
             if f == sys.stdin:
                 raise CannotUnzipStdInException()
-            return gzip.GzipFile(fileobj=f)    
+            return gzip.GzipFile(fileobj=f),file_list    
         else:
-            return f
+            return f,file_list
 
     def _close_file(self):
-        self.close_file_func(self.filename,self.f,default_close_file_func)
+        try:
+            self.close_file_func(self.filenames_str,self.f,default_close_file_func)
+        except:
+            raise CloseFileFuncException(self.close_file_func)
 
     def read_file_using_csv(self):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
@@ -686,6 +730,10 @@ class MaterializedFileState(object):
         # multiple people.
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
+                # TODO This currently fails because FileInput is being used to concatenate files
+                #      and FileInput doesn't support read.
+                #      Since the BOM thing is a hack anyway, perhaps a modified form of the hack would work
+                #      here instead of replacing the entire FileInput solution. We'll see.
                 BOM = self.f.read(3)
                 if BOM != '\xef\xbb\xbf':
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
@@ -730,74 +778,45 @@ class TableCreator(object):
         # so column inferer can do its work before this information is needed
         self.numeric_column_indices = None
 
-        self.materialized_file_list = self.materialize_file_list()
+        self.mfs = None # To be filled by _prepopulate
         self.materialized_file_dict = {}
 
         self.state = TableCreatorState.NEW
-
-    def materialize_file_list(self):
-        materialized_file_list = []
-
-        # Get the list of filenames
-        filenames = self.filenames_str.split("+")
-
-        # for each filename (or pattern)
-        for fileglob in filenames:
-            # Allow either stdin or a glob match
-            if fileglob == '-': #self.stdin_filename:
-                materialized_file_list.append('-') #stdin removal needed
-            else:
-                materialized_file_list += glob.glob(fileglob)
-
-        # If there are no files to go over,
-        if len(materialized_file_list) == 0:
-            raise FileNotFoundException(
-                "No files matching '%s' have been found" % self.filenames_str)
-
-        return materialized_file_list
 
     def get_table_name(self):
         return self.table_name
 
     def _pre_populate(self,dialect):
-        # For each match
-        for filename in self.materialized_file_list:
-            if filename in self.materialized_file_dict.keys():
-                continue
-
-            mfs = MaterializedFileState(filename,self.encoding,dialect,gzipped=self.gzipped,
-                open_file_func=self.open_file_func,close_file_func=self.close_file_func)
-            self.materialized_file_dict[filename] = mfs
+        self.mfs = MaterializedFileState(self.filenames_str,self.encoding,dialect,gzipped=self.gzipped,
+            open_file_func=self.open_file_func,close_file_func=self.close_file_func)
 
     def _populate(self,dialect,stop_after_analysis=False):
-        # For each match
-        for filename in self.materialized_file_list:
-            mfs = self.materialized_file_dict[filename]
+        mfs = self.mfs
 
+        try:
             try:
-                try:
-                    for col_vals in mfs.read_file_using_csv():
-                        self._insert_row(col_vals)
-                        if stop_after_analysis and self.column_inferer.inferred:
-                            return
-                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
-                        raise EmptyDataException()
-                except StrictModeColumnCountMismatchException,e:
-                    raise ColumnCountMismatchException(
-                        'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
-                except FluffyModeColumnCountMismatchException,e:
-                    raise ColumnCountMismatchException(
-                        'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
-            finally:
-                if not stop_after_analysis:
-                    mfs.close()
-                self._flush_inserts()
+                for col_vals in mfs.read_file_using_csv():
+                    self._insert_row(col_vals)
+                    if stop_after_analysis and self.column_inferer.inferred:
+                        return
+                if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
+                    raise EmptyDataException()
+            except StrictModeColumnCountMismatchException,e:
+                raise ColumnCountMismatchException(
+                    'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
+                    e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filenames_str), mfs.lines_read))
+            except FluffyModeColumnCountMismatchException,e:
+                raise ColumnCountMismatchException(
+                    'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
+                    normalized_filename(mfs.filenames_str), mfs.lines_read, e.actual_col_count, e.expected_col_count))
+        finally:
+            if not stop_after_analysis:
+                mfs.close()
+            self._flush_inserts()
 
-            if not self.table_created:
-                self.column_inferer.force_analysis()
-                self._do_create_table()
+        if not self.table_created:
+            self.column_inferer.force_analysis()
+            self._do_create_table()
 
     def populate(self,dialect,stop_after_analysis=False):
         if self.state == TableCreatorState.NEW:
@@ -998,12 +1017,11 @@ class QDataLoad(object):
     __repr__ = __str__
 
 class QMaterializedFile(object):
-    def __init__(self,filename,is_stdin):
+    def __init__(self,filename):
         self.filename = filename
-        self.is_stdin = is_stdin
 
     def __str__(self):
-        return "QMaterializedFile<filename=%s,is_stdin=%s>" % (self.filename,self.is_stdin)
+        return "QMaterializedFile<filename=%s>" % (self.filename)
     __repr__ = __str__
 
 class QTableStructure(object):
@@ -1136,10 +1154,10 @@ class QTextAsData(object):
         # Create a line splitter
         line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
 
-        # reuse already loaded data, except for stdin file data (stdin file data will always
-        # be reloaded and overwritten)
-        if filename in self.table_creators.keys() and filename != stdin_filename:
+        # reuse already loaded data
+        if filename in self.table_creators.keys():
             return None
+
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
@@ -1236,6 +1254,8 @@ class QTextAsData(object):
             error = QError(e,"Bad header row: %s" % e.msg,35)
         except CannotUnzipStdInException,e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
+        except FileFuncException,e:
+            error = QError(e,"Error while converting table name to actual data. Function name is %s" % e.function,37)
         except UnprovidedStdInException,e:
             error = QError(e,"Standard Input must be provided in order to use it as a table",61)
         except CouldNotConvertStringToNumericValueException,e:
@@ -1263,11 +1283,10 @@ class QTextAsData(object):
         self.table_creators = {}
 
     def _create_materialized_files(self,table_creator):
-        d = table_creator.materialized_file_dict
-        m = {}
-        for filename,mfs in d.iteritems():
-            m[filename] = QMaterializedFile(filename,mfs.is_stdin)
-        return m
+        l = []
+        for filename in table_creator.mfs.file_list:
+            l.append(QMaterializedFile(filename))
+        return { table_creator.filenames_str : l }
 
     def _create_table_structures_list(self):
         table_structures = []
@@ -1507,6 +1526,8 @@ def run_standalone():
     #-----------------------------------------------
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
+    parser.add_option("-V", "--verbose", dest="verbose", default=False, action="store_true",
+                      help="Verbose Mode, mainly for troubleshooting issues")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
@@ -1560,6 +1581,10 @@ def run_standalone():
     #-----------------------------------------------
 
     (options, args) = parser.parse_args()
+
+    if options.verbose:
+        global DEBUG
+        DEBUG = True
 
     if options.version:
         print_credentials()

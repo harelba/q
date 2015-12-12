@@ -5,7 +5,7 @@ This branch is not fully functional yet!
 
 The purpose of this change is to allow pluggable file object streams to be used with q by providing a function that opens and closed file objects based on the virtual "table name" provided in queries.
 
-API is not final yet, this is just a playground for now.
+API is not final yet, this is just a playground for now. The rest of the API definition is in [Here](README.markdown)
 
 No documentation is provided yet. However, suggestions on how to bundle q properly in order for it to become a full fledged python module, without losing the command line capability are most welcome.
 

@@ -14,6 +14,7 @@ open_file_func and close_file_func are expected in multiple function calls, such
 
 definitions of open_file_func and close_file_func:
 
+````
 def open_file_func(table_name,default_open_file_func):
 	return (X,Y)
 	# Where:
@@ -27,9 +28,9 @@ def open_file_func(table_name,default_open_file_func):
 def close_file_func(table_name,f,default_close_file_func):
 	# Should make sure that f (the file object) is closed.
 	# No return value expected
-	
+````	
 Simplistic Example:
-
+````
 def open_file_func(table_name,default_open_file_func):
 	if table_name == '-':
 		return sys.stdin
@@ -41,5 +42,5 @@ def open_file_func(table_name,default_open_file_func):
 
 def close_file_func(table_name,f,default_close_file_func):
 	f.close()
-
+````
 

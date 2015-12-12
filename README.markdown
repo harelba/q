@@ -17,7 +17,7 @@ Instructions for all OSs are [here](http://harelba.github.io/q/install.html).
 Go [here](http://harelba.github.io/q/examples.html) for more examples.
 
 ## Python API
-A development branch for exposing q's capabilities as a <strong>Python module</strong> can be viewed <a href="https://github.com/harelba/q/tree/expose-as-python-api">here</a>, along with examples of the alpha version of the API.<br/>Existing functionality as a command-line tool will not be affected by this. Your input will be most appreciated.
+A development branch for exposing q's capabilities as a <strong>Python module</strong> can be viewed <a href="https://github.com/harelba/q/tree/generic-injected-streams/PYTHON-API.markdown">here</a>, along with examples of the alpha version of the API.<br/>Existing functionality as a command-line tool will not be affected by this. Your input will be most appreciated.
 
 ## Change log
 Click [here](http://harelba.github.io/q/changelog.html) to see the change log.

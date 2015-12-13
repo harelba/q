@@ -553,6 +553,10 @@ class TableColumnInferer(object):
         if self.expected_column_count is not None:
             self.column_count = self.expected_column_count
         else:
+            # If no rows and has header_row, take the header_row
+            if not len(column_count_list) and len(self.header_row):
+                self.column_count = len(self.header_row)
+                return
             # If not specified, we'll take the largest row in the sample rows
             self.column_count = max(column_count_list)
 
@@ -767,7 +771,7 @@ class TableCreator(object):
                         self._insert_row(col_vals)
                         if stop_after_analysis and self.column_inferer.inferred:
                             return
-                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
+                    if mfs.lines_read == 0:
                         raise EmptyDataException()
                 except StrictModeColumnCountMismatchException,e:
                     raise ColumnCountMismatchException(
@@ -1398,7 +1402,7 @@ class QOutputPrinter(object):
                     if formatting_dict is not None and str(i + 1) in formatting_dict.keys() and not skip_formatting:
                         fmt_str = formatting_dict[str(i + 1)]
                     else:
-                        if self.output_params.beautify:
+                        if self.output_params.beautify and i in max_lengths:
                             fmt_str = "%%-%ss" % max_lengths[i]
                         else:
                             fmt_str = "%s"

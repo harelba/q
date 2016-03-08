@@ -475,11 +475,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
+        self.assertNotEquals(retcode, 0)
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue('Warning - data is empty' in e[0])
+        m = "Header line is expected but missing in file %s" % tmpfile.name
+        self.assertTrue(m in e[0])
 
         self.cleanup(tmpfile)
 

@@ -250,6 +250,11 @@ class EmptyDataException(Exception):
     def __init__(self):
         pass
 
+class MissingHeaderException(Exception):
+
+    def __init__(self,msg):
+        self.msg = msg
+
 
 class FileNotFoundException(Exception):
 
@@ -471,8 +476,6 @@ class TableColumnInferer(object):
 
         if self.column_count == 1 and self.expected_column_count != 1:
             print >>sys.stderr, "Warning: column count is one - did you provide the correct delimiter?"
-        if self.column_count == 0:
-            raise Exception("Detected a column count of zero... Failing")
 
         self.infer_column_types()
 
@@ -550,11 +553,14 @@ class TableColumnInferer(object):
     def _do_relaxed_analysis(self):
         column_count_list = [len(col_vals) for col_vals in self.rows]
 
-        if self.expected_column_count is not None:
-            self.column_count = self.expected_column_count
+        if len(self.rows) == 0:
+            self.column_count = 0
         else:
-            # If not specified, we'll take the largest row in the sample rows
-            self.column_count = max(column_count_list)
+            if self.expected_column_count is not None:
+                self.column_count = self.expected_column_count
+            else:
+                # If not specified, we'll take the largest row in the sample rows
+                self.column_count = max(column_count_list)
 
     def get_column_count_summary(self, column_count_list):
         counts = {}
@@ -757,6 +763,8 @@ class TableCreator(object):
             self.materialized_file_dict[filename] = mfs
 
     def _populate(self,dialect,stop_after_analysis=False):
+        total_data_lines_read = 0
+
         # For each match
         for filename in self.materialized_file_list:
             mfs = self.materialized_file_dict[filename]
@@ -767,8 +775,10 @@ class TableCreator(object):
                         self._insert_row(col_vals)
                         if stop_after_analysis and self.column_inferer.inferred:
                             return
-                    if mfs.lines_read == 0 or (mfs.lines_read == 1 and self.skip_header):
-                        raise EmptyDataException()
+                    if mfs.lines_read == 0 and self.skip_header:
+                        raise MissingHeaderException("Header line is expected but missing in file %s" % filename)
+
+                    total_data_lines_read += mfs.lines_read - (1 if self.skip_header else 0)
                 except StrictModeColumnCountMismatchException,e:
                     raise ColumnCountMismatchException(
                         'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
@@ -785,6 +795,10 @@ class TableCreator(object):
             if not self.table_created:
                 self.column_inferer.force_analysis()
                 self._do_create_table()
+
+       
+        if total_data_lines_read == 0:
+            raise EmptyDataException()
 
     def populate(self,dialect,stop_after_analysis=False):
         if self.state == TableCreatorState.NEW:
@@ -928,9 +942,17 @@ class TableCreator(object):
         self.table_name = self.db.generate_temp_table_name()
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
+
+        # Guard against empty tables (instead of preventing the creation, just create with a dummy column)
+        if len(column_dict) == 0:
+            column_dict = { 'dummy_column_for_empty_tables' : str } 
+            ordered_column_names = [ 'dummy_column_for_empty_tables' ]
+        else:
+            ordered_column_names = self.column_inferer.get_column_names()
+
         # Create the CREATE TABLE statement
         create_table_stmt = self.db.generate_create_table(
-            self.table_name, self.column_inferer.get_column_names(), column_dict)
+            self.table_name, ordered_column_names, column_dict)
         # And create the table itself
         self.db.execute_and_fetch(create_table_stmt)
         # Mark the table as created
@@ -1208,6 +1230,8 @@ class QTextAsData(object):
 
         except EmptyDataException,e:
             warnings.append(QWarning(e,"Warning - data is empty"))
+        except MissingHeaderException,e:
+            error = QError(e,e.msg,117)
         except FileNotFoundException, e:
             error = QError(e,e.msg,30)
         except sqlite3.OperationalError, e:

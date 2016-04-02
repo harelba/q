@@ -396,7 +396,7 @@ class LineSplitter(object):
 
 class TableColumnInferer(object):
 
-    def __init__(self, mode, expected_column_count, input_delimiter, skip_header=False):
+    def __init__(self, mode, expected_column_count, input_delimiter, skip_header=False,disable_column_type_detection=False):
         self.inferred = False
         self.mode = mode
         self.rows = []
@@ -404,6 +404,7 @@ class TableColumnInferer(object):
         self.header_row = None
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
+        self.disable_column_type_detection = disable_column_type_detection
 
     def analyze(self, col_vals):
         if self.inferred:
@@ -427,6 +428,9 @@ class TableColumnInferer(object):
         self.do_analysis()
 
     def determine_type_of_value(self, value):
+        if self.disable_column_type_detection:
+            return str
+
         if value is not None:
             value = value.strip()
         if value == '' or value is None:
@@ -677,7 +681,8 @@ class MaterializedFileState(object):
 
 class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,stdin_file=None,stdin_filename='-'):
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,disable_column_type_detection=False,
+        stdin_file=None,stdin_filename='-'):
         self.db = db
         self.filenames_str = filenames_str
         self.skip_header = skip_header
@@ -692,7 +697,7 @@ class TableCreator(object):
         self.stdin_filename = stdin_filename
 
         self.column_inferer = TableColumnInferer(
-            mode, expected_column_count, input_delimiter, skip_header)
+            mode, expected_column_count, input_delimiter, skip_header,disable_column_type_detection)
 
         # Filled only after table population since we're inferring the table
         # creation data
@@ -1073,6 +1078,7 @@ class QInputParams(object):
             delimiter=' ',input_encoding='UTF-8',gzipped_input=False,parsing_mode='relaxed',
             expected_column_count=None,keep_leading_whitespace_in_values=False,
             disable_double_double_quoting=False,disable_escaped_double_quoting=False,
+            disable_column_type_detection=False,
             input_quoting_mode='minimal',stdin_file=None,stdin_filename='-'):
         self.skip_header = skip_header
         self.delimiter = delimiter
@@ -1084,6 +1090,7 @@ class QInputParams(object):
         self.disable_double_double_quoting = disable_double_double_quoting
         self.disable_escaped_double_quoting = disable_escaped_double_quoting
         self.input_quoting_mode = input_quoting_mode
+        self.disable_column_type_detection = disable_column_type_detection
 
     def merged_with(self,input_params):
         params = QInputParams(**self.__dict__)
@@ -1154,7 +1161,8 @@ class QTextAsData(object):
         table_creator = TableCreator(
             self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count, 
-            input_delimiter=input_params.delimiter,stdin_file = stdin_file,stdin_filename = stdin_filename)
+            input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
+            stdin_file = stdin_file,stdin_filename = stdin_filename)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
@@ -1542,6 +1550,8 @@ def run_standalone():
                       help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
     input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
                       help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+    input_data_option_group.add_option("--disable-column-type-detection", dest="disable_column_type_detection", default=False, action="store_true",
+                      help="Don't detect column types - All columns will be text columns")
     input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
     parser.add_option_group(input_data_option_group)
@@ -1676,7 +1686,8 @@ def run_standalone():
         keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
         disable_double_double_quoting=options.disable_double_double_quoting,
         disable_escaped_double_quoting=options.disable_escaped_double_quoting,
-        input_quoting_mode=options.input_quoting_mode)
+        input_quoting_mode=options.input_quoting_mode,
+        disable_column_type_detection=options.disable_column_type_detection)
     q_engine = QTextAsData(default_input_params=default_input_params)
 
     output_params = QOutputParams(

@@ -1694,6 +1694,75 @@ class SqlTests(AbstractQTestCase):
 
         self.cleanup(tmpfile2)
 
+    def test_disable_column_type_detection(self):
+        tmpfile = self.create_file_with_data('''regular_text,text_with_digits1,text_with_digits2,float_number
+"regular text 1",67,"67",12.3
+"regular text 2",067,"067",22.3
+"regular text 3",123,"123",33.4
+"regular text 4",-123,"-123",0122.2
+''')
+
+        # Check original column type detection
+        cmd = '../bin/q -A -d , -H "select * from %s"' % (tmpfile.name)
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 5)
+
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1],'  `regular_text` - text')
+        self.assertEquals(o[2],'  `text_with_digits1` - int')
+        self.assertEquals(o[3],'  `text_with_digits2` - int')
+        self.assertEquals(o[4],'  `float_number` - float')
+
+        # Check column types detected when actual detection is disabled
+        cmd = '../bin/q -A -d , -H --disable-column-type-detection "select * from %s"' % (tmpfile.name)
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 5)
+
+        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
+        self.assertEquals(o[1],'  `regular_text` - text')
+        self.assertEquals(o[2],'  `text_with_digits1` - text')
+        self.assertEquals(o[3],'  `text_with_digits2` - text')
+        self.assertEquals(o[4],'  `float_number` - text')
+
+        # Get actual data with regular detection
+        cmd = '../bin/q -d , -H "select * from %s"' % (tmpfile.name)
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 4)
+
+        self.assertEquals(o[0],"regular text 1,67,67,12.3");
+        self.assertEquals(o[1],"regular text 2,67,67,22.3");
+        self.assertEquals(o[2],"regular text 3,123,123,33.4");
+        self.assertEquals(o[3],"regular text 4,-123,-123,122.2");
+
+        # Get actual data without detection
+        cmd = '../bin/q -d , -H --disable-column-type-detection "select * from %s"' % (tmpfile.name)
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(e), 0)
+        self.assertEquals(len(o), 4)
+
+        self.assertEquals(o[0],"regular text 1,67,67,12.3");
+        self.assertEquals(o[1],"regular text 2,067,067,22.3");
+        self.assertEquals(o[2],"regular text 3,123,123,33.4");
+        self.assertEquals(o[3],"regular text 4,-123,-123,0122.2");
+
+        self.cleanup(tmpfile)
+
 class BasicModuleTests(AbstractQTestCase):
 
     def test_simple_query(self):

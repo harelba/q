@@ -1550,8 +1550,8 @@ def run_standalone():
                       help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
     input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
                       help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--disable-column-type-detection", dest="disable_column_type_detection", default=False, action="store_true",
-                      help="Don't detect column types - All columns will be text columns")
+    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection", default=False, action="store_true",
+                      help="Don't detect column types - All columns will be treated as text columns")
     input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
     parser.add_option_group(input_data_option_group)

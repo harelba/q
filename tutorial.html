@@ -1,161 +1,161 @@
 <!DOCTYPE html>
 <html>
 
-  <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="q : q - Text as Data" />
+<head>
+  <meta charset='utf-8' />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+  <meta name="description" content="q : q - Text as Data" />
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Tutorial</title>
-    <script type="text/javascript" src="javascripts/google-analytics.js"></script>
-  </head>
+  <title>Tutorial</title>
+  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
+</head>
 
-  <body>
+<body>
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-		<select id="language_switcher" onChange="window.location.href=this.value">
-			<option value="index.html" selected>English</option>
-			<option value="ja/index.html">Japanese</option>
-		</select>
-          <img id="q-logo" src="images/q-logo1.png"/>
-          <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+  <!-- HEADER -->
+  <div id="header_wrap" class="outer">
+    <header class="inner">
+      <select id="language_switcher" onChange="window.location.href=this.value">
+        <option value="index.html" selected>English</option>
+        <option value="ja/index.html">Japanese</option>
+      </select>
+      <img id="q-logo" src="images/q-logo1.png"/>
+      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
 
-          <h1 id="project_title">q</h1>
-          <h2 id="project_tagline">q - Text as Data</h2>
-
-
-	  <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
-
-            <section id="downloads">
-              <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
-              <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
-              <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
-              <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
-              <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
-              <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
-            </section>
-        </header>
-    </div>
-
-	<div id="sidenav">
-		<h1 id="general">General</h1>
-		<ul>
-		<li><a href="index.html">Home</a></li>
-		<li><a href="install.html">Download and Install</a></li>
-		<li><a href="requirements.html">Requirements</a></li>
-		<li><a href="limitations.html">Limitations</a></li>
-		<li><a href="future-ideas.html">Future Ideas</a></li>
-		</ul>
-		<h1 id="documentation">Documentation</h1>
-		<ul>
-		<li><a href="usage.html">Usage</a></li>
-		<li><a href="examples.html">Examples</a></li>
-		<li><a href="tutorial.html">Tutorial for Beginners</a></li>
-		</ul>
-		<h1 id="other">Behind the Scenes</h1>
-		<ul>
-		<li><a href="changelog.html">Change Log</a></li>
-		<li><a href="implementation.html">Implementation</a></li>
-		<li><a href="rationale.html">Rationale</a></li>
-		</ul>
-                <h1 id="author">Author</h1>
-                <ul>
-                <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
-                </ul>
-                <h1 id="social">Social</h1>
-                <ul>
-                <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
-                </ul>
-
-	</div>
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-<h2>
-<a name="tutorial" class="anchor" href="#tutorial"><span class="octicon octicon-link"></span></a>Tutorial</h2>
-
-<p>This is a tutorial for beginners. If you're familiar with the concept and just wanna see some full fledged examples, take a look at the <a href="examples.html">examples page</a>.</p>
-
-<p>Tutorial steps:</p>
-
-<h2>A simple example</h2>
-<p>We'll start with a simple example and work from there. The file <code>exampledatafile</code> contains the output of an <code>ls -l</code> command, a list of files in some directory. In this example we'll do some calculations on this file list.</p>
-
-<ul>
-<li>
-<p>The following commands will count the lines in the file <em>exampledatafile</em>, effectively getting the number of files in the directory. The output will be exactly as if we ran the <code>wc -l</code> command.  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT COUNT(1) FROM exampledatafile"    
-
-  cat exampledatafile | q "SELECT COUNT(1) FROM -"   
-</code></pre>
-</li>
-<li>
-<p>Now, let's assume we want to know the number of files per date in the directory. Notice that the date is in column 6.</p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"   
-</code></pre>
-</li>
-<li>
-<p>The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's leave only the ones which have 3 files or more:  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt &gt;= 3"   
-</code></pre>
-</li>
-<li>
-<p>Now, let's see if we can get something more interesting. The following command will provide the <strong>total size</strong> of the files for each date. Notice that the file size is in c5.  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"   
-</code></pre>
-</li>
-<li>
-<p>We can see the results. However, the sums are in bytes. Let's show the same results but in KB:  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"  
-</code></pre>
-</li>
-<li>
-<p>The last command provided us with a list of results, but there is no order and the list is too long. Let's get the Top 5 dates:  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"   
-</code></pre>
-</li>
-<li>
-<p>Now we'll see how we can format the output itself, so it looks better:  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">  q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"  
-</code></pre>
-</li>
-</ul>
-</li>
-</ul>
-
-<br/>
-
-<h2>A more complicated example, showing time manipulation</h2>
-<p>Let's assume that we have a file with a timestamp as its first column. We'll show how it's possible to get the number of rows per full minute:  </p>
-
-<pre class="code_example_wrapper"><code class="code_example">q "SELECT DATETIME(ROUND(c1/60000)*60000/1000,'unixepoch','-05:00') as min, COUNT(1) FROM datafile*.gz GROUP BY min"  
-</code></pre>
+      <h1 id="project_title">q</h1>
+      <h2 id="project_tagline">q - Text as Data</h2>
 
 
-<p>There are several things to notice here:</p>
+      <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
 
-<ul>
-<li>The timestamp value is in the first column, hence c1.</li>
-<li>The timestamp is assumed to be a unix epoch timestamp, but in ms, and DATETIME accepts seconds, so we need to divide by 1000</li>
-<li>The full-minute rounding is done by dividing by 60000 (ms), rounding and then multiplying by the same amount. Rounding to an hour, for example, would be the same except for having 3600000 instead of 60000.</li>
-<li>We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)</li>
-<li>The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.</li>
-<li>
-<strong>NOTE:</strong> For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.</li>
-</ul>
-</li>
-</ul>
+      <section id="downloads">
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+      </section>
+    </header>
+  </div>
 
-  </body>
+  <div id="sidenav">
+    <h1 id="general">General</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Download and Install</a></li>
+      <li><a href="requirements.html">Requirements</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
+      <li><a href="future-ideas.html">Future Ideas</a></li>
+    </ul>
+    <h1 id="documentation">Documentation</h1>
+    <ul>
+      <li><a href="usage.html">Usage</a></li>
+      <li><a href="examples.html">Examples</a></li>
+      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
+    </ul>
+    <h1 id="other">Behind the Scenes</h1>
+    <ul>
+      <li><a href="changelog.html">Change Log</a></li>
+      <li><a href="implementation.html">Implementation</a></li>
+      <li><a href="rationale.html">Rationale</a></li>
+    </ul>
+    <h1 id="author">Author</h1>
+    <ul>
+      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+    </ul>
+    <h1 id="social">Social</h1>
+    <ul>
+      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+    </ul>
+
+  </div>
+  <!-- MAIN CONTENT -->
+  <div id="main_content_wrap" class="outer">
+    <section id="main_content" class="inner">
+      <h2>
+        <a name="tutorial" class="anchor" href="#tutorial"><span class="octicon octicon-link"></span></a>Tutorial</h2>
+
+        <p>This is a tutorial for beginners. If you're familiar with the concept and just wanna see some full fledged examples, take a look at the <a href="examples.html">examples page</a>.</p>
+
+        <p>Tutorial steps:</p>
+
+        <h2>A simple example</h2>
+        <p>We'll start with a simple example and work from there. The file <code>exampledatafile</code> contains the output of an <code>ls -l</code> command, a list of files in some directory. In this example we'll do some calculations on this file list.</p>
+
+        <ul>
+          <li>
+            <p>The following commands will count the lines in the file <em>exampledatafile</em>, effectively getting the number of files in the directory. The output will be exactly as if we ran the <code>wc -l</code> command.  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT COUNT(1) FROM exampledatafile"
+
+              cat exampledatafile | q "SELECT COUNT(1) FROM -"
+            </code></pre>
+          </li>
+          <li>
+            <p>Now, let's assume we want to know the number of files per date in the directory. Notice that the date is in column 6.</p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,COUNT(1) FROM exampledatafile GROUP BY c6"
+            </code></pre>
+          </li>
+          <li>
+            <p>The results will show the number of files per date. However, there's a lot of "noise" - dates in which there is only one file. Let's leave only the ones which have 3 files or more:  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,COUNT(1) AS cnt FROM exampledatafile GROUP BY c6 HAVING cnt &gt;= 3"
+            </code></pre>
+          </li>
+          <li>
+            <p>Now, let's see if we can get something more interesting. The following command will provide the <strong>total size</strong> of the files for each date. Notice that the file size is in c5.  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5) AS size FROM exampledatafile GROUP BY c6"
+            </code></pre>
+          </li>
+          <li>
+            <p>We can see the results. However, the sums are in bytes. Let's show the same results but in KB:  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6"
+            </code></pre>
+          </li>
+          <li>
+            <p>The last command provided us with a list of results, but there is no order and the list is too long. Let's get the Top 5 dates:  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"
+            </code></pre>
+          </li>
+          <li>
+            <p>Now we'll see how we can format the output itself, so it looks better:  </p>
+
+            <pre class="code_example_wrapper"><code class="code_example">  q -f "2=%4.2f" "SELECT c6,SUM(c5)/1024.0 AS size FROM exampledatafile GROUP BY c6 ORDER BY size DESC LIMIT 5"
+            </code></pre>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <br/>
+
+    <h2>A more complicated example, showing time manipulation</h2>
+    <p>Let's assume that we have a file with a timestamp as its first column. We'll show how it's possible to get the number of rows per full minute:  </p>
+
+    <pre class="code_example_wrapper"><code class="code_example">q "SELECT DATETIME(ROUND(c1/60000)*60000/1000,'unixepoch','-05:00') as min, COUNT(1) FROM datafile*.gz GROUP BY min"
+    </code></pre>
+
+
+    <p>There are several things to notice here:</p>
+
+    <ul>
+      <li>The timestamp value is in the first column, hence c1.</li>
+      <li>The timestamp is assumed to be a unix epoch timestamp, but in ms, and DATETIME accepts seconds, so we need to divide by 1000</li>
+      <li>The full-minute rounding is done by dividing by 60000 (ms), rounding and then multiplying by the same amount. Rounding to an hour, for example, would be the same except for having 3600000 instead of 60000.</li>
+      <li>We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)</li>
+      <li>The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.</li>
+      <li>
+        <strong>NOTE:</strong> For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.</li>
+      </ul>
+    </li>
+  </ul>
+
+</body>
 </html>

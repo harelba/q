@@ -302,6 +302,12 @@ Full-Width Styles
   margin: 0 auto;
 }
 
+#language_switcher {
+  display: block;
+  position: absolute;
+  top:0;
+}
+
 #forkme_banner {
   display: block;
   position: absolute;

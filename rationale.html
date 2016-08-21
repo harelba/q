@@ -1,97 +1,101 @@
 <!DOCTYPE html>
 <html>
 
-  <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="q : q - Text as Data" />
+<head>
+  <meta charset='utf-8' />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+  <meta name="description" content="q : q - Text as Data" />
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Rationale</title>
-    <script type="text/javascript" src="javascripts/google-analytics.js"></script>
-  </head>
+  <title>Rationale</title>
+  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
+</head>
 
-  <body>
+<body>
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <img id="q-logo" src="images/q-logo1.png"/>
-          <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+  <!-- HEADER -->
+  <div id="header_wrap" class="outer">
+    <header class="inner">
+      <select id="language_switcher" onChange="window.location.href=this.value">
+        <option value="index.html" selected>English</option>
+        <option value="ja/index.html">Japanese</option>
+      </select>
+      <img id="q-logo" src="images/q-logo1.png"/>
+      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
 
-          <h1 id="project_title">q</h1>
-          <h2 id="project_tagline">q - Text as Data</h2>
+      <h1 id="project_title">q</h1>
+      <h2 id="project_tagline">q - Text as Data</h2>
 
 
-	  <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
+      <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
 
-            <section id="downloads">
-              <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
-              <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
-              <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
-              <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
-              <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
-              <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
-            </section>
-        </header>
-    </div>
+      <section id="downloads">
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+      </section>
+    </header>
+  </div>
 
-	<div id="sidenav">
-		<h1 id="general">General</h1>
-		<ul>
-		<li><a href="index.html">Home</a></li>
-		<li><a href="install.html">Download and Install</a></li>
-		<li><a href="requirements.html">Requirements</a></li>
-		<li><a href="limitations.html">Limitations</a></li>
-		<li><a href="future-ideas.html">Future Ideas</a></li>
-		</ul>
-		<h1 id="documentation">Documentation</h1>
-		<ul>
-		<li><a href="usage.html">Usage</a></li>
-		<li><a href="examples.html">Examples</a></li>
-		<li><a href="tutorial.html">Tutorial for Beginners</a></li>
-		</ul>
-		<h1 id="other">Behind the Scenes</h1>
-		<ul>
-		<li><a href="changelog.html">Change Log</a></li>
-		<li><a href="implementation.html">Implementation</a></li>
-		<li><a href="rationale.html">Rationale</a></li>
-		</ul>
-                <h1 id="author">Author</h1>
-                <ul>
-                <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
-                </ul>
-                <h1 id="social">Social</h1>
-                <ul>
-                <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
-                </ul>
+  <div id="sidenav">
+    <h1 id="general">General</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Download and Install</a></li>
+      <li><a href="requirements.html">Requirements</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
+      <li><a href="future-ideas.html">Future Ideas</a></li>
+    </ul>
+    <h1 id="documentation">Documentation</h1>
+    <ul>
+      <li><a href="usage.html">Usage</a></li>
+      <li><a href="examples.html">Examples</a></li>
+      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
+    </ul>
+    <h1 id="other">Behind the Scenes</h1>
+    <ul>
+      <li><a href="changelog.html">Change Log</a></li>
+      <li><a href="implementation.html">Implementation</a></li>
+      <li><a href="rationale.html">Rationale</a></li>
+    </ul>
+    <h1 id="author">Author</h1>
+    <ul>
+      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+    </ul>
+    <h1 id="social">Social</h1>
+    <ul>
+      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+    </ul>
 
-	</div>
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
+  </div>
+  <!-- MAIN CONTENT -->
+  <div id="main_content_wrap" class="outer">
+    <section id="main_content" class="inner">
 
-<h2>
-<a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h2>
+      <h2>
+        <a name="overview" class="anchor" href="#overview"><span class="octicon octicon-link"></span></a>Overview</h2>
 
-<p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the <em>database</em> that I want. It's the language - SQL.</p>
+        <p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the <em>database</em> that I want. It's the language - SQL.</p>
 
-<p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
+        <p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
 
-<p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
+        <p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
 
-<h2>
-<a name="why-arent-other-linux-tools-enough" class="anchor" href="#why-arent-other-linux-tools-enough"><span class="octicon octicon-link"></span></a>Why aren't other Linux tools enough?</h2>
+        <h2>
+          <a name="why-arent-other-linux-tools-enough" class="anchor" href="#why-arent-other-linux-tools-enough"><span class="octicon octicon-link"></span></a>Why aren't other Linux tools enough?</h2>
 
-<p>The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.</p>
+          <p>The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.</p>
 
-<p>One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).</p>
+          <p>One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).</p>
 
-<h2>
-<a name="philosophy" class="anchor" href="#philosophy"><span class="octicon octicon-link"></span></a>Philosophy</h2>
+          <h2>
+            <a name="philosophy" class="anchor" href="#philosophy"><span class="octicon octicon-link"></span></a>Philosophy</h2>
 
-<p>This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read the amazing book <a href="http://catb.org/%7Eesr/writings/taoup/">http://catb.org/~esr/writings/taoup/</a> and specifically <a href="http://catb.org/%7Eesr/writings/taoup/html/ch01s06.html">http://catb.org/~esr/writings/taoup/html/ch01s06.html</a>. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.</p>
+            <p>This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read the amazing book <a href="http://catb.org/%7Eesr/writings/taoup/">http://catb.org/~esr/writings/taoup/</a> and specifically <a href="http://catb.org/%7Eesr/writings/taoup/html/ch01s06.html">http://catb.org/~esr/writings/taoup/html/ch01s06.html</a>. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.</p>
 
-  </body>
-</html>
+          </body>
+          </html>

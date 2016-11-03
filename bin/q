@@ -887,8 +887,8 @@ class TableCreator(object):
         if self.mode == 'relaxed':
             if actual_col_count > expected_col_count:
                 xxx = col_vals[:expected_col_count - 1] + \
-                    [self.input_delimiter.join(
-                        col_vals[expected_col_count - 1:])]
+                    [self.input_delimiter.join([v if v  is not None else '' for v in 
+                        col_vals[expected_col_count - 1:]])]
                 return xxx
             else:
                 return col_vals

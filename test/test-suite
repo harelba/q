@@ -1719,7 +1719,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(o[4],'  `float_number` - float')
 
         # Check column types detected when actual detection is disabled
-        cmd = '../bin/q -A -d , -H --disable-column-type-detection "select * from %s"' % (tmpfile.name)
+        cmd = '../bin/q -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
@@ -1748,7 +1748,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(o[3],"regular text 4,-123,-123,122.2");
 
         # Get actual data without detection
-        cmd = '../bin/q -d , -H --disable-column-type-detection "select * from %s"' % (tmpfile.name)
+        cmd = '../bin/q -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 

@@ -1412,7 +1412,11 @@ class QOutputPrinter(object):
 
         # If the user requested beautifying the output
         if self.output_params.beautify:
-            max_lengths = determine_max_col_lengths(data,self.output_field_quoting_func,self.output_params.delimiter)
+            if self.output_params.output_header:
+                data_with_possible_headers = data + [tuple(results.metadata.output_column_name_list)]
+            else:
+                data_with_possible_headers = data
+            max_lengths = determine_max_col_lengths(data_with_possible_headers,self.output_field_quoting_func,self.output_params.delimiter)
 
         if self.output_params.formatting:
             formatting_dict = dict(

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+  <meta name="description" content="q : q - Text as Data" />
+
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+  <title>Changelog</title>
+  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div id="header_wrap" class="outer">
+    <header class="inner">
+      <select id="language_switcher" onChange="window.location.href=this.value">
+        <option value="index.html" selected>English</option>
+        <option value="ja/index.html">Japanese</option>
+      </select>
+      <img id="q-logo" src="images/q-logo1.png"/>
+      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+
+      <h1 id="project_title">q</h1>
+      <h2 id="project_tagline">q - Text as Data</h2>
+
+      <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
+
+      <section id="downloads">
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+      </section>
+    </header>
+  </div>
+
+  <div id="sidenav">
+    <h1 id="general">General</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Download and Install</a></li>
+      <li><a href="requirements.html">Requirements</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
+      <li><a href="future-ideas.html">Future Ideas</a></li>
+    </ul>
+    <h1 id="documentation">Documentation</h1>
+    <ul>
+      <li><a href="usage.html">Usage</a></li>
+      <li><a href="examples.html">Examples</a></li>
+      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
+    </ul>
+    <h1 id="other">Behind the Scenes</h1>
+    <ul>
+      <li><a href="changelog.html">Change Log</a></li>
+      <li><a href="implementation.html">Implementation</a></li>
+      <li><a href="rationale.html">Rationale</a></li>
+    </ul>
+    <h1 id="author">Author</h1>
+    <ul>
+      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+    </ul>
+    <h1 id="social">Social</h1>
+    <ul>
+      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+    </ul>
+  </div>
+  <!-- MAIN CONTENT -->
+  <div id="main_content_wrap" class="outer">
+    <section id="main_content" class="inner">
+      <h2>
+        <a name="change-log" class="anchor" href="#change-log"><span class="octicon octicon-link"></span></a>Change log</h2>
+
+        <p><strong>Fri Dec 12 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.5.0-1</strong></p>
+
+        <ul>
+          <li>Full input/output support for double-quoting fields with delimiters</li>
+          <li>Multiple query support in one command line, reusing previously loaded data in subsequent queries</li>
+          <li>Support literal SELECT statements (e.g. SELECT 5+12.5/3)</li>
+          <li>Full code restructuring (Internally working now using a full python API which will become public in the next version)</li>
+          <li>Added sha1 function. You can use 'select sha1(c3) from ...'</li>
+          <li>Solved the following bugs/pull-requests:
+
+            <ul>
+              <li><a href="https://github.com/harelba/q/issues/10">#10</a> - Reuse of previously loaded data when running multiple queries in one command line</li>
+              <li><a href="https://github.com/harelba/q/issues/64">#64</a> - Full support for literal SELECT statements without a table (e.g. SELECT 5+12.5)</li>
+              <li><a href="https://github.com/harelba/q/issues/56">#56</a> - Proper double quote handling, including multiline fields, for both input and output according to csv standards</li>
+              <li><a href="https://github.com/harelba/q/issues/69">#69</a> - Added warning suppression when the user provides a specific column count</li>
+              <li><a href="https://github.com/harelba/q/issues/40">#40</a> - Code restructuring cleaning, creating a full python API (will be published in the next version)</li>
+              <li><a href="https://github.com/harelba/q/issues/60">#60</a> - Fixed RPM packaging</li>
+              <li><a href="https://github.com/harelba/q/issues/68">#68</a> - UTF-8 with BOM files cause column naming issues</li>
+              <li><a href="https://github.com/harelba/q/issues/63">#63</a> - Unicode string support in regexp function</li>
+            </ul>
+          </li>
+        </ul>
+
+
+        <p><strong>Sat Jun 14 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.4.0-1</strong></p>
+
+        <ul>
+          <li>2.5x Speed improvement due to better bulk loading</li>
+          <li>Output header support</li>
+          <li>Additional control over query and output encodings</li>
+          <li>Solved the following bugs/pull-requests:
+
+            <ul>
+              <li>
+                <a href="https://github.com/harelba/q/issues/52">#52</a> - Bulk insert for better performance</li>
+                <li>
+                  <a href="https://github.com/harelba/q/issues/55">#55</a> - Use UUID to ensure temporary table names don't clash</li>
+                  <li>
+                    <a href="https://github.com/harelba/q/issues/53">#53</a> - Allow easier tab-delimited output</li>
+                    <li>
+                      <a href="https://github.com/harelba/q/issues/51">#51</a> - Ensure that generated temp tables are uniquely named</li>
+                      <li>
+                        <a href="https://github.com/harelba/q/issues/50">#50</a> - Copyright peculiarities</li>
+                        <li>
+                          <a href="https://github.com/harelba/q/issues/49">#49</a> - Add option to output fieldnames as headers</li>
+                          <li>
+                            <a href="https://github.com/harelba/q/issues/48">#48</a> - PEP 8</li>
+                            <li>
+                              <a href="https://github.com/harelba/q/issues/47">#47</a> - Prevent regexp from failing when field value is null</li>
+                              <li>
+                                <a href="https://github.com/harelba/q/issues/41">#41</a> - Fix project folder structure</li>
+                                <li>
+                                  <a href="https://github.com/harelba/q/issues/32">#32</a> - Remove duplicated definitions, and PEP8-ing (tabs to spaces, etc.)</li>
+                                  <li>
+                                    <a href="https://github.com/harelba/q/issues/29">#29</a> - RPM: Source0 should be a URL</li>
+                                    <li>
+                                      <a href="https://github.com/harelba/q/issues/54">#54</a> - Fix query encoding (data encoding works well)</li>
+                                    </ul>
+                                  </li>
+                                </ul><p><strong>Thu Mar 03 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.3.0-1</strong></p>
+
+                                <ul>
+                                  <li>Added column name and type detection (Use -A to see name/type analysis for the specified input)</li>
+                                  <li>Added support for multiple parsing modes - Relaxed, Strict and Fluffy (old, backward compatible behavior)</li>
+                                  <li>Fixed tab delimition parameter problem</li>
+                                  <li>More improvements to error reporting</li>
+                                  <li>Added a test suite, in preparation for refactoring</li>
+                                  <li>Solves the following bugs/pull-requests:
+
+                                    <ul>
+                                      <li>
+                                        <a href="https://github.com/harelba/q/issues/7">#7</a>  - Dynamic column count support</li>
+                                        <li>
+                                          <a href="https://github.com/harelba/q/issues/8">#8</a>  - Column name inference from input containing a header row</li>
+                                          <li>
+                                            <a href="https://github.com/harelba/q/issues/9">#9</a>  - Automatic column type inference using sample data</li>
+                                            <li>
+                                              <a href="https://github.com/harelba/q/issues/30">#30</a> - Header lines option does nothing</li>
+                                              <li>
+                                                <a href="https://github.com/harelba/q/issues/33">#33</a> - Last column should allow for spaces?</li>
+                                                <li>
+                                                  <a href="https://github.com/harelba/q/issues/35">#35</a> - Add q.bat</li>
+                                                  <li>
+                                                    <a href="https://github.com/harelba/q/issues/38">#38</a> - Problem with whitespace delimiter</li>
+                                                    <li>
+                                                      <a href="https://github.com/harelba/q/issues/43">#43</a> - using the -t flag stopped the header flag from working</li>
+                                                      <li>
+                                                        <a href="https://github.com/harelba/q/issues/44">#44</a> - Space in column name on TAB separated values break q</li>
+                                                      </ul>
+                                                    </li>
+                                                    <li>Breaking changes:
+
+                                                      <ul>
+                                                        <li>Changed -H behavior so it's now a flag an not a parameter (1 line always)</li>
+                                                        <li>Removed support for multi-char delimiters</li>
+                                                      </ul>
+                                                    </li>
+                                                  </ul><p><strong>Sat Feb 22 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.2.0-1</strong></p>
+
+                                                  <ul>
+                                                    <li>Support for quoted fields in CSVs</li>
+                                                    <li>Some bug fixes</li>
+                                                    <li>Improved error reporting</li>
+                                                  </ul><p><strong>Thu Feb 20 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.1.7-1</strong></p>
+
+                                                  <ul>
+                                                    <li>Better error reporting</li>
+                                                    <li>Fixed python invocation for non stanard locations</li>
+                                                    <li>Added man page</li>
+                                                  </ul><p><strong>Tue Jan 7 2014 Harel Ben-Attia <a href="mailto:harelba@gmail.com">harelba@gmail.com</a> 1.0.0-1</strong></p>
+
+                                                  <ul>
+                                                    <li>Initial version - tag was needed for homebrew formula</li>
+                                                  </ul>
+
+
+                                                </body>
+                                                </html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <meta charset='utf-8' />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+  <meta name="description" content="q : q - Text as Data" />
+
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+  <title>Run SQL directly on CSV files | Text as Data | q</title>
+  <meta name="description" content="Execute SQL queries directly on CSV/TSV files using the command-line. Automatically detects column names and types.">
+  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div id="header_wrap" class="outer">
+    <header class="inner">
+      <select id="language_switcher" onChange="window.location.href=this.value">
+        <option value="index.html" selected>English</option>
+        <option value="ja/index.html">Japanese</option>
+      </select>
+      <img id="q-logo" src="images/q-logo1.png"/>
+      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+
+      <h1 id="project_title">q</h1>
+      <h2 id="project_tagline">q - Text as Data</h2>
+
+
+      <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
+
+      <section id="downloads">
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+      </section>
+    </header>
+  </div>
+
+  <div id="sidenav">
+    <h1 id="general">General</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Download and Install</a></li>
+      <li><a href="requirements.html">Requirements</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
+      <li><a href="future-ideas.html">Future Ideas</a></li>
+    </ul>
+    <h1 id="documentation">Documentation</h1>
+    <ul>
+      <li><a href="usage.html">Usage</a></li>
+      <li><a href="examples.html">Examples</a></li>
+      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
+    </ul>
+    <h1 id="other">Behind the Scenes</h1>
+    <ul>
+      <li><a href="changelog.html">Change Log</a></li>
+      <li><a href="implementation.html">Implementation</a></li>
+      <li><a href="rationale.html">Rationale</a></li>
+    </ul>
+    <h1 id="author">Author</h1>
+    <ul>
+      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+    </ul>
+    <h1 id="social">Social</h1>
+    <ul>
+      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+    </ul>
+
+
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main_content_wrap" class="outer">
+
+    <div id="main_content" class="inner">
+      <p style="color: white; text-align: center; background-color: green">Version <code style="background-color: green; color: black"><a href="changelog.html" style="color: black">1.5.0</a></code> is out! Feedback is most welcome</p>
+
+      <p>q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).</p>
+
+      <p>q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.</p>
+
+      <pre class="main_example_wrapper">
+        <code class="main_example">q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 &gt; 32.3"</code>
+      </pre>
+      <br/>
+      <pre class="main_example_wrapper">
+        <code class="main_example2">ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"</code>
+      </pre>
+      <p>Look at the <a href="examples.html">examples</a> page for some more examples, or just download the tool using the links above or in the <a href="install.html">installation page</a> and play with it.</p>
+      <br/>
+      <div style="text-align: center;">
+        <table style="margin: 0px auto; ">
+          <tr><td style="text-align: center; padding: 1;" ><p>完全支持所有的字符编码</p></td><td style="text-align: center; padding: 1;" ><p>すべての文字エンコーディングを完全にサポート</p></td></tr>
+          <tr><td style="text-align: center; padding: 1;" ><p>모든 문자 인코딩이 완벽하게 지원됩니다</p></td><td style="text-align: center; padding: 1;" ><p>все кодировки символов полностью поддерживаются</p></td></tr>
+        </table>
+      </div>
+      <p><strong>Non-english users:</strong> q fully supports all types of encoding. Use <strong>"-e data-encoding"</strong> to set the input data encoding, <strong>"-Q query-encoding"</strong> to set the query encoding, and use <strong>"-E output-encoding"</strong> to set the output encoding. Sensible defaults are in place for all three parameters. Please contact me if you encounter any issues and I'd be glad to help.</p>
+
+    </body>
+    </html>

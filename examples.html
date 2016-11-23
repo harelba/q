@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+  <meta name="description" content="q : q - Text as Data" />
+
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+  <title>Examples</title>
+  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div id="header_wrap" class="outer">
+    <header class="inner">
+      <select id="language_switcher" onChange="window.location.href=this.value">
+        <option value="index.html" selected>English</option>
+        <option value="ja/index.html">Japanese</option>
+      </select>
+      <img id="q-logo" src="images/q-logo1.png"/>
+      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
+
+      <h1 id="project_title">q</h1>
+      <h2 id="project_tagline">q - Text as Data</h2>
+
+
+      <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
+
+      <section id="downloads">
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+      </section>
+    </header>
+  </div>
+
+  <div id="sidenav">
+    <h1 id="general">General</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="install.html">Download and Install</a></li>
+      <li><a href="requirements.html">Requirements</a></li>
+      <li><a href="limitations.html">Limitations</a></li>
+      <li><a href="future-ideas.html">Future Ideas</a></li>
+    </ul>
+    <h1 id="documentation">Documentation</h1>
+    <ul>
+      <li><a href="usage.html">Usage</a></li>
+      <li><a href="examples.html">Examples</a></li>
+      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
+    </ul>
+    <h1 id="other">Behind the Scenes</h1>
+    <ul>
+      <li><a href="changelog.html">Change Log</a></li>
+      <li><a href="implementation.html">Implementation</a></li>
+      <li><a href="rationale.html">Rationale</a></li>
+    </ul>
+    <h1 id="author">Author</h1>
+    <ul>
+      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
+    </ul>
+    <h1 id="social">Social</h1>
+    <ul>
+      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
+    </ul>
+
+  </div>
+  <!-- MAIN CONTENT -->
+  <div id="main_content_wrap" class="outer">
+    <div id="main_content" class="inner">
+      <h2>Examples</h2>
+      <p>The <code>-H</code> flag in the examples below signifies that the file has a header row which is used for naming columns.</p>
+      <p>The <code>-t</code> flag is just a shortcut for saying that the file is a tab-separated file (any delimiter is supported - Use the <code>-d</code> flag).</p>
+
+      <p>Queries are given using upper case for clarity, but actual query keywords such as SELECT and WHERE are not really case sensitive.</p>
+
+      <ul>
+        <li>Examples</li>
+        <ul>
+          <li><a href="#example1">Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)</a></li>
+          <li><a href="#example2">Example 2 - Filter numeric data, controlling ORDERing and LIMITing output</a></li>
+          <li><a href="#example3">Example 3 - Illustrate GROUP BY</a></li>
+          <li><a href="#example4">Example 4 - More complex GROUP BY (group by time expression)</a></li>
+          <li><a href="#example5">Example 5 - Read input from standard input</a></li>
+          <li><a href="#example6">Example 6 - Use column names from header row</a></li>
+          <li><a href="#example7">Example 7 - JOIN two files</a></li>
+        </ul>
+      </ul>
+
+      <br/><br/>
+
+      <p><strong><a name="example1"></a>Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)</strong></p>
+
+      <pre class="code_example_wrapper"><code class="code_example">q -H -t "SELECT COUNT(DISTINCT(uuid)) FROM ./clicks.csv"
+      </code></pre>
+
+      <p><strong>Output 1:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example">229
+      </pre></div>
+
+      <br/><br/>
+
+      <p><strong><a name="example2"></a>Example 2 - Filter numeric data, controlling ORDERing and LIMITing output</strong></p>
+
+      <p> Note that <code>q</code> understands that the column is numeric and filters according to its numeric value (real numeric value comparison, not string comparison).</p>
+
+      <pre class="code_example_wrapper"><code class="code_example">q -H -t "SELECT request_id,score FROM ./clicks.csv WHERE score &gt; 0.7 ORDER BY score DESC LIMIT 5"
+      </code></pre>
+
+      <p><strong>Output 2:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">2cfab5ceca922a1a2179dc4687a3b26e    1.0
+        f6de737b5aa2c46a3db3208413a54d64    0.986665809568
+        766025d25479b95a224bd614141feee5    0.977105183282
+        2c09058a1b82c6dbcf9dc463e73eddd2    0.703255121794
+      </pre></div>
+
+      <br/><br/>
+
+      <p><strong><a name="example3"></a>Example 3 - Illustrate GROUP BY</strong></p>
+
+      <pre class="code_example_wrapper"><code class="code_example">q -t -H "SELECT hashed_source_machine,count(*) FROM ./clicks.csv GROUP BY hashed_source_machine"
+      </code></pre>
+
+      <p><strong>Output 3:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">47d9087db433b9ba.domain.com 400000
+      </pre></div>
+
+      <br/><br/>
+
+      <p><strong><a name="example4"></a>Example 4 - More complex GROUP BY (group by time expression)</strong></p>
+
+      <pre class="code_example_wrapper"><code class="code_example">q -t -H "SELECT strftime('%H:%M',date_time) hour_and_minute,count(*) FROM ./clicks.csv GROUP BY hour_and_minute"
+      </code></pre>
+
+      <p><strong>Output 4:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">07:00   138148
+        07:01   140026
+        07:02   121826
+      </pre></div>
+
+      <br/><br/>
+      <p><strong><a name="example5"></a>Example 5 - Read input from standard input</strong></p>
+
+      <p>Calculates the total size per user/group in the /tmp subtree.</p>
+
+      <pre class="code_example_wrapper"><code class="code_example">sudo find /tmp -ls | q "SELECT c5,c6,sum(c7)/1024.0/1024 AS total FROM - GROUP BY c5,c6 ORDER BY total desc"
+      </code></pre>
+
+      <p><strong>Output 5:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">mapred hadoop   304.00390625
+        root   root     8.0431451797485
+        smith  smith    4.34389972687
+      </pre></div>
+
+      <br/><br/>
+      <p><strong><a name="example6"></a>Example 6 - Use column names from header row</strong></p>
+
+      <p>Calculate the top 3 user ids with the largest number of owned processes, sorted in descending order.</p>
+      <p>Note the usage of the autodetected column name UID in the query.</p>
+
+      <pre class="code_example_wrapper"><code class="code_example">ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+      </code></pre>
+
+      <p><strong>Output 6:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">root 152
+        harel 119
+        avahi 2
+      </pre></div>
+
+
+
+      <br/><br/>
+      <p><strong><a name="example7"></a>Example 7 - JOIN two files</strong></p>
+
+      <p>The following command joins an ls output (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) and a file containing rows of group-name,email (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-example">group-emails-example</a>) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause.
+      </p>
+
+      <pre class="code_example_wrapper"><code class="code_example">q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"
+      </code></pre>
+
+      <p><strong>Output 7:</strong></p>
+
+      <div class="highlight highlight-bash"><pre class="code_example_wrapper code_example">ppp dip.1@otherdomain.com
+        ppp dip.2@otherdomain.com
+      </pre></div>
+
+      <p>You can see that the <code>ppp</code> filename appears twice, each time matched to one of the emails of the group dip to which it belongs. Take a look at the files <code>exampledatafile</code> and <code>group-emails-example</code> for the data.</p>
+
+      <p>Column name detection is supported for JOIN scenarios as well. Just specify <code>-H</code> in the command line and make sure that the source files contain the header rows.</p>
+
+    </body>
+    </html>

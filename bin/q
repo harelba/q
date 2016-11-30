@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 #   Copyright (C) 2012-2014 Harel Ben-Attia
 #
@@ -23,21 +23,20 @@
 #
 # Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 #
-# Full Documentation and details in http://harelba.github.io/q/ 
+# Full Documentation and details in http://harelba.github.io/q/
 #
 # Run with --help for command line details
 #
-q_version = "1.6.0notreleasedyet" 
+q_version = "1.6.0notreleasedyet"
 
-__all__ = [ 'QTextAsData' ]
+__all__ = ['QTextAsData']
 
 import os
 import sys
 import sqlite3
 import gzip
 import glob
-from optparse import OptionParser,OptionGroup
-import traceback as tb
+from optparse import OptionParser, OptionGroup
 import codecs
 import locale
 import time
@@ -46,7 +45,6 @@ from ConfigParser import ConfigParser
 import traceback
 import csv
 import hashlib
-import uuid
 import cStringIO
 import math
 
@@ -54,9 +52,10 @@ csv.field_size_limit(sys.maxsize)
 
 DEBUG = False
 
+
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
-       return encoding_override
+        return encoding_override
 
     if sys.stdout.isatty():
         return sys.stdout.encoding
@@ -65,11 +64,13 @@ def get_stdout_encoding(encoding_override=None):
 
 SHOW_SQL = False
 
+
 def sha1(data):
-    if not isinstance(data,str) and not isinstance(data,unicode):
+    if not isinstance(data, str) and not isinstance(data, unicode):
         return hashlib.sha1(str(data)).hexdigest()
     return hashlib.sha1(data).hexdigest()
-    
+
+
 def regexp(regular_expression, data):
     if data is not None:
         if not isinstance(data, str) and not isinstance(data, unicode):
@@ -78,10 +79,12 @@ def regexp(regular_expression, data):
     else:
         return False
 
+
 class Sqlite3DBResults(object):
-    def __init__(self,query_column_names,results):
+    def __init__(self, query_column_names, results):
         self.query_column_names = query_column_names
         self.results = results
+
 
 def percentile(l, p):
     # TODO Alpha implementation, need to provide multiple interpolation methods, and add tests
@@ -94,37 +97,43 @@ def percentile(l, p):
         return l[int(k)]
     return (c-k) * l[int(f)] + (k-f) * l[int(c)]
 
+
 class StrictPercentile(object):
     def __init__(self):
         self.values = []
         self.p = None
-    def step(self,value,p):
+
+    def step(self, value, p):
         if self.p is None:
-          self.p = p
+            self.p = p
         self.values.append(value)
 
     def finalize(self):
         if len(self.values) == 0 or (self.p < 0 or self.p > 1):
-            return None 
+            return None
         else:
-            return percentile(sorted(self.values),self.p)
+            return percentile(sorted(self.values), self.p)
+
 
 class Sqlite3DB(object):
-
     def __init__(self, show_sql=SHOW_SQL):
         self.show_sql = show_sql
         self.conn = sqlite3.connect(':memory:')
         self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
         self.type_names = {
-            str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
+            str: 'TEXT',
+            int: 'INT',
+            long: 'INT',
+            float: 'FLOAT',
+            None: 'TEXT'}
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
         self.conn.create_function("sha1", 1, sha1)
-        self.conn.create_aggregate("percentile",2,StrictPercentile)
+        self.conn.create_aggregate("percentile", 2, StrictPercentile)
 
     def is_numeric_type(self, column_type):
         return column_type in self.numeric_column_types
@@ -132,7 +141,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print sql, " params: " + str(params)
+                sys.stdout.write(sql + " params: " + str(params) + '\n')
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()
@@ -140,7 +149,7 @@ class Sqlite3DB(object):
     def execute_and_fetch(self, q):
         try:
             if self.show_sql:
-                print repr(q)
+                sys.stdout.write(repr(q) + '\n')
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
@@ -150,7 +159,7 @@ class Sqlite3DB(object):
             result = self.cursor.fetchall()
         finally:
             pass  # cursor.close()
-        return Sqlite3DBResults(query_column_names,result)
+        return Sqlite3DBResults(query_column_names, result)
 
     def _get_as_list_str(self, l):
         return ",".join(['"%s"' % x.replace('"', '""') for x in l])
@@ -202,86 +211,64 @@ class Sqlite3DB(object):
     def drop_table(self, table_name):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
-class CouldNotConvertStringToNumericValueException(Exception):
 
+class MessageBaseException(Exception):
     def __init__(self, msg):
         self.msg = msg
 
     def __str(self):
         return repr(self.msg)
 
-class CouldNotParseInputException(Exception):
 
-    def __init__(self, msg):
-        self.msg = msg
+class CouldNotConvertStringToNumericValueException(MessageBaseException):
+    pass
 
-    def __str(self):
-        return repr(self.msg)
 
-class BadHeaderException(Exception):
+class CouldNotParseInputException(MessageBaseException):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
 
-    def __str(self):
-        return repr(self.msg)
+class BadHeaderException(MessageBaseException):
+    pass
 
-class EncodedQueryException(Exception):
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
+class EncodedQueryException(MessageBaseException):
+    pass
 
 
 class CannotUnzipStdInException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class UnprovidedStdInException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class EmptyDataException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class MissingHeaderException(Exception):
-
-    def __init__(self,msg):
-        self.msg = msg
-
-
-class FileNotFoundException(Exception):
-
     def __init__(self, msg):
         self.msg = msg
 
-    def __str(self):
-        return repr(self.msg)
+
+class FileNotFoundException(MessageBaseException):
+    pass
 
 
-class ColumnCountMismatchException(Exception):
+class ColumnCountMismatchException(MessageBaseException):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
 
 class StrictModeColumnCountMismatchException(Exception):
-
-    def __init__(self,expected_col_count,actual_col_count):
+    def __init__(self, expected_col_count, actual_col_count):
         self.expected_col_count = expected_col_count
         self.actual_col_count = actual_col_count
 
-class FluffyModeColumnCountMismatchException(Exception):
 
-    def __init__(self,expected_col_count,actual_col_count):
+class FluffyModeColumnCountMismatchException(Exception):
+    def __init__(self, expected_col_count, actual_col_count):
         self.expected_col_count = expected_col_count
         self.actual_col_count = actual_col_count
 
@@ -396,7 +383,7 @@ class LineSplitter(object):
 
 class TableColumnInferer(object):
 
-    def __init__(self, mode, expected_column_count, input_delimiter, skip_header=False,disable_column_type_detection=False):
+    def __init__(self, mode, expected_column_count, input_delimiter, skip_header=False, disable_column_type_detection=False):
         self.inferred = False
         self.mode = mode
         self.rows = []
@@ -446,7 +433,7 @@ class TableColumnInferer(object):
             pass
 
         try:
-            f = float(value)
+            float(value)
             return float
         except:
             pass
@@ -456,7 +443,7 @@ class TableColumnInferer(object):
     def determine_type_of_value_list(self, value_list):
         type_list = [self.determine_type_of_value(v) for v in value_list]
         all_types = set(type_list)
-        if len(set(type_list)) == 1:
+        if len(all_types) == 1:
             # all the sample lines are of the same type
             return type_list[0]
         else:
@@ -540,7 +527,7 @@ class TableColumnInferer(object):
                     # in relaxed mode, add columns to fill the missing ones
                     self.header_row = self.header_row + \
                         ['c%s' % (x + len(self.header_row) + 1)
-                         for x in xrange(self.column_count - len(self.header_row))]
+                         for x in range(self.column_count - len(self.header_row))]
             elif len(self.header_row) > self.column_count:
                 if self.mode == 'strict':
                     raise ColumnCountMismatchException("Strict mode. Header row contains more columns than expected column count (%s vs %s)" % (
@@ -590,7 +577,7 @@ class TableColumnInferer(object):
     def infer_column_types(self):
         self.column_types = []
         self.column_types2 = []
-        for column_number in xrange(self.column_count):
+        for column_number in range(self.column_count):
             column_value_list = [
                 row[column_number] if column_number < len(row) else None for row in self.rows]
             column_type = self.determine_type_of_value_list(column_value_list)
@@ -631,11 +618,12 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
         else:
             for row in csv_reader:
                 yield row
-    except ValueError,e:
+    except ValueError as e:
         if e.message is not None and e.message.startswith('could not convert string to'):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
             raise CouldNotParseInputException(str(e))
+
 
 def normalized_filename(filename):
     if filename == '-':
@@ -643,14 +631,16 @@ def normalized_filename(filename):
     else:
         return filename
 
+
 class TableCreatorState(object):
     NEW = 'NEW'
     INITIALIZED = 'INITIALIZED'
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
+
 class MaterializedFileState(object):
-    def __init__(self,filename,f,encoding,dialect,is_stdin):
+    def __init__(self, filename, f, encoding, dialect, is_stdin):
         self.filename = filename
         self.lines_read = 0
         self.f = f
@@ -661,14 +651,14 @@ class MaterializedFileState(object):
 
     def read_file_using_csv(self):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
-        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
+        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by
         # multiple people.
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
                 BOM = self.f.read(3)
                 if BOM != '\xef\xbb\xbf':
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
-            except Exception,e:
+            except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
         csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
         for col_vals in csv_reader:
@@ -679,10 +669,11 @@ class MaterializedFileState(object):
         if self.f != sys.stdin:
             self.f.close()
 
-class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,disable_column_type_detection=False,
-        stdin_file=None,stdin_filename='-'):
+class TableCreator(object):
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8',
+                 mode='fluffy', expected_column_count=None, input_delimiter=None, disable_column_type_detection=False,
+                 stdin_file=None, stdin_filename='-'):
         self.db = db
         self.filenames_str = filenames_str
         self.skip_header = skip_header
@@ -697,7 +688,7 @@ class TableCreator(object):
         self.stdin_filename = stdin_filename
 
         self.column_inferer = TableColumnInferer(
-            mode, expected_column_count, input_delimiter, skip_header,disable_column_type_detection)
+            mode, expected_column_count, input_delimiter, skip_header, disable_column_type_detection)
 
         # Filled only after table population since we're inferring the table
         # creation data
@@ -739,7 +730,7 @@ class TableCreator(object):
     def get_table_name(self):
         return self.table_name
 
-    def open_file(self,filename):
+    def open_file(self, filename):
         # Check if it's standard input or a file
         if filename == self.stdin_filename:
             if self.stdin_file is None:
@@ -749,12 +740,12 @@ class TableCreator(object):
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=file(filename,'rb'))    
+                f = gzip.GzipFile(fileobj=open(filename, 'rb'))
             else:
-                f = file(filename,'rb')
+                f = open(filename, 'rb')
         return f
 
-    def _pre_populate(self,dialect):
+    def _pre_populate(self, dialect):
         # For each match
         for filename in self.materialized_file_list:
             if filename in self.materialized_file_dict.keys():
@@ -764,10 +755,10 @@ class TableCreator(object):
 
             is_stdin = filename == self.stdin_filename
 
-            mfs = MaterializedFileState(filename,f,self.encoding,dialect,is_stdin)
+            mfs = MaterializedFileState(filename, f, self.encoding, dialect, is_stdin)
             self.materialized_file_dict[filename] = mfs
 
-    def _populate(self,dialect,stop_after_analysis=False):
+    def _populate(self, dialect, stop_after_analysis=False):
         total_data_lines_read = 0
 
         # For each match
@@ -784,14 +775,14 @@ class TableCreator(object):
                         raise MissingHeaderException("Header line is expected but missing in file %s" % filename)
 
                     total_data_lines_read += mfs.lines_read - (1 if self.skip_header else 0)
-                except StrictModeColumnCountMismatchException,e:
+                except StrictModeColumnCountMismatchException as e:
                     raise ColumnCountMismatchException(
                         'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
-                except FluffyModeColumnCountMismatchException,e:
+                            e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
+                except FluffyModeColumnCountMismatchException as e:
                     raise ColumnCountMismatchException(
                         'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
+                            normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
             finally:
                 if not stop_after_analysis:
                     mfs.close()
@@ -801,24 +792,23 @@ class TableCreator(object):
                 self.column_inferer.force_analysis()
                 self._do_create_table()
 
-       
         if total_data_lines_read == 0:
             raise EmptyDataException()
 
-    def populate(self,dialect,stop_after_analysis=False):
+    def populate(self, dialect, stop_after_analysis=False):
         if self.state == TableCreatorState.NEW:
-            self._pre_populate(dialect)    
+            self._pre_populate(dialect)
             self.state = TableCreatorState.INITIALIZED
 
         if self.state == TableCreatorState.INITIALIZED:
-            self._populate(dialect,stop_after_analysis=True)
+            self._populate(dialect, stop_after_analysis=True)
             self.state = TableCreatorState.ANALYZED
 
             if stop_after_analysis:
                 return
 
         if self.state == TableCreatorState.ANALYZED:
-            self._populate(dialect,stop_after_analysis=False)
+            self._populate(dialect, stop_after_analysis=False)
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -874,7 +864,7 @@ class TableCreator(object):
         actual_col_count = len(col_vals)
         if self.mode == 'strict':
             if actual_col_count != expected_col_count:
-                raise StrictModeColumnCountMismatchException(expected_col_count,actual_col_count)
+                raise StrictModeColumnCountMismatchException(expected_col_count, actual_col_count)
             return col_vals
 
         # in all non strict mode, we add dummy data to missing columns
@@ -887,15 +877,15 @@ class TableCreator(object):
         if self.mode == 'relaxed':
             if actual_col_count > expected_col_count:
                 xxx = col_vals[:expected_col_count - 1] + \
-                    [self.input_delimiter.join([v if v  is not None else '' for v in 
-                        col_vals[expected_col_count - 1:]])]
+                    [self.input_delimiter.join([v if v is not None else '' for v in
+                                                col_vals[expected_col_count - 1:]])]
                 return xxx
             else:
                 return col_vals
 
         if self.mode == 'fluffy':
             if actual_col_count > expected_col_count:
-                raise FluffyModeColumnCountMismatchException(expected_col_count,actual_col_count)
+                raise FluffyModeColumnCountMismatchException(expected_col_count, actual_col_count)
             return col_vals
 
         raise Exception("Unidentified parsing mode %s" % self.mode)
@@ -950,8 +940,8 @@ class TableCreator(object):
 
         # Guard against empty tables (instead of preventing the creation, just create with a dummy column)
         if len(column_dict) == 0:
-            column_dict = { 'dummy_column_for_empty_tables' : str } 
-            ordered_column_names = [ 'dummy_column_for_empty_tables' ]
+            column_dict = {'dummy_column_for_empty_tables': str}
+            ordered_column_names = ['dummy_column_for_empty_tables']
         else:
             ordered_column_names = self.column_inferer.get_column_names()
 
@@ -969,37 +959,40 @@ class TableCreator(object):
             self.db.drop_table(self.table_name)
 
 
-def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
+def determine_max_col_lengths(m, output_field_quoting_func, output_delimiter):
     if len(m) == 0:
         return []
     max_lengths = [0 for x in xrange(0, len(m[0]))]
     for row_index in xrange(0, len(m)):
         for col_index in xrange(0, len(m[0])):
-            new_len = len(unicode(output_field_quoting_func(output_delimiter,m[row_index][col_index])))
+            new_len = len(unicode(output_field_quoting_func(output_delimiter, m[row_index][col_index])))
             if new_len > max_lengths[col_index]:
                 max_lengths[col_index] = new_len
     return max_lengths
 
+
 def print_credentials():
-    print >>sys.stderr,"q version %s" % q_version
-    print >>sys.stderr,"Copyright (C) 2012-2014 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)"
-    print >>sys.stderr,"http://harelba.github.io/q/"
-    print >>sys.stderr
+    sys.stderr.write("q version %s\n" % q_version)
+    sys.stderr.write("Copyright (C) 2012-2014 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)\n")
+    sys.stderr.write("http://harelba.github.io/q/\n\n")
+
 
 class QWarning(object):
-    def __init__(self,exception,msg):
+    def __init__(self, exception, msg):
         self.exception = exception
         self.msg = msg
 
+
 class QError(object):
-    def __init__(self,exception,msg,errorcode):
+    def __init__(self, exception, msg, errorcode):
         self.exception = exception
         self.msg = msg
         self.errorcode = errorcode
         self.traceback = traceback.format_exc()
 
+
 class QDataLoad(object):
-    def __init__(self,filename,start_time,end_time):
+    def __init__(self, filename, start_time, end_time):
         self.filename = filename
         self.start_time = start_time
         self.end_time = end_time
@@ -1008,20 +1001,22 @@ class QDataLoad(object):
         return self.end_time - self.start_time
 
     def __str__(self):
-        return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename,self.start_time,self.duration())
+        return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename, self.start_time, self.duration())
     __repr__ = __str__
 
+
 class QMaterializedFile(object):
-    def __init__(self,filename,is_stdin):
+    def __init__(self, filename, is_stdin):
         self.filename = filename
         self.is_stdin = is_stdin
 
     def __str__(self):
-        return "QMaterializedFile<filename=%s,is_stdin=%s>" % (self.filename,self.is_stdin)
+        return "QMaterializedFile<filename=%s,is_stdin=%s>" % (self.filename, self.is_stdin)
     __repr__ = __str__
 
+
 class QTableStructure(object):
-    def __init__(self,filenames_str,materialized_files,column_names,column_types):
+    def __init__(self, filenames_str, materialized_files, column_names, column_types):
         self.filenames_str = filenames_str
         self.materialized_files = materialized_files
         self.column_names = column_names
@@ -1029,22 +1024,24 @@ class QTableStructure(object):
 
     def __str__(self):
         return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
-            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types)
+            self.filenames_str, len(self.materialized_files.keys()), self.column_names, self.column_types)
     __repr__ = __str__
 
+
 class QMetadata(object):
-    def __init__(self,table_structures=[],output_column_name_list=None,data_loads=[]):
+    def __init__(self, table_structures=[], output_column_name_list=None, data_loads=[]):
         self.table_structures = table_structures
         self.output_column_name_list = output_column_name_list
         self.data_loads = data_loads
 
     def __str__(self):
         return "QMetadata<table_count=%s,output_column_name_list=%s,data_load_count=%s" % (
-            len(self.table_structures),self.output_column_name_list,len(self.data_loads))
+            len(self.table_structures), self.output_column_name_list, len(self.data_loads))
     __repr__ = __str__
 
+
 class QOutput(object):
-    def __init__(self,data=None,metadata=None,warnings=[],error=None):
+    def __init__(self, data=None, metadata=None, warnings=[], error=None):
         self.data = data
         self.metadata = metadata
 
@@ -1073,13 +1070,13 @@ class QOutput(object):
         return "QOutput<%s>" % ",".join(s)
     __repr__ = __str__
 
+
 class QInputParams(object):
-    def __init__(self,skip_header=False,
-            delimiter=' ',input_encoding='UTF-8',gzipped_input=False,parsing_mode='relaxed',
-            expected_column_count=None,keep_leading_whitespace_in_values=False,
-            disable_double_double_quoting=False,disable_escaped_double_quoting=False,
-            disable_column_type_detection=False,
-            input_quoting_mode='minimal',stdin_file=None,stdin_filename='-'):
+    def __init__(self, skip_header=False, delimiter=' ', input_encoding='UTF-8', gzipped_input=False,
+                 parsing_mode='relaxed', expected_column_count=None, keep_leading_whitespace_in_values=False,
+                 disable_double_double_quoting=False, disable_escaped_double_quoting=False,
+                 disable_column_type_detection=False, input_quoting_mode='minimal', stdin_file=None,
+                 stdin_filename='-'):
         self.skip_header = skip_header
         self.delimiter = delimiter
         self.input_encoding = input_encoding
@@ -1092,7 +1089,7 @@ class QInputParams(object):
         self.input_quoting_mode = input_quoting_mode
         self.disable_column_type_detection = disable_column_type_detection
 
-    def merged_with(self,input_params):
+    def merged_with(self, input_params):
         params = QInputParams(**self.__dict__)
         if input_params is not None:
             params.__dict__.update(**input_params.__dict__)
@@ -1104,8 +1101,9 @@ class QInputParams(object):
     def __repr__(self):
         return "QInputParams(...)"
 
+
 class QTextAsData(object):
-    def __init__(self,default_input_params=QInputParams()):
+    def __init__(self, default_input_params=QInputParams()):
         self.default_input_params = default_input_params
 
         self.table_creators = {}
@@ -1113,15 +1111,13 @@ class QTextAsData(object):
         # Create DB object
         self.db = Sqlite3DB()
 
+    input_quoting_modes = {'minimal': csv.QUOTE_MINIMAL,
+                           'all': csv.QUOTE_ALL,
+                           # nonnumeric is not supported for input quoting modes, since we determine the data types
+                           # ourselves instead of letting the csv module try to identify the types
+                           'none': csv.QUOTE_NONE}
 
-    input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
-                        'all' : csv.QUOTE_ALL,
-                        # nonnumeric is not supported for input quoting modes, since we determine the data types 
-                        # ourselves instead of letting the csv module try to identify the types
-                        'none' : csv.QUOTE_NONE }
-
-    def determine_proper_dialect(self,input_params):
-
+    def determine_proper_dialect(self, input_params):
         input_quoting_mode_csv_numeral = QTextAsData.input_quoting_modes[input_params.input_quoting_mode]
 
         if input_params.keep_leading_whitespace_in_values:
@@ -1130,7 +1126,8 @@ class QTextAsData(object):
             skip_initial_space = True
 
         dialect = {'skipinitialspace': skip_initial_space,
-                    'delimiter': input_params.delimiter, 'quotechar': '"' }
+                   'delimiter': input_params.delimiter,
+                   'quotechar': '"'}
         dialect['quoting'] = input_quoting_mode_csv_numeral
         dialect['doublequote'] = input_params.disable_double_double_quoting
 
@@ -1139,10 +1136,10 @@ class QTextAsData(object):
 
         return dialect
 
-    def get_dialect_id(self,filename):
+    def get_dialect_id(self, filename):
         return 'q_dialect_%s' % filename
 
-    def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
+    def _load_data(self, filename, input_params=QInputParams(), stdin_file=None, stdin_filename='-', stop_after_analysis=False):
         start_time = time.time()
 
         q_dialect = self.determine_proper_dialect(input_params)
@@ -1159,44 +1156,45 @@ class QTextAsData(object):
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
-            self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.input_encoding,
-            mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count, 
-            input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
-            stdin_file = stdin_file,stdin_filename = stdin_filename)
+            self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input,
+            input_params.input_encoding, mode=input_params.parsing_mode,
+            expected_column_count=input_params.expected_column_count, input_delimiter=input_params.delimiter,
+            disable_column_type_detection=input_params.disable_column_type_detection, stdin_file=stdin_file,
+            stdin_filename=stdin_filename)
 
-        table_creator.populate(dialect_id,stop_after_analysis)
+        table_creator.populate(dialect_id, stop_after_analysis)
 
         self.table_creators[filename] = table_creator
 
-        return QDataLoad(filename,start_time,time.time())
+        return QDataLoad(filename, start_time, time.time())
 
-    def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
+    def load_data(self, filename, input_params=QInputParams(), stop_after_analysis=False):
+        self._load_data(filename, input_params, stop_after_analysis=stop_after_analysis)
 
-    def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
+    def load_data_from_string(self, filename, str_data, input_params=QInputParams(), stop_after_analysis=False):
         sf = cStringIO.StringIO(str_data)
         try:
-            self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
+            self._load_data(filename, input_params, stdin_file=sf, stdin_filename=filename, stop_after_analysis=stop_after_analysis)
         finally:
             if sf is not None:
                 sf.close()
 
-    def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
+    def _ensure_data_is_loaded(self, sql_object, input_params, stdin_file, stdin_filename='-', stop_after_analysis=False):
         data_loads = []
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            data_load = self._load_data(filename,input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_load = self._load_data(filename, input_params, stdin_file=stdin_file, stdin_filename=stdin_filename, stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
 
         return data_loads
 
-    def materialize_sql_object(self,sql_object):
+    def materialize_sql_object(self, sql_object):
         for filename in sql_object.qtable_names:
-            sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
+            sql_object.set_effective_table_name(filename, self.table_creators[filename].table_name)
 
-    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False):
+    def _execute(self, query_str, input_params=None, stdin_file=None, stdin_filename='-', stop_after_analysis=False):
         warnings = []
         error = None
         data_loads = []
@@ -1211,14 +1209,16 @@ class QTextAsData(object):
                 # Hueristic attempt to auto convert the query to unicode before failing
                 query_str = query_str.decode('utf-8')
             except:
-                error = QError(EncodedQueryException(),"Query should be in unicode. Please make sure to provide a unicode literal string or decode it using proper the character encoding.",91)
-                return QOutput(error = error)
+                error = QError(EncodedQueryException(), "Query should be in unicode. Please make sure to provide a "
+                               "unicode literal string or decode it using proper the character encoding.", 91)
+                return QOutput(error=error)
 
         # Create SQL statment
         sql_object = Sql('%s' % query_str)
 
         try:
-            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_loads += self._ensure_data_is_loaded(sql_object, effective_input_params, stdin_file=stdin_file,
+                                                      stdin_filename=stdin_filename, stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
 
@@ -1228,52 +1228,51 @@ class QTextAsData(object):
             db_results_obj = sql_object.execute_and_fetch(self.db)
 
             return QOutput(
-                data = db_results_obj.results, 
-                metadata = QMetadata(
+                data=db_results_obj.results,
+                metadata=QMetadata(
                     table_structures=table_structures,
                     output_column_name_list=db_results_obj.query_column_names,
                     data_loads=data_loads),
-                warnings = warnings,
-                error = error)
+                warnings=warnings,
+                error=error)
 
-        except EmptyDataException,e:
-            warnings.append(QWarning(e,"Warning - data is empty"))
-        except MissingHeaderException,e:
-            error = QError(e,e.msg,117)
-        except FileNotFoundException, e:
-            error = QError(e,e.msg,30)
-        except sqlite3.OperationalError, e:
+        except EmptyDataException as e:
+            warnings.append(QWarning(e, "Warning - data is empty"))
+        except MissingHeaderException as e:
+            error = QError(e, e.msg, 117)
+        except FileNotFoundException as e:
+            error = QError(e, e.msg, 30)
+        except sqlite3.OperationalError as e:
             msg = str(e)
-            error = QError(e,"query error: %s" % msg,1)
+            error = QError(e, "query error: %s" % msg, 1)
             if "no such column" in msg and effective_input_params.skip_header:
-                warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
-        except ColumnCountMismatchException, e:
-            error = QError(e,e.msg,2)
-        except (UnicodeDecodeError, UnicodeError), e:
-            error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e,3)
-        except BadHeaderException, e:
-            error = QError(e,"Bad header row: %s" % e.msg,35)
-        except CannotUnzipStdInException,e:
-            error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
-        except UnprovidedStdInException,e:
-            error = QError(e,"Standard Input must be provided in order to use it as a table",61)
-        except CouldNotConvertStringToNumericValueException,e:
-            error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
-        except CouldNotParseInputException,e:
-            error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
-        except KeyboardInterrupt,e:
-            warnings.append(QWarning(e,"Interrupted"))
-        except Exception, e:
-            error = QError(e,repr(e),199)
+                warnings.append(QWarning(e, 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
+        except ColumnCountMismatchException as e:
+            error = QError(e, e.msg, 2)
+        except (UnicodeDecodeError, UnicodeError) as e:
+            error = QError(e, "Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e, 3)
+        except BadHeaderException as e:
+            error = QError(e, "Bad header row: %s" % e.msg, 35)
+        except CannotUnzipStdInException as e:
+            error = QError(e, "Cannot decompress standard input. Pipe the input through zcat in order to decompress.", 36)
+        except UnprovidedStdInException as e:
+            error = QError(e, "Standard Input must be provided in order to use it as a table", 61)
+        except CouldNotConvertStringToNumericValueException as e:
+            error = QError(e, "Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg, 58)
+        except CouldNotParseInputException as e:
+            error = QError(e, "Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg, 59)
+        except KeyboardInterrupt as e:
+            warnings.append(QWarning(e, "Interrupted"))
+        except Exception as e:
+            error = QError(e, repr(e), 199)
 
-        return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
+        return QOutput(warnings=warnings, error=error, metadata=QMetadata(table_structures=table_structures, data_loads=data_loads))
 
-    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
-        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False)
+    def execute(self, query_str, input_params=None, stdin_file=None, stdin_filename='-'):
+        return self._execute(query_str, input_params, stdin_file, stdin_filename, stop_after_analysis=False)
 
     def unload(self):
-
-        for filename,table_creator in self.table_creators.iteritems():
+        for filename, table_creator in self.table_creators.iteritems():
             try:
                 table_creator.drop_table()
             except:
@@ -1281,63 +1280,65 @@ class QTextAsData(object):
                 pass
         self.table_creators = {}
 
-    def _create_materialized_files(self,table_creator):
+    def _create_materialized_files(self, table_creator):
         d = table_creator.materialized_file_dict
         m = {}
-        for filename,mfs in d.iteritems():
-            m[filename] = QMaterializedFile(filename,mfs.is_stdin)
+        for filename, mfs in d.iteritems():
+            m[filename] = QMaterializedFile(filename, mfs.is_stdin)
         return m
 
     def _create_table_structures_list(self):
         table_structures = []
-        for filename,table_creator in self.table_creators.iteritems():
+        for filename, table_creator in self.table_creators.iteritems():
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
             materialized_files = self._create_materialized_files(table_creator)
-            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types)
+            table_structure = QTableStructure(table_creator.filenames_str, materialized_files, column_names, column_types)
             table_structures.append(table_structure)
         return table_structures
 
-    def analyze(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
-        q_output = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=True)
+    def analyze(self, query_str, input_params=None, stdin_file=None, stdin_filename='-'):
+        q_output = self._execute(query_str, input_params, stdin_file, stdin_filename, stop_after_analysis=True)
 
         return q_output
 
+
 def escape_double_quotes_if_needed(v):
-    x = v.replace('"','""')
+    x = v.replace('"', '""')
     return x
 
-def quote_none_func(output_delimiter,v):
+
+def quote_none_func(output_delimiter, v):
     return v
 
-def quote_minimal_func(output_delimiter,v):
+
+def quote_minimal_func(output_delimiter, v):
     if v is None:
         return v
     t = type(v)
     if t == str or t == unicode and ((output_delimiter in v) or ('"' in v)):
         return '"%s"' % (escape_double_quotes_if_needed(v))
-    return v;
+    return v
 
-def quote_nonnumeric_func(output_delimiter,v):
+
+def quote_nonnumeric_func(output_delimiter, v):
     if v is None:
         return v
     if type(v) == str or type(v) == unicode:
         return '"%s"' % (escape_double_quotes_if_needed(v))
-    return v;
+    return v
 
-def quote_all_func(output_delimiter,v):
+
+def quote_all_func(output_delimiter, v):
     if type(v) == str or type(v) == unicode:
         return '"%s"' % (escape_double_quotes_if_needed(v))
     else:
         return '"%s"' % v
 
+
 class QOutputParams(object):
-    def __init__(self,
-            delimiter=' ',
-            beautify=False,
-            output_quoting_mode='minimal',
-            formatting=None,
-            output_header=False):
+    def __init__(self, delimiter=' ', beautify=False, output_quoting_mode='minimal', formatting=None,
+                 output_header=False):
         self.delimiter = delimiter
         self.beautify = beautify
         self.output_quoting_mode = output_quoting_mode
@@ -1350,30 +1351,31 @@ class QOutputParams(object):
     def __repr__(self):
         return "QOutputParams(...)"
 
-class QOutputPrinter(object):
-    output_quoting_modes = {   'minimal' : quote_minimal_func,
-                        'all' : quote_all_func,
-                        'nonnumeric' : quote_nonnumeric_func,
-                        'none' : quote_none_func }
 
-    def __init__(self,output_params,show_tracebacks=False):
+class QOutputPrinter(object):
+    output_quoting_modes = {'minimal': quote_minimal_func,
+                            'all': quote_all_func,
+                            'nonnumeric': quote_nonnumeric_func,
+                            'none': quote_none_func}
+
+    def __init__(self, output_params, show_tracebacks=False):
         self.output_params = output_params
         self.show_tracebacks = show_tracebacks
 
         self.output_field_quoting_func = QOutputPrinter.output_quoting_modes[output_params.output_quoting_mode]
 
-    def print_errors_and_warnings(self,f,results):
+    def print_errors_and_warnings(self, f, results):
         if results.status == 'error':
             error = results.error
-            print >>f,error.msg
+            f.write("%s\n" % error.msg)
             if self.show_tracebacks:
-                print >>f,error.traceback
+                f.write("%s\n" % error.traceback)
 
         for warning in results.warnings:
-            print >>f,"%s" % warning.msg
+            f.write("%s\n" % warning.msg)
 
-    def print_analysis(self,f_out,f_err,results):
-        self.print_errors_and_warnings(f_err,results)
+    def print_analysis(self, f_out, f_err, results):
+        self.print_errors_and_warnings(f_err, results)
 
         if results.metadata is None:
             return
@@ -1382,17 +1384,17 @@ class QOutputPrinter(object):
             return
 
         for table_structure in results.metadata.table_structures:
-            print >>f_out,"Table for file: %s" % normalized_filename(table_structure.filenames_str)
-            for n,t in zip(table_structure.column_names,table_structure.column_types):
-                print >>f_out,"  `%s` - %s" % (n,t)
+            f_out.write("Table for file: %s\n" % normalized_filename(table_structure.filenames_str))
+            for n, t in zip(table_structure.column_names, table_structure.column_types):
+                f_out.write("  `%s` - %s\n" % (n, t))
 
-    def print_output(self,f_out,f_err,results):
+    def print_output(self, f_out, f_err, results):
         try:
-            self._print_output(f_out,f_err,results)
-        except (UnicodeEncodeError, UnicodeError), e:
-            print >>f_err, "Cannot encode data. Error:%s" % e
+            self._print_output(f_out, f_err, results)
+        except (UnicodeEncodeError, UnicodeError) as e:
+            f_err.write("Cannot encode data. Error:%s\n" % e)
             sys.exit(3)
-        except IOError, e:
+        except IOError as e:
             if e.errno == 32:
                 # broken pipe, that's ok
                 pass
@@ -1402,8 +1404,8 @@ class QOutputPrinter(object):
         except KeyboardInterrupt:
             pass
 
-    def _print_output(self,f_out,f_err,results):
-        self.print_errors_and_warnings(f_err,results)
+    def _print_output(self, f_out, f_err, results):
+        self.print_errors_and_warnings(f_err, results)
 
         data = results.data
 
@@ -1416,7 +1418,7 @@ class QOutputPrinter(object):
                 data_with_possible_headers = data + [tuple(results.metadata.output_column_name_list)]
             else:
                 data_with_possible_headers = data
-            max_lengths = determine_max_col_lengths(data_with_possible_headers,self.output_field_quoting_func,self.output_params.delimiter)
+            max_lengths = determine_max_col_lengths(data_with_possible_headers, self.output_field_quoting_func, self.output_params.delimiter)
 
         if self.output_params.formatting:
             formatting_dict = dict(
@@ -1426,7 +1428,7 @@ class QOutputPrinter(object):
 
         try:
             if self.output_params.output_header and results.metadata.output_column_name_list is not None:
-                data.insert(0,results.metadata.output_column_name_list)
+                data.insert(0, results.metadata.output_column_name_list)
             for rownum, row in enumerate(data):
                 row_str = []
                 skip_formatting = rownum == 0 and self.output_params.output_header
@@ -1440,18 +1442,18 @@ class QOutputPrinter(object):
                             fmt_str = "%s"
 
                     if col is not None:
-                        row_str.append(fmt_str % self.output_field_quoting_func(self.output_params.delimiter,col))
+                        row_str.append(fmt_str % self.output_field_quoting_func(self.output_params.delimiter, col))
                     else:
                         row_str.append(fmt_str % "")
 
                 f_out.write(self.output_params.delimiter.join(row_str) + "\n")
-        except (UnicodeEncodeError, UnicodeError), e:
-            print >>sys.stderr, "Cannot encode data. Error:%s" % e
+        except (UnicodeEncodeError, UnicodeError) as e:
+            sys.stderr.write("Cannot encode data. Error:%s\n" % e)
             sys.exit(3)
-        except TypeError,e:
-            print >>sys.stderr, "Error while formatting output: %s" % e
+        except TypeError as e:
+            sys.stderr.write("Error while formatting output: %s\n" % e)
             sys.exit(4)
-        except IOError, e:
+        except IOError as e:
             if e.errno == 32:
                 # broken pipe, that's ok
                 pass
@@ -1464,8 +1466,9 @@ class QOutputPrinter(object):
         try:
             # Prevent python bug when order of pipe shutdowns is reversed
             f_out.flush()
-        except IOError, e:
+        except IOError as e:
             pass
+
 
 def run_standalone():
     p = ConfigParser()
@@ -1527,62 +1530,63 @@ def run_standalone():
             See the help or https://github.com/harelba/q/ for more details.
     """)
 
-    #-----------------------------------------------
+    # -----------------------------------------------
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
-    #-----------------------------------------------
-    input_data_option_group = OptionGroup(parser,"Input Data Options")
+    # -----------------------------------------------
+    input_data_option_group = OptionGroup(parser, "Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
-                      help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
+                                       help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
     input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
-                      help="Field delimiter. If none specified, then space is used as the delimiter.")
+                                       help="Field delimiter. If none specified, then space is used as the delimiter.")
     input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
-                      help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
+                                       help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
     input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
-                      help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+                                       help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
     input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
-                      help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
+                                       help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
     input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
-                      help="Analyze sample input and provide information about data types")
+                                       help="Analyze sample input and provide information about data types")
     input_data_option_group.add_option("-m", "--mode", dest="mode", default="relaxed",
-                      help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
+                                       help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
     input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=None,
-                      help="Specific column count when using relaxed or strict mode")
+                                       help="Specific column count when using relaxed or strict mode")
     input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
-                      help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
+                                       help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
     input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=True, action="store_false",
-                      help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+                                       help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
     input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
-                      help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+                                       help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
     input_data_option_group.add_option("--as-text", dest="disable_column_type_detection", default=False, action="store_true",
-                      help="Don't detect column types - All columns will be treated as text columns")
-    input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
-                      help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
+                                       help="Don't detect column types - All columns will be treated as text columns")
+    input_data_option_group.add_option("-w", "--input-quoting-mode", dest="input_quoting_mode", default="minimal",
+                                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
     parser.add_option_group(input_data_option_group)
-    #-----------------------------------------------
-    output_data_option_group = OptionGroup(parser,"Output Options") 
+    # -----------------------------------------------
+    output_data_option_group = OptionGroup(parser, "Output Options")
     output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
-                      help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+                                        help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
     output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
-                      help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
-    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
+                                        help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
+    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",
+                                        help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
     output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
-                      help="Beautify output according to actual values. Might be slow...")
+                                        help="Beautify output according to actual values. Might be slow...")
     output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
-                      help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
+                                        help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
     output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
-                      help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-    output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
-                      help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
+                                        help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+    output_data_option_group.add_option("-W", "--output-quoting-mode", dest="output_quoting_mode", default="minimal",
+                                        help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
     parser.add_option_group(output_data_option_group)
-    #-----------------------------------------------
-    query_option_group = OptionGroup(parser,"Query Related Options") 
+    # -----------------------------------------------
+    query_option_group = OptionGroup(parser, "Query Related Options")
     query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=None,
-                      help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
+                                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
     query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
-                      help="query text encoding. Experimental. Please send your feedback on this")
+                                  help="query text encoding. Experimental. Please send your feedback on this")
     parser.add_option_group(query_option_group)
-    #-----------------------------------------------
+    # -----------------------------------------------
 
     (options, args) = parser.parse_args()
 
@@ -1592,19 +1596,19 @@ def run_standalone():
 
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
-        print >>sys.stderr,"Must provide at least one query in the command line, or through a file with the -q parameter"
+        sys.stderr.write("Must provide at least one query in the command line, or through a file with the -q parameter\n")
         sys.exit(1)
 
     if options.query_filename is not None:
         if len(args) != 0:
-            print >>sys.stderr,"Can't provide both a query file and a query on the command line"
+            sys.stderr.write("Can't provide both a query file and a query on the command line\n")
             sys.exit(1)
         try:
-            f = file(options.query_filename)
+            f = open(options.query_filename)
             query_strs = [f.read()]
             f.close()
         except:
-            print >>sys.stderr,"Could not read query from file %s" % options.query_filename
+            sys.stderr.write("Could not read query from file %s\n" % options.query_filename)
             sys.exit(1)
     else:
         query_strs = args
@@ -1615,22 +1619,22 @@ def run_standalone():
                 query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
 
                 if len(query_strs[idx]) == 0:
-                    print >>sys.stderr,"Query cannot be empty (query number %s)" % (idx+1)
+                    sys.stderr.write("Query cannot be empty (query number %s)\n" % (idx+1))
                     sys.exit(1)
 
-        except Exception,e:
-            print >>sys.stderr,"Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding)
+        except Exception:
+            sys.stderr.write("Could not decode query number %s using the provided query encoding (%s)\n" % (idx+1, options.query_encoding))
             sys.exit(3)
 
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
-        print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
+        sys.stderr.write("Parsing mode can be one of fluffy, relaxed or strict\n")
         sys.exit(13)
 
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
         STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
     except:
-        print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
+        sys.stderr.write("Could not create output stream using output encoding %s\n" % (output_encoding))
         sys.exit(200)
 
     # If the user flagged for a tab-delimited file then set the delimiter to tab
@@ -1643,15 +1647,15 @@ def run_standalone():
     if options.delimiter is None:
         options.delimiter = ' '
     elif len(options.delimiter) != 1:
-        print >>sys.stderr, "Delimiter must be one character only"
+        sys.stderr.write("Delimiter must be one character only\n")
         sys.exit(5)
 
     if options.input_quoting_mode not in QTextAsData.input_quoting_modes.keys():
-        print >>sys.stderr,"Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode)
+        sys.stderr.write("Input quoting mode can only be one of %s. It cannot be set to '%s'\n" % (",".join(QTextAsData.input_quoting_modes.keys()), options.input_quoting_mode))
         sys.exit(55)
 
     if options.output_quoting_mode not in QOutputPrinter.output_quoting_modes.keys():
-        print >>sys.stderr,"Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode)
+        sys.stderr.write("Output quoting mode can only be one of %s. It cannot be set to '%s'\n" % (",".join(QOutputPrinter.output_quoting_modes.keys()), options.input_quoting_mode))
         sys.exit(56)
 
     if options.column_count is not None:
@@ -1664,12 +1668,12 @@ def run_standalone():
         try:
             codecs.lookup(options.encoding)
         except LookupError:
-            print >>sys.stderr, "Encoding %s could not be found" % options.encoding
+            sys.stderr.write("Encoding %s could not be found\n" % options.encoding)
             sys.exit(10)
 
     if options.output_delimiter:
         # If output delimiter is specified, then we use it
-        output_delimiter = options.output_delimiter
+        output_delimiter = options.output_delimiter  # noqa
     else:
         # Otherwise,
         if options.delimiter:
@@ -1682,16 +1686,16 @@ def run_standalone():
             options.output_delimiter = " "
 
     default_input_params = QInputParams(skip_header=options.skip_header,
-        delimiter=options.delimiter,
-        input_encoding=options.encoding,
-        gzipped_input=options.gzipped,
-        parsing_mode=options.mode,
-        expected_column_count=expected_column_count,
-        keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
-        disable_double_double_quoting=options.disable_double_double_quoting,
-        disable_escaped_double_quoting=options.disable_escaped_double_quoting,
-        input_quoting_mode=options.input_quoting_mode,
-        disable_column_type_detection=options.disable_column_type_detection)
+                                        delimiter=options.delimiter,
+                                        input_encoding=options.encoding,
+                                        gzipped_input=options.gzipped,
+                                        parsing_mode=options.mode,
+                                        expected_column_count=expected_column_count,
+                                        keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
+                                        disable_double_double_quoting=options.disable_double_double_quoting,
+                                        disable_escaped_double_quoting=options.disable_escaped_double_quoting,
+                                        input_quoting_mode=options.input_quoting_mode,
+                                        disable_column_type_detection=options.disable_column_type_detection)
     q_engine = QTextAsData(default_input_params=default_input_params)
 
     output_params = QOutputParams(
@@ -1700,15 +1704,15 @@ def run_standalone():
         output_quoting_mode=options.output_quoting_mode,
         formatting=options.formatting,
         output_header=options.output_header)
-    q_output_printer = QOutputPrinter(output_params,show_tracebacks=DEBUG)
+    q_output_printer = QOutputPrinter(output_params, show_tracebacks=DEBUG)
 
     for query_str in query_strs:
         if options.analyze_only:
-            q_output = q_engine.analyze(query_str,stdin_file=sys.stdin)
-            q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
+            q_output = q_engine.analyze(query_str, stdin_file=sys.stdin)
+            q_output_printer.print_analysis(STDOUT, sys.stderr, q_output)
         else:
-            q_output = q_engine.execute(query_str,stdin_file=sys.stdin)
-            q_output_printer.print_output(STDOUT,sys.stderr,q_output)
+            q_output = q_engine.execute(query_str, stdin_file=sys.stdin)
+            q_output_printer.print_output(STDOUT, sys.stderr, q_output)
 
         if q_output.status == 'error':
             sys.exit(q_output.error.errorcode)

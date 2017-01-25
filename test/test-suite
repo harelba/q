@@ -2100,4 +2100,6 @@ def suite():
     return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting])
 
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+    test_runner = unittest.TextTestRunner(verbosity=2)
+    result = test_runner.run(suite())
+    sys.exit(not result.wasSuccessful())

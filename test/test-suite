@@ -1594,10 +1594,8 @@ class FormattingTests(AbstractQTestCase):
         self.assertEquals(o[0], '55.000 5.500')
 
     def test_column_formatting_with_output_header(self):
-        # Required in order to maintain compatibility between GNU and POSIX sed
-        # (simplistic 1i column_name sed command did not run properly on mac machines)
-        sed_cmd = "'1i\\'$'\\n''column_name'$'\\n'"
-        cmd = 'seq 1 10 | sed ' + sed_cmd + ' | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        perl_regex = "'s/1\n/column_name\n1\n/;'"
+        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
 
         retcode, o, e = run_command(cmd)
 
@@ -2102,4 +2100,6 @@ def suite():
     return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting])
 
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+    test_runner = unittest.TextTestRunner(verbosity=2)
+    result = test_runner.run(suite())
+    sys.exit(not result.wasSuccessful())

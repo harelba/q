@@ -299,7 +299,7 @@ class Sql(object):
         # Holds original SQL
         self.sql = sql
         # Holds sql parts
-        self.sql_parts = sql.split()
+        self.sql_parts = re.compile("(?<=\\)\s").split(sql); # allows for escaping white space.
 
         # Set of qtable names
         self.qtable_names = set()

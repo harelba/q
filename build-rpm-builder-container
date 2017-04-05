@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker build -v `pwd`:/q -f dist/rpm-builder-Dockerfile

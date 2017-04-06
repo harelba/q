@@ -1,0 +1,12 @@
+
+FROM centos:centos6
+
+RUN yum install -y which curl gcc make rpm rpm-build
+
+RUN curl -sSL https://get.rvm.io | bash
+
+RUN /bin/bash -l -c "rvm install 2.4.1" && /bin/bash -l -c "gem install ronn"
+
+ENTRYPOINT "/bin/bash"
+
+

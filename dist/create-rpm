@@ -5,9 +5,9 @@
 #
 #
 
-if [ $# -ne 2 ];
+if [ $# -ne 1 ];
 then
-	echo 'create-rpm <commit-hash> <version>'
+	echo 'create-rpm <version>'
 	exit 1
 fi
 
@@ -26,9 +26,7 @@ mkdir -p ${rpm_build_area}/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
 
 echo RPM build area is in ${rpm_build_area}
 
-COMMIT_HASH=$1
-SHORT_HASH=${COMMIT_HASH:0:7}
-VERSION=$2
+VERSION=$1
 REAL_PACKAGE_NAME=q
 RPM_PACKAGE_NAME=q-text-as-data
 
@@ -40,11 +38,15 @@ then
 	exit 1
 fi
 
-rm -vf ${rpm_build_area}/SOURCES/q-${COMMIT_HASH}.tar.gz
+curl -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/${VERSION}"
+mkdir -p ${rpm_build_area}/SOURCES
+pushd ${rpm_build_area}/SOURCES >/dev/null
+tar xvzf ./q.tar.gz --strip-components=1
+rm -vf ./q.tar.gz
+popd >/dev/null
+find ${rpm_build_area}/ -ls
 
-curl -o ${rpm_build_area}/SOURCES/q-${COMMIT_HASH}.tar.gz -L -R "https://github.com/harelba/q/tarball/${COMMIT_HASH}"
-
-cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" | sed "s/COMMIT_HASH_PLACEHOLDER/${COMMIT_HASH}/g" | sed "s/SHORT_HASH_PLACEHOLDER/${SHORT_HASH}/g" > ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" > ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 
 rpmbuild -v --define "_topdir ${rpm_build_area}" -ba ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
 

@@ -50,8 +50,6 @@ import uuid
 import cStringIO
 import math
 
-csv.field_size_limit(sys.maxsize)
-
 DEBUG = False
 
 def get_stdout_encoding(encoding_override=None):
@@ -203,6 +201,14 @@ class Sqlite3DB(object):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
 class CouldNotConvertStringToNumericValueException(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
+
+class ColumnMaxLengthLimitExceededException(Exception):
 
     def __init__(self, msg):
         self.msg = msg
@@ -636,6 +642,11 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
             raise CouldNotParseInputException(str(e))
+    except Exception,e:
+        if str(e).startswith("field larger than field limit"):
+            raise ColumnMaxLengthLimitExceededException(str(e))
+        else:
+            raise
 
 def normalized_filename(filename):
     if filename == '-':
@@ -671,9 +682,13 @@ class MaterializedFileState(object):
             except Exception,e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
         csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
-        for col_vals in csv_reader:
-            self.lines_read += 1
-            yield col_vals
+        try:
+            for col_vals in csv_reader:
+                self.lines_read += 1
+                yield col_vals
+        except ColumnMaxLengthLimitExceededException,e:
+            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.filename,self.lines_read + 1,self.encoding)
+            raise ColumnMaxLengthLimitExceededException(msg)
 
     def close(self):
         if self.f != sys.stdin:
@@ -1079,7 +1094,8 @@ class QInputParams(object):
             expected_column_count=None,keep_leading_whitespace_in_values=False,
             disable_double_double_quoting=False,disable_escaped_double_quoting=False,
             disable_column_type_detection=False,
-            input_quoting_mode='minimal',stdin_file=None,stdin_filename='-'):
+            input_quoting_mode='minimal',stdin_file=None,stdin_filename='-',
+            max_column_length_limit=131072):
         self.skip_header = skip_header
         self.delimiter = delimiter
         self.input_encoding = input_encoding
@@ -1091,6 +1107,7 @@ class QInputParams(object):
         self.disable_escaped_double_quoting = disable_escaped_double_quoting
         self.input_quoting_mode = input_quoting_mode
         self.disable_column_type_detection = disable_column_type_detection
+        self.max_column_length_limit = max_column_length_limit
 
     def merged_with(self,input_params):
         params = QInputParams(**self.__dict__)
@@ -1112,7 +1129,6 @@ class QTextAsData(object):
 
         # Create DB object
         self.db = Sqlite3DB()
-
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
@@ -1148,6 +1164,8 @@ class QTextAsData(object):
         q_dialect = self.determine_proper_dialect(input_params)
         dialect_id = self.get_dialect_id(filename)
         csv.register_dialect(dialect_id, **q_dialect)
+
+        csv.field_size_limit(input_params.max_column_length_limit)
 
         # Create a line splitter
         line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
@@ -1261,6 +1279,8 @@ class QTextAsData(object):
             error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
         except CouldNotParseInputException,e:
             error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
+        except ColumnMaxLengthLimitExceededException,e:
+            error = QError(e,e.msg,31)
         except KeyboardInterrupt,e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception, e:
@@ -1560,6 +1580,8 @@ def run_standalone():
                       help="Don't detect column types - All columns will be treated as text columns")
     input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
+    input_data_option_group.add_option("-M","--max-column-length-limit",dest="max_column_length_limit",default=131072,
+                      help="Sets the maximum column length.")
     parser.add_option_group(input_data_option_group)
     #-----------------------------------------------
     output_data_option_group = OptionGroup(parser,"Output Options") 
@@ -1683,6 +1705,14 @@ def run_standalone():
             # (since no input delimiter means any whitespace)
             options.output_delimiter = " "
 
+    try:
+        max_column_length_limit = int(options.max_column_length_limit)
+        if max_column_length_limit < 1:
+            raise Exception()
+    except:
+        print >> sys.stderr, "Max column length limit must be a positive integer (%s)" % max_column_length_limit
+        sys.exit(31)
+
     default_input_params = QInputParams(skip_header=options.skip_header,
         delimiter=options.delimiter,
         input_encoding=options.encoding,
@@ -1693,7 +1723,8 @@ def run_standalone():
         disable_double_double_quoting=options.disable_double_double_quoting,
         disable_escaped_double_quoting=options.disable_escaped_double_quoting,
         input_quoting_mode=options.input_quoting_mode,
-        disable_column_type_detection=options.disable_column_type_detection)
+        disable_column_type_detection=options.disable_column_type_detection,
+        max_column_length_limit=max_column_length_limit)
     q_engine = QTextAsData(default_input_params=default_input_params)
 
     output_params = QOutputParams(

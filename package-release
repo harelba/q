@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e 
+
+base_folder=$(dirname $0)
+pushd ${base_folder} >/dev/null
+
+if [ $# -ne 1 ];
+then
+	echo "Usage: $(dirname $0) <git-tag>"
+	echo
+	echo "Note that the git tag must be pushed to github before doing this."
+	exit 1
+fi
+TAG="$1"
+
+d=`pwd`
+cid1=`docker run -i -d -v ${d}:/q q-text-as-data-rpm-builder:0.1`
+cid2=`docker run -i -d -v ${d}:/q q-text-as-data-deb-builder:0.1`
+
+function kill_container {
+	tmp=`docker kill ${cid1} ${cid2}`
+}
+trap kill_container EXIT
+
+rm -rvf ${base_folder}/packages
+mkdir -p ${base_folder}/packages
+
+sleep 1
+docker exec -it ${cid1} /bin/bash -i -c "/q/dist/create-rpm ${TAG}"
+
+docker cp ${cid1}:/q/dist/rpm_build_area/RPMS/noarch/q-text-as-data-${TAG}-1.el6.noarch.rpm ${base_folder}/packages/q-text-as-data-${TAG}-1.noarch.rpm
+
+docker exec -it ${cid2} /bin/bash -i -c "cd /q/packages && alien ./q-text-as-data-${TAG}-1.noarch.rpm"
+

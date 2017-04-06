@@ -1530,6 +1530,8 @@ def run_standalone():
     #-----------------------------------------------
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
+    parser.add_option("-V", "--verbose", dest="verbose", default=False, action="store_true",
+                      help="Print debug info in case of problems")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
@@ -1700,7 +1702,7 @@ def run_standalone():
         output_quoting_mode=options.output_quoting_mode,
         formatting=options.formatting,
         output_header=options.output_header)
-    q_output_printer = QOutputPrinter(output_params,show_tracebacks=DEBUG)
+    q_output_printer = QOutputPrinter(output_params,show_tracebacks=options.verbose)
 
     for query_str in query_strs:
         if options.analyze_only:

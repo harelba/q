@@ -8,3 +8,6 @@ rpm_build_area
 setup.exe
 win_output
 win_build
+.idea
+packages/
+dist/windows/

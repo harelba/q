@@ -10,3 +10,4 @@ win_output
 win_build
 packages
 .idea/
+dist/windows/

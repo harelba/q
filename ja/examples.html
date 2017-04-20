@@ -32,12 +32,12 @@
       <iframe src="http://ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
 
       <section id="downloads">
-        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.5.0.zip">Download the last stable version zip file </a>
-        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.5.0.tar.gz">Download the last stable version tar.gz file</a>
-        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.5.0-1.noarch.rpm">Download the latest stable version RPM</a>
-        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.5.0-1_all.deb">Download the latest stable version Debian package</a>
-        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.5.0/bin/q">Download the single-file executable</a>
-        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.5.0.exe">Download the single-file executable</a>
+        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.6.3.zip">Download the last stable version zip file </a>
+        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.6.3.tar.gz">Download the last stable version tar.gz file</a>
+        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.6.3-1.noarch.rpm">Download the latest stable version RPM</a>
+        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.6.3-2_all.deb">Download the latest stable version Debian package</a>
+        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.6.3/bin/q">Download the single-file executable</a>
+        <a class="windows_download_link" title="Beta installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.6.3.exe">Download the single-file executable</a>
       </section>
     </header>
   </div>
@@ -185,7 +185,7 @@
       <br/><br/>
       <p><strong><a name="example7"></a>例 7 - 2 つのファイルを JOIN する</strong></p>
 
-      <p>以下のコマンドは ls のアウトプット (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/exampledatafile">exampledatafile</a>) とグループ名とEメールの列を含むファイル (<a href="https://cdn.rawgit.com/harelba/q/1.5.0/examples/group-emails-example">group-emails-example</a>) を JOIN して、ファイル名と、グループに紐付く各emailに対応するemailの列を提供します。 出力を簡潔にするために WHERE 節を使って実現される ppp と呼ばれる具体的なファイル名でフィルタリングも行っている。
+      <p>以下のコマンドは ls のアウトプット (<a href="https://cdn.rawgit.com/harelba/q/1.6.3/examples/exampledatafile">exampledatafile</a>) とグループ名とEメールの列を含むファイル (<a href="https://cdn.rawgit.com/harelba/q/1.6.3/examples/group-emails-example">group-emails-example</a>) を JOIN して、ファイル名と、グループに紐付く各emailに対応するemailの列を提供します。 出力を簡潔にするために WHERE 節を使って実現される ppp と呼ばれる具体的なファイル名でフィルタリングも行っている。
       </p>
 
       <pre class="code_example_wrapper"><code class="code_example">q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"

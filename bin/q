@@ -246,6 +246,11 @@ class CannotUnzipStdInException(Exception):
     def __init__(self):
         pass
 
+class UniversalNewlinesExistException(Exception):
+
+    def __init__(self):
+        pass
+
 class UnprovidedStdInException(Exception):
 
     def __init__(self):
@@ -645,6 +650,8 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
     except Exception,e:
         if str(e).startswith("field larger than field limit"):
             raise ColumnMaxLengthLimitExceededException(str(e))
+        elif 'universal-newline' in str(e):
+            raise UniversalNewlinesExistException()
         else:
             raise
 
@@ -689,6 +696,9 @@ class MaterializedFileState(object):
         except ColumnMaxLengthLimitExceededException,e:
             msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.filename,self.lines_read + 1,self.encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
+        except UniversalNewlinesExistException,e2:
+            # No need to translate the exception, but we want it to be explicitly defined here for clarity
+            raise UniversalNewlinesExistException()
 
     def close(self):
         if self.f != sys.stdin:
@@ -696,7 +706,7 @@ class MaterializedFileState(object):
 
 class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,disable_column_type_detection=False,
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,disable_column_type_detection=False,
         stdin_file=None,stdin_filename='-'):
         self.db = db
         self.filenames_str = filenames_str
@@ -710,6 +720,7 @@ class TableCreator(object):
         self.input_delimiter = input_delimiter
         self.stdin_file = stdin_file
         self.stdin_filename = stdin_filename
+        self.with_universal_newlines = with_universal_newlines
 
         self.column_inferer = TableColumnInferer(
             mode, expected_column_count, input_delimiter, skip_header,disable_column_type_detection)
@@ -755,6 +766,8 @@ class TableCreator(object):
         return self.table_name
 
     def open_file(self,filename):
+        # TODO Support universal newlines for gzipped and stdin data as well
+
         # Check if it's standard input or a file
         if filename == self.stdin_filename:
             if self.stdin_file is None:
@@ -764,9 +777,13 @@ class TableCreator(object):
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=file(filename,'rb'))    
+                f = gzip.GzipFile(fileobj=file(filename,'rb'))
             else:
-                f = file(filename,'rb')
+                if self.with_universal_newlines:
+                    file_opening_mode = 'rbU'
+                else:
+                    file_opening_mode = 'rb'
+                f = file(filename,file_opening_mode)
         return f
 
     def _pre_populate(self,dialect):
@@ -1090,7 +1107,7 @@ class QOutput(object):
 
 class QInputParams(object):
     def __init__(self,skip_header=False,
-            delimiter=' ',input_encoding='UTF-8',gzipped_input=False,parsing_mode='relaxed',
+            delimiter=' ',input_encoding='UTF-8',gzipped_input=False,with_universal_newlines=False,parsing_mode='relaxed',
             expected_column_count=None,keep_leading_whitespace_in_values=False,
             disable_double_double_quoting=False,disable_escaped_double_quoting=False,
             disable_column_type_detection=False,
@@ -1100,6 +1117,7 @@ class QInputParams(object):
         self.delimiter = delimiter
         self.input_encoding = input_encoding
         self.gzipped_input = gzipped_input
+        self.with_universal_newlines = with_universal_newlines
         self.parsing_mode = parsing_mode
         self.expected_column_count = expected_column_count
         self.keep_leading_whitespace_in_values = keep_leading_whitespace_in_values
@@ -1177,7 +1195,7 @@ class QTextAsData(object):
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
-            self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.input_encoding,
+            self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count, 
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
             stdin_file = stdin_file,stdin_filename = stdin_filename)
@@ -1273,6 +1291,8 @@ class QTextAsData(object):
             error = QError(e,"Bad header row: %s" % e.msg,35)
         except CannotUnzipStdInException,e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
+        except UniversalNewlinesExistException,e:
+            error = QError(e,"Data contains universal newlines. Run q with -U to use universal newlines. Please note that q still doesn't support universal newlines for .gz files or for stdin. Route the data through a regular file to use -U.",103)
         except UnprovidedStdInException,e:
             error = QError(e,"Standard Input must be provided in order to use it as a table",61)
         except CouldNotConvertStringToNumericValueException,e:
@@ -1582,6 +1602,8 @@ def run_standalone():
                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
     input_data_option_group.add_option("-M","--max-column-length-limit",dest="max_column_length_limit",default=131072,
                       help="Sets the maximum column length.")
+    input_data_option_group.add_option("-U","--with-universal-newlines",dest="with_universal_newlines",default=False,action="store_true",
+                      help="Expect universal newlines in the data. Limitation: -U works only with regular files for now, stdin or .gz files are not supported yet.")
     parser.add_option_group(input_data_option_group)
     #-----------------------------------------------
     output_data_option_group = OptionGroup(parser,"Output Options") 
@@ -1717,6 +1739,7 @@ def run_standalone():
         delimiter=options.delimiter,
         input_encoding=options.encoding,
         gzipped_input=options.gzipped,
+        with_universal_newlines=options.with_universal_newlines,
         parsing_mode=options.mode,
         expected_column_count=expected_column_count,
         keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,

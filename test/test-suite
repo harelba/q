@@ -1338,6 +1338,23 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_duplicate_column_name_detection(self):
+        file_data = "a,b,a\n10,20,30\n30,40,50"
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = '../bin/q -H -d , "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 35)
+        self.assertEquals(len(o), 0)
+        self.assertEquals(len(e), 2)
+
+        self.assertTrue(e[0].startswith('Bad header row:'))
+        self.assertEquals(e[1],"'a': Column name is duplicated")
+
+        self.cleanup(tmpfile)
+
+
 class ParsingModeTests(AbstractQTestCase):
 
     def test_strict_mode_column_count_mismatch_error(self):
@@ -1725,7 +1742,6 @@ class FormattingTests(AbstractQTestCase):
         self.assertEquals(actual_output,expected_output)
 
         self.cleanup(tmp_data_file)
-
 
 
 class SqlTests(AbstractQTestCase):

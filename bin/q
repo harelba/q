@@ -525,6 +525,13 @@ class TableColumnInferer(object):
                 column_name_errors.append(
                     (v, "Column name must be UTF-8 Compatible"))
                 continue
+            # We're checking for column duplication for each field in order to be able to still provide it along with other errors
+            if len(filter(lambda x: x == v,value_list)) > 1:
+                entry = (v, "Column name is duplicated")
+                # Don't duplicate the error report itself
+                if entry not in column_name_errors:
+                    column_name_errors.append(entry)
+                continue
             nul_index = v.find("\x00")
             if nul_index >= 0:
                 column_name_errors.append(

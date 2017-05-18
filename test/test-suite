@@ -1771,6 +1771,16 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(o[0], 'ppp dip.1@otherdomain.com')
         self.assertEquals(o[1], 'ppp dip.2@otherdomain.com')
 
+    def test_implicit_join_example(self):
+        cmd = '../bin/q "select myfiles.c8,emails.c2 from ../examples/exampledatafile myfiles, ../examples/group-emails-example emails where myfiles.c4 = emails.c1 and myfiles.c8 = \'ppp\'"'
+        retcode, o, e = run_command(cmd)
+
+        self.assertEquals(retcode, 0)
+        self.assertEquals(len(o), 2)
+
+        self.assertEquals(o[0], 'ppp dip.1@otherdomain.com')
+        self.assertEquals(o[1], 'ppp dip.2@otherdomain.com')
+
     def test_join_example_with_output_header(self):
         cmd = '../bin/q -O "select myfiles.c8 aaa,emails.c2 bbb from ../examples/exampledatafile myfiles join ../examples/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
         retcode, o, e = run_command(cmd)

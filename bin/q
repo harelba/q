@@ -49,8 +49,15 @@ import hashlib
 import uuid
 import cStringIO
 import math
+import pkg_resources
+import logging
+import inspect
 
 DEBUG = False
+
+
+logger = logging.getLogger(__name__)
+
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -118,11 +125,60 @@ class Sqlite3DB(object):
             str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
+        self.add_entrypoints()
 
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
         self.conn.create_function("sha1", 1, sha1)
         self.conn.create_aggregate("percentile",2,StrictPercentile)
+
+    def _get_entrypoint_argument_count(self, entrypoint):
+        if isinstance(entrypoint, object):
+            return len(inspect.getargspec(entrypoint.step).args[1:])
+
+        return len(inspect.getargspec(entrypoint).args)
+
+    def add_entrypoints(self):
+        for entry_point in pkg_resources.iter_entry_points(group='q_functions'):
+            try:
+                loaded = entry_point.load()
+                self.conn.create_function(
+                    entry_point.name,
+                    self._get_entrypoint_argument_count(loaded),
+                    loaded,
+                )
+            except ImportError:
+                logger.warning(
+                    "Could not load entry point function: %s",
+                    entry_point,
+                )
+
+        for entry_point in pkg_resources.iter_entry_points(group='q_aggregates'):
+            try:
+                loaded = entry_point.load()
+                self.conn.create_aggregate(
+                    entry_point.name,
+                    self._get_entrypoint_argument_count(loaded),
+                    loaded,
+                )
+            except ImportError:
+                logger.warning(
+                    "Could not load entry point aggregate: %s",
+                    entry_point,
+                )
+
+        for entry_point in pkg_resources.iter_entry_points(group='q_collations'):
+            try:
+                loaded = entry_point.load()
+                self.conn.create_collation(
+                    entry_point.name,
+                    loaded,
+                )
+            except ImportError:
+                logger.warning(
+                    "Could not load entry point collations: %s",
+                    entry_point,
+                )
 
     def is_numeric_type(self, column_type):
         return column_type in self.numeric_column_types

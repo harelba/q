@@ -1798,6 +1798,9 @@ def run_standalone():
         print >> sys.stderr, "Max column length limit must be a positive integer (%s)" % max_column_length_limit
         sys.exit(31)
 
+    if options.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
     default_input_params = QInputParams(skip_header=options.skip_header,
         delimiter=options.delimiter,
         input_encoding=options.encoding,

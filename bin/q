@@ -49,7 +49,6 @@ import hashlib
 import uuid
 import cStringIO
 import math
-import sqlitebck
 
 DEBUG = True
 
@@ -123,13 +122,39 @@ class Sqlite3DB(object):
     def done(self):
         self.conn.commit()
 
-    def store_db_to_disk(self,sqlite_db_filename,table_names_mapping):
+    def store_db_to_disk_standard(self,sqlite_db_filename,table_names_mapping):
+        new_db = sqlite3.connect(sqlite_db_filename,isolation_level=None)
+        c = new_db.cursor()
+        for s in self.conn.iterdump():
+            c.execute(s)
+            results = c.fetchall()
+            #print "executed %s results %s " % (s,results)
+        for source_filename_str,tn in table_names_mapping.iteritems():
+            c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
+        new_db.close()
+
+    def store_db_to_disk_fast(self,sqlite_db_filename,table_names_mapping):
+        try:
+            import sqlitebck
+        except ImportError, e:
+            msg = "sqlitebck python module cannot be found - fast store to disk cannot be performed"
+            print >>sys.stderr,msg
+            raise ValueError(msg)
+
         new_db = sqlite3.connect(sqlite_db_filename)
         sqlitebck.copy(self.conn,new_db)
         c = new_db.cursor()
         for source_filename_str,tn in table_names_mapping.iteritems():
             c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
         new_db.close()
+
+    def store_db_to_disk(self,sqlite_db_filename,table_names_mapping,method='standard'):
+        if method == 'standard':
+            self.store_db_to_disk_standard(sqlite_db_filename,table_names_mapping)
+        elif method == 'fast':
+            self.store_db_to_disk_fast(sqlite_db_filename,table_names_mapping)
+        else:
+            raise ValueError('Unknown store-db-to-disk method %s' % method)
 
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
@@ -1258,7 +1283,7 @@ class QTextAsData(object):
         for filename in sql_object.qtable_names:
             sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
 
-    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None):
+    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []
         error = None
         data_loads = []
@@ -1280,6 +1305,7 @@ class QTextAsData(object):
         sql_object = Sql('%s' % query_str)
 
         try:
+            load_start_time = time.time()
             data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
@@ -1289,8 +1315,9 @@ class QTextAsData(object):
             if save_db_to_disk_filename is not None:
                 self.db.done()
                 dump_start_time = time.time()
+                print >>sys.stderr,"Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time)
                 print >>sys.stderr,"Saving data to db file %s" % save_db_to_disk_filename
-                self.db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names())
+                self.db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
                 print >>sys.stderr,"Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time)
                 print >>sys.stderr,"Query to run on the database: %s;" % sql_object.get_effective_sql(True)
                 # TODO Propagate dump results using a different output class instead of an empty one
@@ -1345,8 +1372,8 @@ class QTextAsData(object):
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
 
-    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',save_db_to_disk_filename=None):
-        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename)
+    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',save_db_to_disk_filename=None,save_db_to_disk_method=None):
+        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
 
     def unload(self):
 
@@ -1611,8 +1638,8 @@ def run_standalone():
                       help="Print debug info in case of problems")
     parser.add_option("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=None,
                       help="Save database to an sqlite database file")
-    parser.add_option("", "--update-existing-disk-db", dest="update_existing_disk_db", default=False,action="store_true",
-                      help="Allow updating of existing disk db (Use with -S)")
+    parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default='standard',
+                      help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
@@ -1783,20 +1810,13 @@ def run_standalone():
 
         print >>sys.stderr,"Going to save data into a disk database: %s" % options.save_db_to_disk_filename
         if os.path.exists(options.save_db_to_disk_filename):
-            if options.update_existing_disk_db:
-                print >> sys.stderr, "Disk database file already exists and update flag has been provided. Making sure it's a real database file"
-                try:
-                    c = sqlite3.connect(options.save_db_to_disk_filename)
-                    tables = c.execute("select name from sqlite_master where type = 'table'")
-                    table_names = ['`%s`' % t[0] for t in tables.fetchall()]
-                    c.close()
-                    print >>sys.stderr,"Disk database exists and contains the following tables: %s" % ",".join(table_names)
-                except:
-                    print traceback.format_exc()
-                    sys.exit(63)
-            else:
-                print >> sys.stderr, "Disk database file already exists. Use --update-existing-disk-db in order to overwrite/update it with new data"
-                sys.exit(77)
+            print >> sys.stderr, "Disk database file %s already exists." % options.save_db_to_disk_filename
+            sys.exit(77)
+
+    if options.save_db_to_disk_method is not None:
+        if options.save_db_to_disk_method not in ['standard','fast']:
+            print >>sys.stderr,"save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method
+            sys.exit(78)
 
     default_input_params = QInputParams(skip_header=options.skip_header,
         delimiter=options.delimiter,
@@ -1826,7 +1846,7 @@ def run_standalone():
             q_output = q_engine.analyze(query_str,stdin_file=sys.stdin)
             q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
         else:
-            q_output = q_engine.execute(query_str,stdin_file=sys.stdin,save_db_to_disk_filename=options.save_db_to_disk_filename)
+            q_output = q_engine.execute(query_str,stdin_file=sys.stdin,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
         if q_output.status == 'error':

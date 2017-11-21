@@ -50,7 +50,7 @@ import uuid
 import cStringIO
 import math
 
-DEBUG = True
+DEBUG = False
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':

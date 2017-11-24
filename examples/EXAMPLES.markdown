@@ -50,7 +50,7 @@ Tutorial steps:
    * The timestamp is assumed to be a unix epoch timestamp, but in ms, and DATETIME accepts seconds, so we need to divide by 1000
    * The full-minute rounding is done by dividing by 60000 (ms), rounding and then multiplying by the same amount. Rounding to an hour, for example, would be the same except for having 3600000 instead of 60000.
    * We use DATETIME's capability in order to output the time in localtime format. In that case, it's converted to New York time (hence the -5 hours)
-   * The filename is actually all files matching "datafile*.gz" - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
+   * The filename is actually all files matching `datafile*.gz` - Multiple files can be read, and since they have a .gz extension, they are decompressed on the fly.
    * **NOTE:** For non-SQL people, the date manipulation may seem odd at first, but this is standard SQL processing for timestamps and it's easy to get used to.
 
 ## JOIN example
@@ -69,6 +69,35 @@ ppp dip.2@otherdomain.com
 ```
 
 You can see that the ppp filename appears twice, each time matched to one of the emails of the group `dip` to which it belongs. Take a look at the files [`exampledatafile`](exampledatafile) and [`group-emails-example`](group-emails-example) for the data.
+
+## Writing the data into an sqlite3 database
+q now supports writing its data into a disk base sqlite3 database file. In order to write the data to a database disk use the `-S` parameter (`--save-db-to-disk`) with a filename as a parameter. Note that you still need to provide a query as a parameter, even though it will not be executed. The tool will provide the proper sqlite3 query to run after writing the data to the database, allowing you to copy-paste it into the sqlite3 command line. If you don't care about running any query, just use "select 1" as the query.
+
+Here's an example that will write the output into `some.db` for further processing. Note that we've added the `-c 1` parameter to prevent q warning us about having only one column.
+```
+$ seq 1 100 | ./q "select count(*) from -" -S some.db -c 1
+Going to save data into a disk database: some.db
+Data has been loaded in 0.002 seconds
+Saving data to db file some.db
+Data has been saved into some.db . Saving has taken 0.018 seconds
+Query to run on the database: select count(*) from `-`;
+
+$ sqlite3 some.db
+SQLite version 3.19.3 2017-06-27 16:48:08
+Enter ".help" for usage hints.
+sqlite> .tables
+-
+sqlite> .schema
+CREATE TABLE IF NOT EXISTS "-" ("c1" INT);
+sqlite> select count(*) from `-`;
+100
+sqlite>
+```
+
+Note that table names are explictly set to the filenames in the original query (e.g. filenames), which means that in many cases you'd need to escape the table names in sqlite3 with backticks. For example, the name of the table above is `-`, and in order to use it in an sqlite3 query, it is backticked, otherwise it won't conform to a proper table name. I've decided to emphasize consistency and simplicity in this case, instead of trying to provide some normalization/sanitation of filenames, since I believe that doing it would cause much confusion and will be less effective. Any ideas and comments are this are most welcome obviously.
+
+### Choosing the method of writing the sqlite3 database
+There's another parameter that controls the method of writing to the sqlite3 database - `--save-db-to-disk-method`. The value can either be `standard` or `fast`. The fast method requires changes in the packaging of q, since it's dependent on another python module (https://github.com/husio/python-sqlite3-backup by @husio - Thanks!). However, there are some complications with seamlessly packaging it without possibly causing some backward compatibility issues (see PR #159 for some details), so it's not the standard method as of yet. If you're an advanced user, and in need for the faster method due to very large files etc., you'd need to manually install this python package for the fast method to work - Run `pip install sqlitebck` on your python installation. Obviously, I'm considering this as a bug that I need to fix.
 
 ## Installation
 Installation instructions can be found [here](../doc/INSTALL.markdown)

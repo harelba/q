@@ -137,9 +137,8 @@ class Sqlite3DB(object):
         try:
             import sqlitebck
         except ImportError, e:
-            msg = "sqlitebck python module cannot be found - fast store to disk cannot be performed"
-            print >>sys.stderr,msg
-            raise ValueError(msg)
+            msg = "sqlitebck python module cannot be found - fast store to disk cannot be performed. Note that for now, sqlitebck is not packaged as part of q. In order to use the fast method, you need to manually `pip install sqlitebck` into your python environment. We obviously consider this as a bug and it will be fixed once proper packaging will be done, making the fast method the standard one."
+            raise MissingSqliteBckModuleException(msg)
 
         new_db = sqlite3.connect(sqlite_db_filename)
         sqlitebck.copy(self.conn,new_db)
@@ -253,6 +252,15 @@ class ColumnMaxLengthLimitExceededException(Exception):
 
     def __str(self):
         return repr(self.msg)
+
+class MissingSqliteBckModuleException(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
+
 
 class CouldNotParseInputException(Exception):
 
@@ -1365,6 +1373,8 @@ class QTextAsData(object):
             error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
         except ColumnMaxLengthLimitExceededException,e:
             error = QError(e,e.msg,31)
+        except MissingSqliteBckModuleException, e:
+            error = QError(e,e.msg,79)
         except KeyboardInterrupt,e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception, e:

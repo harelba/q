@@ -1303,7 +1303,7 @@ class QTextAsData(object):
 
         if type(query_str) != unicode:
             try:
-                # Hueristic attempt to auto convert the query to unicode before failing
+                # Heuristic attempt to auto convert the query to unicode before failing
                 query_str = query_str.decode('utf-8')
             except:
                 error = QError(EncodedQueryException(''),"Query should be in unicode. Please make sure to provide a unicode literal string or decode it using proper the character encoding.",91)
@@ -1511,7 +1511,7 @@ class QOutputPrinter(object):
                 # broken pipe, that's ok
                 pass
             else:
-                # dont miss other problems for now
+                # don't miss other problems for now
                 raise
         except KeyboardInterrupt:
             pass
@@ -1570,7 +1570,7 @@ class QOutputPrinter(object):
                 # broken pipe, that's ok
                 pass
             else:
-                # dont miss other problem for now
+                # don't miss other problem for now
                 raise
         except KeyboardInterrupt:
             pass
@@ -1688,7 +1688,7 @@ def run_standalone():
     output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
                       help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
     output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
-                      help="Same as -D <tab>. Just a shorthand for outputing tab delimited output. You can use -D $'\\t' if you want.")
+                      help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
     output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
     output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
                       help="Beautify output according to actual values. Might be slow...")

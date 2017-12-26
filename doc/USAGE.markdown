@@ -98,7 +98,7 @@ Options:
                         the -d delimiter is used if present, or space if no
                         delimiter is specified
     -T, --tab-delimited-output
-                        Same as -D <tab>. Just a shorthand for outputing tab
+                        Same as -D <tab>. Just a shorthand for outputting tab
                         delimited output. You can use -D $'\t' if you want.
     -O, --output-header
                         Output header line. Output column-names are determined
@@ -147,7 +147,7 @@ q supports multiple parsing modes:
 
 * `relaxed` - This is the default mode. It tries to lean towards simplicity of use. When a row doesn't contains enough columns, they'll be filled with nulls, and when there are too many, the extra values will be merged to the last column. Defining the number of expected columns in this mode is done using the `-c` parameter. If it is not provided, then the number of columns is detected automatically (In most use cases, there is no need to specify `-c`)
 * `strict` - Strict mode is for hardcore csv/tsv parsing. Whenever a row doesn't contain the proper number of columns, processing will stop. `-c` must be provided when using this mode
-* `fluffy` - This mode should not be used, and is just some kind of "backward compatible" parsing mode which was used by q previously. It's left as a separate parsing mode on purpose, in order to accomodate existing users. If you are such a user, please open a bug for your use case, and I'll see how I can incorporate it into the other modes. It is reasonable to say that this mode will be removed in the future.
+* `fluffy` - This mode should not be used, and is just some kind of "backward compatible" parsing mode which was used by q previously. It's left as a separate parsing mode on purpose, in order to accommodate existing users. If you are such a user, please open a bug for your use case, and I'll see how I can incorporate it into the other modes. It is reasonable to say that this mode will be removed in the future.
 
 ### Output formatting option
 The format of F is as a list of X=f separated by commas, where X is a column number and f is a python format:

@@ -5,9 +5,19 @@ Instructions for creating a windows package for q:
 
 The installation is based on a wine docker container.
 
-fetch all files from https://github.com/harelba/packages-for-q/tree/master/artifactory-for-packaging into dist/windows folder.
+mkdir -p dist/windows
 
-extract pyinstaller2.1 zip file inside the folder.
+pushd dist/windows
+
+fetch all files from https://github.com/harelba/packages-for-q/tree/master/artifactory-for-packaging into that folder.
+
+tar xvzf PyInstaller-2.1.tar.gz
+
+Fix pyinstaller to work around a bug by running the following command (use gsed for osx or sed for linux):
+gsed -i '1587s/^.*$/            if tpl[2] in ["BINARY", "DATA"]:/' ./PyInstaller-2.1/PyInstaller/build.py
+
+popd
+
 
 d=`pwd`
 cid1=`docker run -d -v ${d}:/q -e VNC_PASSWORD=newPW -p 5900:5900 suchja/x11server`
@@ -33,7 +43,7 @@ inside the docker container prompt:
 
   ln -s /q "q:"
 
-  wine msiexec /i q:\\dist\\windows\\python-2.7.13.msi
+  wine msiexec /i q:\\dist\\windows\\python-2.7.13.msi /q
 
   wine q:\\dist\\windows\\pywin32-219.win32-py2.7.exe
 
@@ -43,8 +53,9 @@ inside the docker container prompt:
 
   cd /q/dist
 
-  wine q:\\dist\\windows\\nsis-2.46-setup.exe - install to c:\\q-build-environment\\nsis
+  wine q:\\dist\\windows\\nsis-2.46-setup.exe - install to c:\q-build-environment\nsis
 
+   
   wine c:\\python27\\python.exe c:\\q-build-environment\\PyInstaller-2.1\\pyinstaller.py -F --distpath=win_output --workpath=win_build q:\\bin\\q
 
   ### Don't forget to change the version in the command below:

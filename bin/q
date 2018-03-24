@@ -27,7 +27,7 @@
 #
 # Run with --help for command line details
 #
-q_version = "1.7.1"
+q_version = "1.7.4"
 
 __all__ = [ 'QTextAsData' ]
 

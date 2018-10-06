@@ -790,6 +790,7 @@ class TableCreator(object):
 
         self.pre_creation_rows = []
         self.buffered_inserts = []
+        self.effective_column_names = None
 
         # Column type indices for columns that contain numeric types. Lazily initialized
         # so column inferer can do its work before this information is needed
@@ -934,6 +935,7 @@ class TableCreator(object):
             self.pre_creation_rows.append(col_vals)
             return
 
+
         # The table already exists, so we can just add a new row
         self._insert_row_i(col_vals)
 
@@ -993,13 +995,14 @@ class TableCreator(object):
 
     def _insert_row_i(self, col_vals):
         col_vals = self.normalize_col_vals(col_vals)
-        effective_column_names = self.column_inferer.column_names[
-            :len(col_vals)]
 
-        if len(effective_column_names) > 0:
-            self.buffered_inserts.append((effective_column_names, col_vals))
+        if self.effective_column_names is None:
+            self.effective_column_names = self.column_inferer.column_names[:len(col_vals)]
+
+        if len(self.effective_column_names) > 0:
+            self.buffered_inserts.append(col_vals)
         else:
-            self.buffered_inserts.append((["c1"], [""]))
+            self.buffered_inserts.append([""])
 
         if len(self.buffered_inserts) < 5000:
             return
@@ -1014,10 +1017,9 @@ class TableCreator(object):
 
         if len(self.buffered_inserts) > 0:
             insert_row_stmt = self.db.generate_insert_row(
-                self.table_name, self.buffered_inserts[0][0])
-            params = [col_vals for col_names, col_vals in self.buffered_inserts]
+                self.table_name, self.effective_column_names)
 
-            self.db.update_many(insert_row_stmt, params)
+            self.db.update_many(insert_row_stmt, self.buffered_inserts)
         # print self.db.execute_and_fetch(self.db.generate_end_transaction())
         self.buffered_inserts = []
 

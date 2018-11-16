@@ -136,7 +136,7 @@ class Sqlite3DB(object):
     def store_db_to_disk_fast(self,sqlite_db_filename,table_names_mapping):
         try:
             import sqlitebck
-        except ImportError, e:
+        except ImportError:
             msg = "sqlitebck python module cannot be found - fast store to disk cannot be performed. Note that for now, sqlitebck is not packaged as part of q. In order to use the fast method, you need to manually `pip install sqlitebck` into your python environment. We obviously consider this as a bug and it will be fixed once proper packaging will be done, making the fast method the standard one."
             raise MissingSqliteBckModuleException(msg)
 
@@ -166,7 +166,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print sql, " params: " + str(params)
+                print("{0} params: {1}".format(sql, params))
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()
@@ -174,7 +174,7 @@ class Sqlite3DB(object):
     def execute_and_fetch(self, q):
         try:
             if self.show_sql:
-                print repr(q)
+                print(repr(q))
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
@@ -701,12 +701,12 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
         else:
             for row in csv_reader:
                 yield row
-    except ValueError,e:
+    except ValueError as e:
         if e.message is not None and e.message.startswith('could not convert string to'):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
             raise CouldNotParseInputException(str(e))
-    except Exception,e:
+    except Exception as e:
         if str(e).startswith("field larger than field limit"):
             raise ColumnMaxLengthLimitExceededException(str(e))
         elif 'universal-newline' in str(e):
@@ -745,17 +745,17 @@ class MaterializedFileState(object):
                 BOM = self.f.read(3)
                 if BOM != '\xef\xbb\xbf':
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
-            except Exception,e:
+            except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
         csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
                 yield col_vals
-        except ColumnMaxLengthLimitExceededException,e:
+        except ColumnMaxLengthLimitExceededException:
             msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.filename,self.lines_read + 1,self.encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
-        except UniversalNewlinesExistException,e2:
+        except UniversalNewlinesExistException:
             # No need to translate the exception, but we want it to be explicitly defined here for clarity
             raise UniversalNewlinesExistException()
 
@@ -876,11 +876,11 @@ class TableCreator(object):
                         raise MissingHeaderException("Header line is expected but missing in file %s" % filename)
 
                     total_data_lines_read += mfs.lines_read - (1 if self.skip_header else 0)
-                except StrictModeColumnCountMismatchException,e:
+                except StrictModeColumnCountMismatchException as e:
                     raise ColumnCountMismatchException(
                         'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
                         e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
-                except FluffyModeColumnCountMismatchException,e:
+                except FluffyModeColumnCountMismatchException as e:
                     raise ColumnCountMismatchException(
                         'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
                         normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
@@ -1346,40 +1346,40 @@ class QTextAsData(object):
                 warnings = warnings,
                 error = error)
 
-        except EmptyDataException,e:
+        except EmptyDataException as e:
             warnings.append(QWarning(e,"Warning - data is empty"))
-        except MissingHeaderException,e:
+        except MissingHeaderException as e:
             error = QError(e,e.msg,117)
-        except FileNotFoundException, e:
+        except FileNotFoundException as e:
             error = QError(e,e.msg,30)
-        except sqlite3.OperationalError, e:
+        except sqlite3.OperationalError as e:
             msg = str(e)
             error = QError(e,"query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
                 warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
-        except ColumnCountMismatchException, e:
+        except ColumnCountMismatchException as e:
             error = QError(e,e.msg,2)
-        except (UnicodeDecodeError, UnicodeError), e:
+        except (UnicodeDecodeError, UnicodeError) as e:
             error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e,3)
-        except BadHeaderException, e:
+        except BadHeaderException as e:
             error = QError(e,"Bad header row: %s" % e.msg,35)
-        except CannotUnzipStdInException,e:
+        except CannotUnzipStdInException as e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
-        except UniversalNewlinesExistException,e:
+        except UniversalNewlinesExistException as e:
             error = QError(e,"Data contains universal newlines. Run q with -U to use universal newlines. Please note that q still doesn't support universal newlines for .gz files or for stdin. Route the data through a regular file to use -U.",103)
-        except UnprovidedStdInException,e:
+        except UnprovidedStdInException as e:
             error = QError(e,"Standard Input must be provided in order to use it as a table",61)
-        except CouldNotConvertStringToNumericValueException,e:
+        except CouldNotConvertStringToNumericValueException as e:
             error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
-        except CouldNotParseInputException,e:
+        except CouldNotParseInputException as e:
             error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
-        except ColumnMaxLengthLimitExceededException,e:
+        except ColumnMaxLengthLimitExceededException as e:
             error = QError(e,e.msg,31)
-        except MissingSqliteBckModuleException, e:
+        except MissingSqliteBckModuleException as e:
             error = QError(e,e.msg,79)
-        except KeyboardInterrupt,e:
+        except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
-        except Exception, e:
+        except Exception as e:
             error = QError(e,repr(e),199)
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
@@ -1505,10 +1505,10 @@ class QOutputPrinter(object):
     def print_output(self,f_out,f_err,results):
         try:
             self._print_output(f_out,f_err,results)
-        except (UnicodeEncodeError, UnicodeError), e:
+        except (UnicodeEncodeError, UnicodeError) as e:
             print >>f_err, "Cannot encode data. Error:%s" % e
             sys.exit(3)
-        except IOError, e:
+        except IOError as e:
             if e.errno == 32:
                 # broken pipe, that's ok
                 pass
@@ -1561,13 +1561,13 @@ class QOutputPrinter(object):
                         row_str.append(fmt_str % "")
 
                 f_out.write(self.output_params.delimiter.join(row_str) + "\n")
-        except (UnicodeEncodeError, UnicodeError), e:
+        except (UnicodeEncodeError, UnicodeError) as e:
             print >>sys.stderr, "Cannot encode data. Error:%s" % e
             sys.exit(3)
-        except TypeError,e:
+        except TypeError as e:
             print >>sys.stderr, "Error while formatting output: %s" % e
             sys.exit(4)
-        except IOError, e:
+        except IOError as e:
             if e.errno == 32:
                 # broken pipe, that's ok
                 pass
@@ -1580,7 +1580,7 @@ class QOutputPrinter(object):
         try:
             # Prevent python bug when order of pipe shutdowns is reversed
             f_out.flush()
-        except IOError, e:
+        except IOError as e:
             pass
 
 def run_standalone():
@@ -1744,7 +1744,7 @@ def run_standalone():
                     print >>sys.stderr,"Query cannot be empty (query number %s)" % (idx+1)
                     sys.exit(1)
 
-        except Exception,e:
+        except Exception:
             print >>sys.stderr,"Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding)
             sys.exit(3)
 

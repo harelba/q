@@ -23,7 +23,7 @@
 #
 # Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 #
-# Full Documentation and details in http://harelba.github.io/q/ 
+# Full Documentation and details in http://harelba.github.io/q/
 #
 # Run with --help for command line details
 #
@@ -237,98 +237,57 @@ class Sqlite3DB(object):
     def drop_table(self, table_name):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
+
 class CouldNotConvertStringToNumericValueException(Exception):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
 
 class ColumnMaxLengthLimitExceededException(Exception):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
 
 class MissingSqliteBckModuleException(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
+    pass
 
 
 class CouldNotParseInputException(Exception):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
 
 class BadHeaderException(Exception):
+    pass
 
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
 
 class EncodedQueryException(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
+    pass
 
 
 class CannotUnzipStdInException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class UniversalNewlinesExistException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class UnprovidedStdInException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class EmptyDataException(Exception):
+    pass
 
-    def __init__(self):
-        pass
 
 class MissingHeaderException(Exception):
-
-    def __init__(self,msg):
-        self.msg = msg
+    pass
 
 
 class FileNotFoundException(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
+    pass
 
 
 class ColumnCountMismatchException(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
+    pass
 
 class StrictModeColumnCountMismatchException(Exception):
 
@@ -738,7 +697,7 @@ class MaterializedFileState(object):
 
     def read_file_using_csv(self):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
-        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
+        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by
         # multiple people.
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
@@ -1152,7 +1111,7 @@ class QOutput(object):
         s = []
         s.append('status=%s' % self.status)
         if self.error is not None:
-            s.append("error=%s" % self.error.msg)
+            s.append("error=%s" % self.error.message)
         if len(self.warnings) > 0:
             s.append("warning_count=%s" % len(self.warnings))
         if self.data is not None:
@@ -1349,20 +1308,20 @@ class QTextAsData(object):
         except EmptyDataException,e:
             warnings.append(QWarning(e,"Warning - data is empty"))
         except MissingHeaderException,e:
-            error = QError(e,e.msg,117)
+            error = QError(e,e.message,117)
         except FileNotFoundException, e:
-            error = QError(e,e.msg,30)
+            error = QError(e,e.message,30)
         except sqlite3.OperationalError, e:
-            msg = str(e)
-            error = QError(e,"query error: %s" % msg,1)
+            msg = e.message
+            error = QError(e, "query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
                 warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
         except ColumnCountMismatchException, e:
-            error = QError(e,e.msg,2)
+            error = QError(e, e.message, 2)
         except (UnicodeDecodeError, UnicodeError), e:
-            error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e,3)
+            error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e.message, 3)
         except BadHeaderException, e:
-            error = QError(e,"Bad header row: %s" % e.msg,35)
+            error = QError(e,"Bad header row: %s" % e.message, 35)
         except CannotUnzipStdInException,e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
         except UniversalNewlinesExistException,e:
@@ -1370,13 +1329,13 @@ class QTextAsData(object):
         except UnprovidedStdInException,e:
             error = QError(e,"Standard Input must be provided in order to use it as a table",61)
         except CouldNotConvertStringToNumericValueException,e:
-            error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
+            error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.message,58)
         except CouldNotParseInputException,e:
-            error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
+            error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.message,59)
         except ColumnMaxLengthLimitExceededException,e:
-            error = QError(e,e.msg,31)
+            error = QError(e,e.message,31)
         except MissingSqliteBckModuleException, e:
-            error = QError(e,e.msg,79)
+            error = QError(e,e.message,79)
         except KeyboardInterrupt,e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception, e:
@@ -1481,12 +1440,12 @@ class QOutputPrinter(object):
     def print_errors_and_warnings(self,f,results):
         if results.status == 'error':
             error = results.error
-            print >>f,error.msg
+            print >>f,error.message
             if self.show_tracebacks:
                 print >>f,error.traceback
 
         for warning in results.warnings:
-            print >>f,"%s" % warning.msg
+            print >>f,"%s" % warning.message
 
     def print_analysis(self,f_out,f_err,results):
         self.print_errors_and_warnings(f_err,results)

@@ -690,9 +690,13 @@ class TableColumnInferer(object):
         return self.column_types
 
 
-def encoded_csv_reader(encoding, f, dialect, **kwargs):
+def encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
     try:
-        csv_reader = csv.reader(codecs.iterdecode(f,encoding), dialect,**kwargs)
+        if not is_stdin:
+            csv_reader = csv.reader(codecs.iterdecode(f,encoding), dialect,**kwargs)
+        else:
+            csv_reader = csv.reader(f, dialect, **kwargs)
+
         for row in csv_reader:
             yield row
     except ValueError as e:
@@ -741,7 +745,7 @@ class MaterializedFileState(object):
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
             except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
-        csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
+        csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect,is_stdin=self.is_stdin)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -831,7 +835,7 @@ class TableCreator(object):
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=file(filename,'rb'))
+                f = gzip.GzipFile(fileobj=open(filename,'rb'))
             else:
                 f = open(filename,'rb')
         return f
@@ -1718,7 +1722,7 @@ def run_standalone():
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = file(options.query_filename)
+            f = open(options.query_filename)
             query_strs = [f.read()]
             f.close()
         except:

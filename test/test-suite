@@ -30,7 +30,6 @@ from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
 SYSTEM_ENCODING = locale.getpreferredencoding()
 
 def run_command(cmd_to_run):
-    print(cmd_to_run)
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
     o, e = p.communicate()
     o, e = o.decode(SYSTEM_ENCODING),e.decode(SYSTEM_ENCODING)
@@ -2293,6 +2292,17 @@ def suite():
     return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests])
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        suite = unittest.TestSuite()
+        if '.' in sys.argv[1]:
+            c,m = sys.argv[1].split(".")
+            suite.addTest(globals()[c](m))
+        else:
+            tl = unittest.TestLoader()
+            tc = tl.loadTestsFromTestCase(globals()[sys.argv[1]])
+            suite = unittest.TestSuite([tc])
+    else:
+        suite = suite()
     test_runner = unittest.TextTestRunner(verbosity=2)
-    result = test_runner.run(suite())
+    result = test_runner.run(suite)
     sys.exit(not result.wasSuccessful())

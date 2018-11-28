@@ -830,14 +830,18 @@ class TableCreator(object):
         if filename == self.stdin_filename:
             if self.stdin_file is None:
                 raise UnprovidedStdInException()
-            f = self.stdin_file
+            f = self.stdin_file.buffer
             if self.gzipped:
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
                 f = gzip.GzipFile(fileobj=open(filename,'rb'))
             else:
-                f = open(filename,'rb')
+                if self.with_universal_newlines:
+                    file_opening_mode = 'rbU'
+                else:
+                    file_opening_mode = 'rb'
+                f = open(filename,file_opening_mode)
         return f
 
     def _pre_populate(self,dialect):

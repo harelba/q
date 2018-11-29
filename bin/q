@@ -50,6 +50,11 @@ import uuid
 import cStringIO
 import math
 
+try:
+    long
+except NameError:
+    long = int
+
 DEBUG = False
 
 def get_stdout_encoding(encoding_override=None):
@@ -166,7 +171,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print("{0} params: {1}".format(sql, params))
+                print("{} params: {}".format(sql, params))
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()

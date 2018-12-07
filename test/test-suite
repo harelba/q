@@ -21,6 +21,8 @@ from tempfile import NamedTemporaryFile
 import locale
 import pprint
 
+from six.moves import xrange
+
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
 
@@ -32,8 +34,8 @@ def run_command(cmd_to_run):
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
     o, e = p.communicate()
     # remove last newline
-    o = o.rstrip()
-    e = e.strip()
+    o = str(o.rstrip())
+    e = str(e.strip())
     # split rows
     if o != '':
         o = o.split(os.linesep)

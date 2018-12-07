@@ -9,6 +9,6 @@ trap return_to_original_folder EXIT
 
 pushd $(dirname $0)/
 
-./test-suite
+./test-suite "$@"
 
 set +e

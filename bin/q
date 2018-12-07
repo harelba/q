@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 #   Copyright (C) 2012-2018 Harel Ben-Attia
 #
@@ -43,13 +43,17 @@ import codecs
 import locale
 import time
 import re
-from ConfigParser import ConfigParser
+from six.moves import configparser, range, filter
 import traceback
 import csv
 import hashlib
 import uuid
-import cStringIO
 import math
+import six
+
+if six.PY3:
+    long = int
+    unicode = six.text_type
 
 DEBUG = False
 
@@ -179,7 +183,7 @@ class Sqlite3DB(object):
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
-                query_column_names = [c[0].decode('utf-8') for c in self.cursor.description]
+                query_column_names = [c[0] for c in self.cursor.description]
             else:
                 query_column_names = None
             result = self.cursor.fetchall()
@@ -222,7 +226,7 @@ class Sqlite3DB(object):
     def generate_create_table(self, table_name, column_names, column_dict):
         # Convert dict from python types to db types
         column_name_to_db_type = dict(
-            (n, self.type_names[t]) for n, t in column_dict.iteritems())
+            (n, self.type_names[t]) for n, t in six.iteritems(column_dict))
         column_defs = ','.join(['"%s" %s' % (
             n.replace('"', '""'), column_name_to_db_type[n]) for n in column_names])
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
@@ -418,12 +422,12 @@ class Sql(object):
             qtable_name] = effective_table_name
 
     def get_effective_sql(self,original_names=False):
-        if len(filter(lambda x: x is None, self.qtable_name_effective_table_names)) != 0:
+        if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
             raise Exception('There are qtables without effective tables')
 
         effective_sql = [x for x in self.sql_parts]
 
-        for qtable_name, positions in self.qtable_name_positions.iteritems():
+        for qtable_name, positions in six.iteritems(self.qtable_name_positions):
             for pos in positions:
                 if not original_names:
                     effective_sql[pos] = self.qtable_name_effective_table_names[
@@ -525,8 +529,8 @@ class TableColumnInferer(object):
             return type_list[0]
         else:
             # check for the number of types without nulls,
-            type_list_without_nulls = filter(
-                lambda x: x is not None, type_list)
+            type_list_without_nulls = list(filter(
+                lambda x: x is not None, type_list))
             # If all the sample lines are of the same type,
             if len(set(type_list_without_nulls)) == 1:
                 # return it
@@ -579,7 +583,7 @@ class TableColumnInferer(object):
                     (v, "Column name must be UTF-8 Compatible"))
                 continue
             # We're checking for column duplication for each field in order to be able to still provide it along with other errors
-            if len(filter(lambda x: x == v,value_list)) > 1:
+            if len(list(filter(lambda x: x == v,value_list))) > 1:
                 entry = (v, "Column name is duplicated")
                 # Don't duplicate the error report itself
                 if entry not in column_name_errors:
@@ -611,7 +615,7 @@ class TableColumnInferer(object):
                     # in relaxed mode, add columns to fill the missing ones
                     self.header_row = self.header_row + \
                         ['c%s' % (x + len(self.header_row) + 1)
-                         for x in xrange(self.column_count - len(self.header_row))]
+                         for x in range(self.column_count - len(self.header_row))]
             elif len(self.header_row) > self.column_count:
                 if self.mode == 'strict':
                     raise ColumnCountMismatchException("Strict mode. Header row contains more columns than expected column count (%s vs %s)" % (
@@ -661,7 +665,7 @@ class TableColumnInferer(object):
     def infer_column_types(self):
         self.column_types = []
         self.column_types2 = []
-        for column_number in xrange(self.column_count):
+        for column_number in range(self.column_count):
             column_value_list = [
                 row[column_number] if column_number < len(row) else None for row in self.rows]
             column_type = self.determine_type_of_value_list(column_value_list)
@@ -693,7 +697,30 @@ class TableColumnInferer(object):
         return self.column_types
 
 
-def encoded_csv_reader(encoding, f, dialect, **kwargs):
+def py3_encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
+    try:
+        if not is_stdin:
+            csv_reader = csv.reader(codecs.iterdecode(f,encoding), dialect,**kwargs)
+        else:
+            csv_reader = csv.reader(f, dialect, **kwargs)
+
+        for row in csv_reader:
+            yield row
+    except ValueError as e:
+        if e.message is not None and e.message.startswith('could not convert string to'):
+            raise CouldNotConvertStringToNumericValueException(e.message)
+        else:
+            raise CouldNotParseInputException(str(e))
+    except Exception as e:
+        if str(e).startswith("field larger than field limit"):
+            raise ColumnMaxLengthLimitExceededException(str(e))
+        elif 'universal-newline' in str(e):
+            raise UniversalNewlinesExistException()
+        else:
+            raise
+
+
+def py2_encoded_csv_reader(encoding, f, dialect, is_stdin, **kwargs):
     try:
         csv_reader = csv.reader(f, dialect, **kwargs)
         if encoding is not None and encoding != 'none':
@@ -714,6 +741,12 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
             raise UniversalNewlinesExistException()
         else:
             raise
+
+if six.PY2:
+    encoded_csv_reader = py2_encoded_csv_reader
+else:
+    encoded_csv_reader = py3_encoded_csv_reader
+
 
 def normalized_filename(filename):
     if filename == '-':
@@ -748,7 +781,7 @@ class MaterializedFileState(object):
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
             except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
-        csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
+        csv_reader = encoded_csv_reader(self.encoding, self.f, is_stdin=self.is_stdin,dialect=self.dialect)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -838,13 +871,13 @@ class TableCreator(object):
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=file(filename,'rb'))
+                f = gzip.GzipFile(fileobj=open(filename,'rb'))
             else:
                 if self.with_universal_newlines:
                     file_opening_mode = 'rbU'
                 else:
                     file_opening_mode = 'rb'
-                f = file(filename,file_opening_mode)
+                f = open(filename,file_opening_mode)
         return f
 
     def _pre_populate(self,dialect):
@@ -975,7 +1008,7 @@ class TableCreator(object):
 
         if actual_col_count < expected_col_count:
             col_vals = col_vals + \
-                [None for x in xrange(expected_col_count - actual_col_count)]
+                [None for x in range(expected_col_count - actual_col_count)]
 
         # in relaxed mode, we merge all extra columns to the last column value
         if self.mode == 'relaxed':
@@ -1066,9 +1099,9 @@ class TableCreator(object):
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     if len(m) == 0:
         return []
-    max_lengths = [0 for x in xrange(0, len(m[0]))]
-    for row_index in xrange(0, len(m)):
-        for col_index in xrange(0, len(m[0])):
+    max_lengths = [0 for x in range(0, len(m[0]))]
+    for row_index in range(0, len(m)):
+        for col_index in range(0, len(m[0])):
             new_len = len(unicode(output_field_quoting_func(output_delimiter,m[row_index][col_index])))
             if new_len > max_lengths[col_index]:
                 max_lengths[col_index] = new_len
@@ -1272,7 +1305,7 @@ class QTextAsData(object):
         self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
     def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
-        sf = cStringIO.StringIO(str_data)
+        sf = six.StringIO(str_data)
         try:
             self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
         finally:
@@ -1390,7 +1423,7 @@ class QTextAsData(object):
 
     def unload(self):
 
-        for filename,table_creator in self.table_creators.iteritems():
+        for filename,table_creator in six.iteritems(self.table_creators):
             try:
                 table_creator.drop_table()
             except:
@@ -1401,13 +1434,13 @@ class QTextAsData(object):
     def _create_materialized_files(self,table_creator):
         d = table_creator.materialized_file_dict
         m = {}
-        for filename,mfs in d.iteritems():
+        for filename,mfs in six.iteritems(d):
             m[filename] = QMaterializedFile(filename,mfs.is_stdin)
         return m
 
     def _create_table_structures_list(self):
         table_structures = []
-        for filename,table_creator in self.table_creators.iteritems():
+        for filename,table_creator in six.iteritems(self.table_creators):
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
             materialized_files = self._create_materialized_files(table_creator)
@@ -1431,7 +1464,7 @@ def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
     t = type(v)
-    if t == str or t == unicode and ((output_delimiter in v) or ('"' in v)):
+    if (t == str or t == unicode) and ((output_delimiter in v) or ('"' in v)):
         return '"%s"' % (escape_double_quotes_if_needed(v))
     return v;
 
@@ -1561,11 +1594,13 @@ class QOutputPrinter(object):
                     else:
                         row_str.append(fmt_str % "")
 
-                f_out.write(self.output_params.delimiter.join(row_str) + "\n")
+                xxxx = self.output_params.delimiter.join(row_str) + "\n"
+                f_out.write(xxxx)
         except (UnicodeEncodeError, UnicodeError) as e:
             print("Cannot encode data. Error:%s" % e, file=sys.stderr)
             sys.exit(3)
         except TypeError as e:
+            print(traceback.format_exc())
             print("Error while formatting output: %s" % e, file=sys.stderr)
             sys.exit(4)
         except IOError as e:
@@ -1585,7 +1620,7 @@ class QOutputPrinter(object):
             pass
 
 def run_standalone():
-    p = ConfigParser()
+    p = configparser.ConfigParser()
     p.read([os.path.expanduser('~/.qrc'), '.qrc'])
 
     def get_option_with_default(p, option_type, option, default):
@@ -1727,7 +1762,7 @@ def run_standalone():
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = file(options.query_filename)
+            f = open(options.query_filename)
             query_strs = [f.read()]
             f.close()
         except:
@@ -1736,16 +1771,19 @@ def run_standalone():
     else:
         query_strs = args
 
+    SYSTEM_ENCODING = locale.getpreferredencoding()
+
     if options.query_encoding is not None and options.query_encoding != 'none':
         try:
             for idx in range(len(query_strs)):
-                query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
+                query_strs[idx] = query_strs[idx].encode(SYSTEM_ENCODING).decode(options.query_encoding).strip()
 
                 if len(query_strs[idx]) == 0:
                     print("Query cannot be empty (query number %s)" % (idx+1), file=sys.stderr)
                     sys.exit(1)
 
         except Exception as e:
+            print(traceback.format_exc())
             print("Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding), file=sys.stderr)
             sys.exit(3)
 
@@ -1755,7 +1793,10 @@ def run_standalone():
 
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
-        STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+        if six.PY2:
+            STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+        else:
+            STDOUT = sys.stdout
     except:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
@@ -1773,11 +1814,11 @@ def run_standalone():
         print("Delimiter must be one character only", file=sys.stderr)
         sys.exit(5)
 
-    if options.input_quoting_mode not in QTextAsData.input_quoting_modes.keys():
+    if options.input_quoting_mode not in list(QTextAsData.input_quoting_modes.keys()):
         print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
         sys.exit(55)
 
-    if options.output_quoting_mode not in QOutputPrinter.output_quoting_modes.keys():
+    if options.output_quoting_mode not in list(QOutputPrinter.output_quoting_modes.keys()):
         print("Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
         sys.exit(56)
 

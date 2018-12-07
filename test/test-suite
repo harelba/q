@@ -34,8 +34,8 @@ def run_command(cmd_to_run):
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
     o, e = p.communicate()
     # remove last newline
-    o = str(o.rstrip())
-    e = str(e.strip())
+    o = o.rstrip()
+    e = e.strip()
     # split rows
     if o != '':
         o = o.split(os.linesep)

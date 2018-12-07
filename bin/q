@@ -47,9 +47,9 @@ import uuid
 from optparse import OptionGroup, OptionParser
 
 import six
+from six.moves import cStringIO
 from six.moves import xrange
 from six.moves.configparser import ConfigParser
-from six.moves.cStringIO import StringIO
 
 try:
     long
@@ -1281,7 +1281,7 @@ class QTextAsData(object):
         self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
     def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
-        sf = StringIO(str_data)
+        sf = cStringIO(str_data)
         try:
             self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
         finally:

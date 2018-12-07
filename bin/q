@@ -1752,6 +1752,8 @@ def run_standalone():
         print_credentials()
         sys.exit(0)
 
+    SYSTEM_ENCODING = locale.getpreferredencoding()
+
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
         print("Must provide at least one query in the command line, or through a file with the -q parameter", file=sys.stderr)
@@ -1762,7 +1764,7 @@ def run_standalone():
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = open(options.query_filename)
+            f = open(options.query_filename,encoding=options.query_encoding or SYSTEM_ENCODING)
             query_strs = [f.read()]
             f.close()
         except:
@@ -1771,21 +1773,6 @@ def run_standalone():
     else:
         query_strs = args
 
-    SYSTEM_ENCODING = locale.getpreferredencoding()
-
-    if options.query_encoding is not None and options.query_encoding != 'none':
-        try:
-            for idx in range(len(query_strs)):
-                query_strs[idx] = query_strs[idx].encode(SYSTEM_ENCODING).decode(options.query_encoding).strip()
-
-                if len(query_strs[idx]) == 0:
-                    print("Query cannot be empty (query number %s)" % (idx+1), file=sys.stderr)
-                    sys.exit(1)
-
-        except Exception as e:
-            print(traceback.format_exc())
-            print("Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding), file=sys.stderr)
-            sys.exit(3)
 
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
         print("Parsing mode can be one of fluffy, relaxed or strict", file=sys.stderr)
@@ -1815,7 +1802,7 @@ def run_standalone():
         sys.exit(5)
 
     if options.input_quoting_mode not in list(QTextAsData.input_quoting_modes.keys()):
-        print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
+        print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(sorted(QTextAsData.input_quoting_modes.keys())),options.input_quoting_mode), file=sys.stderr)
         sys.exit(55)
 
     if options.output_quoting_mode not in list(QOutputPrinter.output_quoting_modes.keys()):

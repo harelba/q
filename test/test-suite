@@ -21,6 +21,7 @@ from tempfile import NamedTemporaryFile
 import locale
 import pprint
 import six
+from six.moves import range
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
@@ -57,7 +58,11 @@ def run_command(cmd_to_run):
     else:
         e = []
 
-    return (p.returncode, [x.encode(SYSTEM_ENCODING) for x in o], [x.encode(SYSTEM_ENCODING) for x in e])
+
+    res = (p.returncode, [x.encode(SYSTEM_ENCODING) for x in o], [x.encode(SYSTEM_ENCODING) for x in e])
+    if DEBUG:
+        print("RESULT:{}".format(res))
+    return res
 
 uneven_ls_output = """drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
 drwxr-xr-x   2 root     root      4096 Apr 19  2013 /mnt
@@ -82,14 +87,14 @@ find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 1
 8263604    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514175754.version
 """
 
-header_row = 'name,value1,value2'
-sample_data_rows = ['a,1,0', 'b,2,0', 'c,,0']
-sample_data_rows_with_empty_string = ['a,aaa,0', 'b,bbb,0', 'c,,0']
-sample_data_no_header = "\n".join(sample_data_rows) + "\n"
-sample_data_with_empty_string_no_header = "\n".join(
-    sample_data_rows_with_empty_string) + "\n"
-sample_data_with_header = header_row + "\n" + sample_data_no_header
-sample_data_with_missing_header_names = "name,value1\n" + sample_data_no_header
+header_row = six.b('name,value1,value2')
+sample_data_rows = [six.b('a,1,0'), six.b('b,2,0'), six.b('c,,0')]
+sample_data_rows_with_empty_string = [six.b('a,aaa,0'), six.b('b,bbb,0'), six.b('c,,0')]
+sample_data_no_header = six.b("\n").join(sample_data_rows) + six.b("\n")
+sample_data_with_empty_string_no_header = six.b("\n").join(
+    sample_data_rows_with_empty_string) + six.b("\n")
+sample_data_with_header = header_row + six.b("\n") + sample_data_no_header
+sample_data_with_missing_header_names = six.b("name,value1\n") + sample_data_no_header
 
 sample_quoted_data = '''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
@@ -131,17 +136,16 @@ int_value = "2328372328373"
 sample_data_with_long_values = "%s\n%s\n%s" % (long_value1,int_value,int_value)
 
 def one_column_warning(e):
-    return e[0].startswith('Warning: column count is one')
+    return e[0].startswith(six.b('Warning: column count is one'))
 
 
 class AbstractQTestCase(unittest.TestCase):
 
-    def create_file_with_data(self, data, encoding='utf-8'):
+    def create_file_with_data(self, data, encoding=None):
+        if encoding is not None:
+            raise Exception('Deprecated: Encoding must be none')
         tmpfile = NamedTemporaryFile(delete=False)
-        if encoding != 'none' and encoding is not None:
-            tmpfile.write(data.encode(encoding))
-        else:
-            tmpfile.write(data)
+        tmpfile.write(data)
         tmpfile.close()
         return tmpfile
 
@@ -209,8 +213,8 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(len(o) == 1)
         self.assertTrue(len(e) == 1)
 
-        s = sum(xrange(1, 11))
-        self.assertTrue(o[0] == '%s %s' % (s, s / 10.0))
+        s = sum(range(1, 11))
+        self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
         self.assertTrue(one_column_warning(e))
 
     def test_gzipped_file(self):
@@ -224,7 +228,7 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(len(o) == 1)
         self.assertTrue(len(e) == 1)
 
-        s = sum(xrange(1, 11))
+        s = sum(range(1, 11))
         self.assertTrue(o[0] == '%s %s' % (s, s / 10.0))
         self.assertTrue(one_column_warning(e))
 
@@ -380,7 +384,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_stdin_input(self):
-        cmd = 'printf "%s" | ../bin/q -d , "select c1,c2,c3 from -"' % sample_data_no_header
+        cmd = six.b('printf "%s" | ../bin/q -d , "select c1,c2,c3 from -"') % sample_data_no_header
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
@@ -427,10 +431,10 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`c1` - text')
-        self.assertEquals(o[2].strip(), '`c2` - int')
-        self.assertEquals(o[3].strip(), '`c3` - int')
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
+        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
+        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
 
     def test_header_exception_on_numeric_header_data(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -826,7 +830,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_select_failed_output_encoding(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+        tmp_query_file = self.create_file_with_data(six.b("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
         cmd = '../bin/q -d , -q %s -H -Q utf-8 -E ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -973,8 +977,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'quoted data,23')
-        self.assertEquals(o[1],'unquoted-data,54')
+        self.assertEquals(o[0],six.b('quoted data,23'))
+        self.assertEquals(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -988,8 +992,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'quoted data,23')
-        self.assertEquals(o[1],'unquoted-data,54')
+        self.assertEquals(o[0],six.b('quoted data,23'))
+        self.assertEquals(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1003,8 +1007,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),1)
         self.assertEquals(len(o),0)
 
-        self.assertTrue(e[0].startswith('Input quoting mode can only be one of all,none,minimal'))
-        self.assertTrue('unknown_wrapping_mode' in e[0])
+        self.assertTrue(e[0].startswith(six.b('Input quoting mode can only be one of all,minimal,none')))
+        self.assertTrue(six.b('unknown_wrapping_mode') in e[0])
 
         self.cleanup(tmp_data_file)
 
@@ -1064,8 +1068,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'"quoted data",23')
-        self.assertEquals(o[1],'"unquoted-data",54')
+        self.assertEquals(o[0],six.b('"quoted data",23'))
+        self.assertEquals(o[1],six.b('"unquoted-data",54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1079,8 +1083,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'"quoted data","23"')
-        self.assertEquals(o[1],'"unquoted-data","54"')
+        self.assertEquals(o[0],six.b('"quoted data","23"'))
+        self.assertEquals(o[1],six.b('"unquoted-data","54"'))
 
         self.cleanup(tmp_data_file)
 
@@ -1322,7 +1326,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o),0)
         self.assertEquals(len(e),1)
 
-        self.assertEquals(e[0],"No files matching 'non-existent-file' have been found")
+        self.assertEquals(e[0],six.b("No files matching 'non-existent-file' have been found"))
 
     def test_default_column_max_length_parameter__short_enough(self):
         huge_text = "x" * 131000
@@ -1570,7 +1574,7 @@ class ParsingModeTests(AbstractQTestCase):
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names, ['`c%s`' % x for x in xrange(1, 12)])
+        self.assertEquals(column_names, ['`c%s`' % x for x in range(1, 12)])
         self.assertEquals(column_types, [
                           'text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text', 'text', 'text'])
 
@@ -1594,7 +1598,7 @@ class ParsingModeTests(AbstractQTestCase):
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names, ['`c%s`' % x for x in xrange(1, 10)])
+        self.assertEquals(column_names, ['`c%s`' % x for x in range(1, 10)])
         self.assertEquals(
             column_types, ['text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text'])
 

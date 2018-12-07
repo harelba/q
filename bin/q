@@ -74,13 +74,13 @@ def get_stdout_encoding(encoding_override=None):
 SHOW_SQL = False
 
 def sha1(data):
-    if not isinstance(data, six.text_types):
+    if not isinstance(data, six.string_types):
         return hashlib.sha1(str(data)).hexdigest()
     return hashlib.sha1(data).hexdigest()
 
 def regexp(regular_expression, data):
     if data is not None:
-        if not isinstance(data, six.text_types):
+        if not isinstance(data, six.string_types):
             data = str(data)
         return re.search(regular_expression, data) is not None
     else:
@@ -1439,19 +1439,19 @@ def quote_none_func(output_delimiter,v):
 def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
-    if isinstance(v, six.text_types) and ((output_delimiter in v) or ('"' in v)):
+    if isinstance(v, six.string_types) and ((output_delimiter in v) or ('"' in v)):
         return '"%s"' % (escape_double_quotes_if_needed(v))
     return v;
 
 def quote_nonnumeric_func(output_delimiter,v):
     if v is None:
         return v
-    if isinstance(v, six.text_types):
+    if isinstance(v, six.string_types):
         return '"%s"' % (escape_double_quotes_if_needed(v))
     return v;
 
 def quote_all_func(output_delimiter,v):
-    if isinstance(v, six.text_types):
+    if isinstance(v, six.string_types):
         return '"%s"' % (escape_double_quotes_if_needed(v))
     else:
         return '"%s"' % v

@@ -27,6 +27,7 @@
 #
 # Run with --help for command line details
 #
+from __future__ import print_function
 q_version = "1.8"
 
 __all__ = [ 'QTextAsData' ]
@@ -166,7 +167,7 @@ class Sqlite3DB(object):
     def update_many(self, sql, params):
         try:
             if self.show_sql:
-                print sql, " params: " + str(params)
+                print(sql, " params: " + str(params))
             self.cursor.executemany(sql, params)
         finally:
             pass  # cursor.close()
@@ -174,7 +175,7 @@ class Sqlite3DB(object):
     def execute_and_fetch(self, q):
         try:
             if self.show_sql:
-                print repr(q)
+                print(repr(q))
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
@@ -542,7 +543,7 @@ class TableColumnInferer(object):
             raise Exception('Unknown parsing mode %s' % self.mode)
 
         if self.column_count == 1 and self.expected_column_count != 1:
-            print >>sys.stderr, "Warning: column count is one - did you provide the correct delimiter?"
+            print("Warning: column count is one - did you provide the correct delimiter?", file=sys.stderr)
 
         self.infer_column_types()
 
@@ -677,7 +678,7 @@ class TableColumnInferer(object):
         if False in comparison and not self.skip_header:
             number_of_column_types = len(set(self.column_types))
             if number_of_column_types == 1 and list(set(self.column_types))[0] == str:
-                print >>sys.stderr, 'Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'
+                print('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data', file=sys.stderr)
 
     def get_column_dict(self):
         return dict(zip(self.column_names, self.column_types))
@@ -1074,10 +1075,10 @@ def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     return max_lengths
 
 def print_credentials():
-    print >>sys.stderr,"q version %s" % q_version
-    print >>sys.stderr,"Copyright (C) 2012-2017 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)"
-    print >>sys.stderr,"http://harelba.github.io/q/"
-    print >>sys.stderr
+    print("q version %s" % q_version, file=sys.stderr)
+    print("Copyright (C) 2012-2017 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
+    print("http://harelba.github.io/q/", file=sys.stderr)
+    print(file=sys.stderr)
 
 class QWarning(object):
     def __init__(self,exception,msg):
@@ -1325,11 +1326,11 @@ class QTextAsData(object):
             if save_db_to_disk_filename is not None:
                 self.db.done()
                 dump_start_time = time.time()
-                print >>sys.stderr,"Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time)
-                print >>sys.stderr,"Saving data to db file %s" % save_db_to_disk_filename
+                print("Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time), file=sys.stderr)
+                print("Saving data to db file %s" % save_db_to_disk_filename, file=sys.stderr)
                 self.db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
-                print >>sys.stderr,"Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time)
-                print >>sys.stderr,"Query to run on the database: %s;" % sql_object.get_effective_sql(True)
+                print("Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time), file=sys.stderr)
+                print("Query to run on the database: %s;" % sql_object.get_effective_sql(True), file=sys.stderr)
                 # TODO Propagate dump results using a different output class instead of an empty one
 
                 return QOutput()
@@ -1481,12 +1482,12 @@ class QOutputPrinter(object):
     def print_errors_and_warnings(self,f,results):
         if results.status == 'error':
             error = results.error
-            print >>f,error.msg
+            print(error.msg, file=f)
             if self.show_tracebacks:
-                print >>f,error.traceback
+                print(error.traceback, file=f)
 
         for warning in results.warnings:
-            print >>f,"%s" % warning.msg
+            print("%s" % warning.msg, file=f)
 
     def print_analysis(self,f_out,f_err,results):
         self.print_errors_and_warnings(f_err,results)
@@ -1498,15 +1499,15 @@ class QOutputPrinter(object):
             return
 
         for table_structure in results.metadata.table_structures:
-            print >>f_out,"Table for file: %s" % normalized_filename(table_structure.filenames_str)
+            print("Table for file: %s" % normalized_filename(table_structure.filenames_str), file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
-                print >>f_out,"  `%s` - %s" % (n,t)
+                print("  `%s` - %s" % (n,t), file=f_out)
 
     def print_output(self,f_out,f_err,results):
         try:
             self._print_output(f_out,f_err,results)
         except (UnicodeEncodeError, UnicodeError) as e:
-            print >>f_err, "Cannot encode data. Error:%s" % e
+            print("Cannot encode data. Error:%s" % e, file=f_err)
             sys.exit(3)
         except IOError as e:
             if e.errno == 32:
@@ -1562,10 +1563,10 @@ class QOutputPrinter(object):
 
                 f_out.write(self.output_params.delimiter.join(row_str) + "\n")
         except (UnicodeEncodeError, UnicodeError) as e:
-            print >>sys.stderr, "Cannot encode data. Error:%s" % e
+            print("Cannot encode data. Error:%s" % e, file=sys.stderr)
             sys.exit(3)
         except TypeError as e:
-            print >>sys.stderr, "Error while formatting output: %s" % e
+            print("Error while formatting output: %s" % e, file=sys.stderr)
             sys.exit(4)
         except IOError as e:
             if e.errno == 32:
@@ -1718,19 +1719,19 @@ def run_standalone():
 
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
-        print >>sys.stderr,"Must provide at least one query in the command line, or through a file with the -q parameter"
+        print("Must provide at least one query in the command line, or through a file with the -q parameter", file=sys.stderr)
         sys.exit(1)
 
     if options.query_filename is not None:
         if len(args) != 0:
-            print >>sys.stderr,"Can't provide both a query file and a query on the command line"
+            print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
             f = file(options.query_filename)
             query_strs = [f.read()]
             f.close()
         except:
-            print >>sys.stderr,"Could not read query from file %s" % options.query_filename
+            print("Could not read query from file %s" % options.query_filename, file=sys.stderr)
             sys.exit(1)
     else:
         query_strs = args
@@ -1741,22 +1742,22 @@ def run_standalone():
                 query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
 
                 if len(query_strs[idx]) == 0:
-                    print >>sys.stderr,"Query cannot be empty (query number %s)" % (idx+1)
+                    print("Query cannot be empty (query number %s)" % (idx+1), file=sys.stderr)
                     sys.exit(1)
 
         except Exception as e:
-            print >>sys.stderr,"Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding)
+            print("Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding), file=sys.stderr)
             sys.exit(3)
 
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
-        print >>sys.stderr, "Parsing mode can be one of fluffy, relaxed or strict"
+        print("Parsing mode can be one of fluffy, relaxed or strict", file=sys.stderr)
         sys.exit(13)
 
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
         STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
     except:
-        print >>sys.stderr,"Could not create output stream using output encoding %s" % (output_encoding)
+        print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
 
     # If the user flagged for a tab-delimited file then set the delimiter to tab
@@ -1769,15 +1770,15 @@ def run_standalone():
     if options.delimiter is None:
         options.delimiter = ' '
     elif len(options.delimiter) != 1:
-        print >>sys.stderr, "Delimiter must be one character only"
+        print("Delimiter must be one character only", file=sys.stderr)
         sys.exit(5)
 
     if options.input_quoting_mode not in QTextAsData.input_quoting_modes.keys():
-        print >>sys.stderr,"Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode)
+        print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QTextAsData.input_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
         sys.exit(55)
 
     if options.output_quoting_mode not in QOutputPrinter.output_quoting_modes.keys():
-        print >>sys.stderr,"Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode)
+        print("Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
         sys.exit(56)
 
     if options.column_count is not None:
@@ -1790,7 +1791,7 @@ def run_standalone():
         try:
             codecs.lookup(options.encoding)
         except LookupError:
-            print >>sys.stderr, "Encoding %s could not be found" % options.encoding
+            print("Encoding %s could not be found" % options.encoding, file=sys.stderr)
             sys.exit(10)
 
     if options.output_delimiter:
@@ -1812,22 +1813,22 @@ def run_standalone():
         if max_column_length_limit < 1:
             raise Exception()
     except:
-        print >> sys.stderr, "Max column length limit must be a positive integer (%s)" % max_column_length_limit
+        print("Max column length limit must be a positive integer (%s)" % max_column_length_limit, file=sys.stderr)
         sys.exit(31)
 
     if options.save_db_to_disk_filename is not None:
         if options.analyze_only:
-            print >>sys.stderr,"Cannot save database to disk when running with -A (analyze-only) option."
+            print("Cannot save database to disk when running with -A (analyze-only) option.", file=sys.stderr)
             sys.exit(119)
 
-        print >>sys.stderr,"Going to save data into a disk database: %s" % options.save_db_to_disk_filename
+        print("Going to save data into a disk database: %s" % options.save_db_to_disk_filename, file=sys.stderr)
         if os.path.exists(options.save_db_to_disk_filename):
-            print >> sys.stderr, "Disk database file %s already exists." % options.save_db_to_disk_filename
+            print("Disk database file %s already exists." % options.save_db_to_disk_filename, file=sys.stderr)
             sys.exit(77)
 
     if options.save_db_to_disk_method is not None:
         if options.save_db_to_disk_method not in ['standard','fast']:
-            print >>sys.stderr,"save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method
+            print("save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method, file=sys.stderr)
             sys.exit(78)
 
     default_input_params = QInputParams(skip_header=options.skip_header,

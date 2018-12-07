@@ -1996,7 +1996,7 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select * from -',stdin_file=file(tmpfile.name,'rb'))
+        r = q.execute('select * from -',stdin_file=open(tmpfile.name,'rb'))
 
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
@@ -2012,7 +2012,7 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select a from my_stdin_data',stdin_file=file(tmpfile.name,'rb'),stdin_filename='my_stdin_data')
+        r = q.execute('select a from my_stdin_data',stdin_file=open(tmpfile.name,'rb'),stdin_filename='my_stdin_data')
 
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
@@ -2029,7 +2029,7 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from -',stdin_file=file(tmpfile1.name,'rb'))
+        r1 = q.execute('select * from -',stdin_file=open(tmpfile1.name,'rb'))
 
         self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
@@ -2039,7 +2039,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEquals(len(r1.metadata.data_loads),1)
         self.assertEquals(r1.metadata.data_loads[0].filename,'-')
 
-        r2 = q.execute('select * from -',stdin_file=file(tmpfile2.name,'rb'))
+        r2 = q.execute('select * from -',stdin_file=open(tmpfile2.name,'rb'))
 
         self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
@@ -2058,7 +2058,7 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from my_stdin_data1',stdin_file=file(tmpfile1.name,'rb'),stdin_filename='my_stdin_data1')
+        r1 = q.execute('select * from my_stdin_data1',stdin_file=open(tmpfile1.name,'rb'),stdin_filename='my_stdin_data1')
 
         self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
@@ -2068,7 +2068,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEquals(len(r1.metadata.data_loads),1)
         self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
-        r2 = q.execute('select * from my_stdin_data2',stdin_file=file(tmpfile2.name,'rb'),stdin_filename='my_stdin_data2')
+        r2 = q.execute('select * from my_stdin_data2',stdin_file=open(tmpfile2.name,'rb'),stdin_filename='my_stdin_data2')
 
         self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)

@@ -707,7 +707,7 @@ def encoded_csv_reader(encoding, f, dialect, **kwargs):
         csv_reader = csv.reader(f, dialect, **kwargs)
         if encoding is not None and encoding != 'none':
             for row in csv_reader:
-                yield [six.text_type(x, encoding) for x in row]
+                yield [x.decode(encoding) for x in row]
         else:
             for row in csv_reader:
                 yield row

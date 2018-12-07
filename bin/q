@@ -853,6 +853,8 @@ class TableCreator(object):
                     file_opening_mode = 'rbU'
                 else:
                     file_opening_mode = 'rb'
+                if six.PY3:
+                    file_opening_mode = file_opening_mode.replace('b', '')
                 f = open(filename,file_opening_mode)
         return f
 

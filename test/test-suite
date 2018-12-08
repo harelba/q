@@ -46,11 +46,11 @@ def run_command(cmd_to_run):
     o = o.rstrip()
     e = e.strip()
     # split rows
-    if o != '':
+    if o != six.b(''):
         o = o.split(six.b(os.linesep))
     else:
         o = []
-    if e != '':
+    if e != six.b(''):
         e = e.split(six.b(os.linesep))
     else:
         e = []
@@ -321,16 +321,16 @@ class BasicTests(AbstractQTestCase):
 
     def test_tab_delimition_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(",", "\t"))
+            sample_data_no_header.replace(six.b(","), six.b("\t")))
         cmd = '../bin/q -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
-        self.assertEquals(o[0], sample_data_rows[0].replace(",", "\t"))
-        self.assertEquals(o[1], sample_data_rows[1].replace(",", "\t"))
-        self.assertEquals(o[2], sample_data_rows[2].replace(",", "\t"))
+        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -343,9 +343,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0].replace(",", "|"))
-        self.assertEquals(o[1], sample_data_rows[1].replace(",", "|"))
-        self.assertEquals(o[2], sample_data_rows[2].replace(",", "|"))
+        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
 
         self.cleanup(tmpfile)
 
@@ -524,7 +524,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_empty_data(self):
-        tmpfile = self.create_file_with_data('')
+        tmpfile = self.create_file_with_data(six.b(''))
         cmd = '../bin/q -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
@@ -532,12 +532,12 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue('Warning - data is empty' in e[0])
+        self.assertTrue(six.b('Warning - data is empty') in e[0])
 
         self.cleanup(tmpfile)
 
     def test_empty_data_with_header_param(self):
-        tmpfile = self.create_file_with_data('')
+        tmpfile = self.create_file_with_data(six.b(''))
         cmd = '../bin/q -d , "select c1 from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
@@ -545,7 +545,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        m = "Header line is expected but missing in file %s" % tmpfile.name
+        m = six.b("Header line is expected but missing in file %s" % tmpfile.name)
         self.assertTrue(m in e[0])
 
         self.cleanup(tmpfile)
@@ -640,7 +640,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_column_analysis_for_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
-            header_row_with_spaces + "\n" + sample_data_no_header)
+            header_row_with_spaces + six.b("\n") + sample_data_no_header)
         cmd = '../bin/q -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
@@ -648,10 +648,10 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 4)
 
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`name` - text')
-        self.assertEquals(o[2].strip(), '`value 1` - int')
-        self.assertEquals(o[3].strip(), '`value2` - int')
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`name` - text'))
+        self.assertEquals(o[2].strip(), six.b('`value 1` - int'))
+        self.assertEquals(o[3].strip(), six.b('`value2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -663,7 +663,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertEquals(e[0],'Query cannot be empty (query number 1)')
+        self.assertEquals(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_empty_query_in_command_line(self):
         cmd = '../bin/q -d , "  "'
@@ -738,7 +738,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_use_query_file_with_incorrect_query_encoding(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+        tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
         cmd = '../bin/q -d , -q %s -H -Q ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -842,7 +842,7 @@ class BasicTests(AbstractQTestCase):
 
 
     def test_use_query_file_with_empty_query(self):
-        tmp_query_file = self.create_file_with_data("   ")
+        tmp_query_file = self.create_file_with_data(six.b("   "))
 
         cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -851,7 +851,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertTrue(e[0].startswith("Query cannot be empty"))
+        self.assertTrue(e[0].startswith(six.b("Query cannot be empty")))
 
         self.cleanup(tmp_query_file)
 
@@ -863,7 +863,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertTrue(e[0].startswith("Could not read query from file"))
+        self.assertTrue(e[0].startswith(six.b("Could not read query from file")))
 
     def test_non_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
@@ -1207,8 +1207,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'double_double_quoted')
-        self.assertEquals(o[1],'this is a quoted value with "double')
+        self.assertEquals(o[0],six.b('double_double_quoted'))
+        self.assertEquals(o[1],six.b('this is a quoted value with "double'))
 
         cmd = '../bin/q -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -1217,8 +1217,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'')
-        self.assertEquals(o[1],'double')
+        self.assertEquals(o[0],six.b(''))
+        self.assertEquals(o[1],six.b('double'))
 
         cmd = '../bin/q -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -1227,8 +1227,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'')
-        self.assertEquals(o[1],'quotes"""')
+        self.assertEquals(o[0],six.b(''))
+        self.assertEquals(o[1],six.b('quotes"""'))
 
         self.cleanup(tmp_data_file)
 
@@ -1255,8 +1255,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'')
-        self.assertEquals(o[1],'double')
+        self.assertEquals(o[0],six.b(''))
+        self.assertEquals(o[1],six.b('double'))
 
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -1265,8 +1265,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'')
-        self.assertEquals(o[1],'quotes\\""')
+        self.assertEquals(o[0],six.b(''))
+        self.assertEquals(o[1],six.b('quotes\\""'))
 
         self.cleanup(tmp_data_file)
 
@@ -1405,7 +1405,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_duplicate_column_name_detection(self):
-        file_data = "a,b,a\n10,20,30\n30,40,50"
+        file_data = six.b("a,b,a\n10,20,30\n30,40,50")
         tmpfile = self.create_file_with_data(file_data)
 
         cmd = '../bin/q -H -d , "select a from %s"' % tmpfile.name
@@ -1415,8 +1415,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 2)
 
-        self.assertTrue(e[0].startswith('Bad header row:'))
-        self.assertEquals(e[1],"'a': Column name is duplicated")
+        self.assertTrue(e[0].startswith(six.b('Bad header row:')))
+        self.assertEquals(e[1],six.b("'a': Column name is duplicated"))
 
         self.cleanup(tmpfile)
 
@@ -1747,7 +1747,9 @@ class ParsingModeTests(AbstractQTestCase):
 class FormattingTests(AbstractQTestCase):
 
     def test_column_formatting(self):
-        cmd = 'seq 1 10 | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -" -c 1'
+        # TODO Decide if this breaking change is reasonable
+        #cmd = 'seq 1 10 | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -" -c 1'
+        cmd = 'seq 1 10 | ../bin/q -f 1={:4.3f},2={:4.3f} "select sum(c1),avg(c1) from -" -c 1'
 
         retcode, o, e = run_command(cmd)
 
@@ -1759,7 +1761,9 @@ class FormattingTests(AbstractQTestCase):
 
     def test_column_formatting_with_output_header(self):
         perl_regex = "'s/1\n/column_name\n1\n/;'"
-        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        # TODO Decide if this breaking change is reasonable
+        #cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ../bin/q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ../bin/q -f 1={:4.3f},2={:4.3f} "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
 
         retcode, o, e = run_command(cmd)
 

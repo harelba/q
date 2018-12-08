@@ -183,7 +183,10 @@ class Sqlite3DB(object):
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
-                query_column_names = [c[0].decode('utf-8') for c in self.cursor.description]
+                if six.PY2:
+                    query_column_names = [unicode(c[0],'utf-8') for c in self.cursor.description]
+                else:
+                    query_column_names = [c[0] for c in self.cursor.description]
             else:
                 query_column_names = None
             result = self.cursor.fetchall()
@@ -1586,16 +1589,18 @@ class QOutputPrinter(object):
                         fmt_str = formatting_dict[str(i + 1)]
                     else:
                         if self.output_params.beautify:
-                            fmt_str = "%%-%ss" % max_lengths[i]
+                            fmt_str = six.u("{{0:<{}}}") % max_lengths[i]
                         else:
-                            fmt_str = "%s"
+                            fmt_str = six.u("{}")
 
                     if col is not None:
-                        row_str.append(fmt_str % self.output_field_quoting_func(self.output_params.delimiter,col))
+                        xx = self.output_field_quoting_func(self.output_params.delimiter,col)
+                        row_str.append(fmt_str.format(xx))
                     else:
-                        row_str.append(fmt_str % "")
+                        row_str.append(fmt_str.format(""))
 
-                xxxx = self.output_params.delimiter.join(row_str) + "\n"
+
+                xxxx = six.u(self.output_params.delimiter).join(row_str) + six.u("\n")
                 f_out.write(xxxx)
         except (UnicodeEncodeError, UnicodeError) as e:
             print("Cannot encode data. Error:%s" % e, file=sys.stderr)
@@ -1753,7 +1758,6 @@ def run_standalone():
         print_credentials()
         sys.exit(0)
 
-
 ###
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
@@ -1765,14 +1769,17 @@ def run_standalone():
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = file(options.query_filename)
+            f = open(options.query_filename,'rb')
             query_strs = [f.read()]
             f.close()
         except:
             print("Could not read query from file %s" % options.query_filename, file=sys.stderr)
             sys.exit(1)
     else:
-        query_strs = args
+        if sys.stdin.encoding is not None:
+            query_strs = [x.encode(sys.stdin.encoding) for x in args]
+        else:
+            query_strs = args
 
     if options.query_encoding is not None and options.query_encoding != 'none':
         try:
@@ -1794,7 +1801,10 @@ def run_standalone():
 
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
-        STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+        if six.PY3:
+            STDOUT = codecs.getwriter(output_encoding)(sys.stdout.buffer)
+        else:
+            STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
     except:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)

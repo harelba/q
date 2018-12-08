@@ -4,6 +4,9 @@ python:
   - "3.6"
   - "3.7"
 matrix:
+  include:
+    - python: "3.7"
+      dist: xenial  # Need for python 3.7
   allow_failures:
     - python: "3.6"
     - python: "3.7"

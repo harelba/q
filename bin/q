@@ -648,7 +648,7 @@ class TableColumnInferer(object):
         counts = {}
         for column_count in column_count_list:
             counts[column_count] = counts.get(column_count, 0) + 1
-        return ", ".join(["%s rows with %s columns" % (v, k) for k, v in counts.iteritems()])
+        return six.u(", ").join([six.u("{} rows with {} columns".format(v, k)) for k, v in six.iteritems(counts)])
 
     def _do_strict_analysis(self):
         column_count_list = [len(col_vals) for col_vals in self.rows]

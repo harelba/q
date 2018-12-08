@@ -225,7 +225,7 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(len(e) == 1)
 
         s = sum(range(1, 11))
-        self.assertTrue(o[0] == '%s %s' % (s, s / 10.0))
+        self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
         self.assertTrue(one_column_warning(e))
 
         self.cleanup(tmpfile)
@@ -241,7 +241,7 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(len(o) == 0)
         self.assertTrue(len(e) == 1)
 
-        self.assertEquals(e[0],'Cannot decompress standard input. Pipe the input through zcat in order to decompress.')
+        self.assertEquals(e[0],six.b('Cannot decompress standard input. Pipe the input through zcat in order to decompress.'))
 
         self.cleanup(tmpfile)
 
@@ -300,22 +300,22 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(" ".join(o), 'a b c')
+        self.assertEquals(six.b(" ").join(o), six.b('a b c'))
 
         self.cleanup(tmpfile)
 
     def test_tab_delimition_parameter(self):
         tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(",", "\t"))
+            sample_data_no_header.replace(six.b(","), six.b("\t")))
         cmd = '../bin/q -t "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
-        self.assertEquals(o[0], sample_data_rows[0].replace(",", "\t"))
-        self.assertEquals(o[1], sample_data_rows[1].replace(",", "\t"))
-        self.assertEquals(o[2], sample_data_rows[2].replace(",", "\t"))
+        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -358,9 +358,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0].replace(",", "\t"))
-        self.assertEquals(o[1], sample_data_rows[1].replace(",", "\t"))
-        self.assertEquals(o[2], sample_data_rows[2].replace(",", "\t"))
+        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -572,7 +572,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue('Warning - data is empty' in e[0])
+        self.assertTrue(six.b('Warning - data is empty') in e[0])
 
         self.cleanup(tmpfile)
 
@@ -624,7 +624,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
-            header_row_with_spaces + "\n" + sample_data_no_header)
+            header_row_with_spaces + six.b("\n") + sample_data_no_header)
         cmd = '../bin/q -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
@@ -632,9 +632,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0], 'a,1')
-        self.assertEquals(o[1], 'b,2')
-        self.assertEquals(o[2], 'c,')
+        self.assertEquals(o[0], six.b('a,1'))
+        self.assertEquals(o[1], six.b('b,2'))
+        self.assertEquals(o[2], six.b('c,'))
 
         self.cleanup(tmpfile)
 
@@ -720,7 +720,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_use_query_file(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select name from %s" % tmp_data_file.name)
+        tmp_query_file = self.create_file_with_data(six.b("select name from %s" % tmp_data_file.name))
 
         cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -959,7 +959,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),1)
         self.assertEquals(len(o),0)
 
-        self.assertTrue(e[0].startswith('Strict mode. Column Count is expected to identical'))
+        self.assertTrue(e[0].startswith(six.b('Strict mode. Column Count is expected to identical')))
 
         self.cleanup(tmp_data_file)
 
@@ -1343,9 +1343,9 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_default_column_max_length_parameter__too_long(self):
-        huge_text = "x" * 132000
+        huge_text = six.b("x") * 132000
 
-        file_data = "a,b,c\n1,%s,3\n" % huge_text
+        file_data = six.b("a,b,c\n1,{},3\n".format(huge_text))
 
         tmpfile = self.create_file_with_data(file_data)
 
@@ -1356,9 +1356,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue(e[0].startswith("Column length is larger than the maximum"))
-        self.assertTrue(("Offending file is '%s'" % tmpfile.name) in e[0])
-        self.assertTrue('Line is 2' in e[0])
+        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
+        self.assertTrue(six.b("Offending file is '{}'".format(tmpfile.name)) in e[0])
+        self.assertTrue(six.b('Line is 2') in e[0])
 
         self.cleanup(tmpfile)
 

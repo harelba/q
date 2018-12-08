@@ -1598,7 +1598,6 @@ class QOutputPrinter(object):
                 xxxx = self.output_params.delimiter.join(row_str) + "\n"
                 f_out.write(xxxx)
         except (UnicodeEncodeError, UnicodeError) as e:
-            print(traceback.format_exc())
             print("Cannot encode data. Error:%s" % e, file=sys.stderr)
             sys.exit(3)
         except TypeError as e:

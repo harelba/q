@@ -42,24 +42,20 @@ def run_command(cmd_to_run):
 
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
     o, e = p.communicate()
-    if six.PY3:
-        o = o.decode(SYSTEM_ENCODING)
-        e = e.decode(SYSTEM_ENCODING)
     # remove last newline
     o = o.rstrip()
     e = e.strip()
     # split rows
     if o != '':
-        o = o.split(os.linesep)
+        o = o.split(six.b(os.linesep))
     else:
         o = []
     if e != '':
-        e = e.split(os.linesep)
+        e = e.split(six.b(os.linesep))
     else:
         e = []
 
-
-    res = (p.returncode, [x.encode(SYSTEM_ENCODING) for x in o], [x.encode(SYSTEM_ENCODING) for x in e])
+    res = (p.returncode, o, e)
     if DEBUG:
         print("RESULT:{}".format(res))
     return res
@@ -96,40 +92,40 @@ sample_data_with_empty_string_no_header = six.b("\n").join(
 sample_data_with_header = header_row + six.b("\n") + sample_data_no_header
 sample_data_with_missing_header_names = six.b("name,value1\n") + sample_data_no_header
 
-sample_quoted_data = '''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
+sample_quoted_data = six.b('''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
 non-quoted-value "this is a quoted value" "this is a ""double double"" quoted value" "this is an escaped \\"quoted value\\"" "this is a double double quoted ""multiline
   value""." "this is an escaped \\"multiline
   value\\"."
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
-'''
+''')
 
-double_double_quoted_data = '''regular_double_quoted double_double_quoted 
+double_double_quoted_data = six.b('''regular_double_quoted double_double_quoted
 "this is a quoted value" "this is a quoted value with ""double double quotes"""
-'''
+''')
 
-escaped_double_quoted_data = '''regular_double_quoted escaped_double_quoted 
+escaped_double_quoted_data = six.b('''regular_double_quoted escaped_double_quoted
 "this is a quoted value" "this is a quoted value with \\"escaped double quotes\\""
-'''
+''')
 
-combined_quoted_data = '''regular_double_quoted double_double_quoted escaped_double_quoted
+combined_quoted_data = six.b('''regular_double_quoted double_double_quoted escaped_double_quoted
 "this is a quoted value" "this is a quoted value with ""double double quotes""" "this is a quoted value with \\"escaped double quotes\\""
-'''
+''')
 
-sample_quoted_data2 = '"quoted data" 23\nunquoted-data 54'
+sample_quoted_data2 = six.b('"quoted data" 23\nunquoted-data 54')
 
-one_column_data = '''data without commas 1
+one_column_data = six.b('''data without commas 1
 data without commas 2
-'''
+''')
 
 # Values with leading whitespace
-sample_data_rows_with_spaces = ['a,1,0', '   b,   2,0', 'c,,0']
-sample_data_with_spaces_no_header = "\n".join(
-    sample_data_rows_with_spaces) + "\n"
+sample_data_rows_with_spaces = [six.b('a,1,0'), six.b('   b,   2,0'), six.b('c,,0')]
+sample_data_with_spaces_no_header = six.b("\n").join(
+    sample_data_rows_with_spaces) + six.b("\n")
 
-header_row_with_spaces = 'name,value 1,value2'
+header_row_with_spaces = six.b('name,value 1,value2')
 sample_data_with_spaces_with_header = header_row_with_spaces + \
-    "\n" + sample_data_with_spaces_no_header
+    six.b("\n") + sample_data_with_spaces_no_header
 
 long_value1 = "23683289372328372328373"
 int_value = "2328372328373"
@@ -219,7 +215,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_gzipped_file(self):
         tmpfile = self.create_file_with_data(
-            '\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00', encoding='none')
+            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
 
         cmd = '../bin/q -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
 
@@ -236,7 +232,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_attempt_to_unzip_stdin(self):
         tmpfile = self.create_file_with_data(
-            '\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00', encoding='none')
+            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
 
         cmd = 'cat %s | ../bin/q -z "select sum(c1),avg(c1) from -"' % tmpfile.name
 
@@ -276,7 +272,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 1)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0],"1")
+        self.assertEquals(o[0],six.b("1"))
 
         self.cleanup(tmpfile)
 
@@ -290,7 +286,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 1)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0],"2")
+        self.assertEquals(o[0],six.b("2"))
 
         self.cleanup(tmpfile)
 
@@ -417,10 +413,10 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEquals(retcode, 0)
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`c1` - text')
-        self.assertEquals(o[2].strip(), '`c2` - int')
-        self.assertEquals(o[3].strip(), '`c3` - int')
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
+        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
+        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -445,9 +441,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 3)
         self.assertTrue(
-            'Bad header row: Header must contain only strings' in e[0])
-        self.assertTrue("Column name must be a string" in e[1])
-        self.assertTrue("Column name must be a string" in e[2])
+            six.b('Bad header row: Header must contain only strings') in e[0])
+        self.assertTrue(six.b("Column name must be a string") in e[1])
+        self.assertTrue(six.b("Column name must be a string") in e[2])
 
         self.cleanup(tmpfile)
 
@@ -459,12 +455,12 @@ class BasicTests(AbstractQTestCase):
         self.assertNotEquals(retcode, 0)
         self.assertEquals(len(o),4)
         self.assertEquals(len(e),2)
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`name` - text')
-        self.assertEquals(o[2].strip(), '`value1` - int')
-        self.assertEquals(o[3].strip(), '`value2` - int')
-        self.assertEquals(e[0].strip(),'query error: no such column: c1')
-        self.assertTrue(e[1].startswith('Warning - There seems to be a '))
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`name` - text'))
+        self.assertEquals(o[2].strip(), six.b('`value1` - int'))
+        self.assertEquals(o[3].strip(), six.b('`value2` - int'))
+        self.assertEquals(e[0].strip(),six.b('query error: no such column: c1'))
+        self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
 
         self.cleanup(tmpfile)
 
@@ -475,7 +471,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 3)
-        self.assertEquals(" ".join(o), "a b c")
+        self.assertEquals(six.b(" ").join(o), six.b("a b c"))
 
         self.cleanup(tmpfile)
 
@@ -486,10 +482,10 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 4)
-        self.assertEquals(o[0],'name')
-        self.assertEquals(o[1],'a')
-        self.assertEquals(o[2],'b')
-        self.assertEquals(o[3],'c')
+        self.assertEquals(o[0],six.b('name'))
+        self.assertEquals(o[1],six.b('a'))
+        self.assertEquals(o[2],six.b('b'))
+        self.assertEquals(o[3],six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -502,9 +498,9 @@ class BasicTests(AbstractQTestCase):
         self.assertNotEquals(retcode, 0)
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 2)
-        self.assertTrue('no such column: c3' in e[0])
+        self.assertTrue(six.b('no such column: c3') in e[0])
         self.assertEquals(
-            e[1], 'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names')
+            e[1], six.b('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
 
         self.cleanup(tmpfile)
 
@@ -517,13 +513,13 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 4)
         self.assertEquals(len(e), 1)
 
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`c1` - text')
-        self.assertEquals(o[2].strip(), '`c2` - text')
-        self.assertEquals(o[3].strip(), '`c3` - text')
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
+        self.assertEquals(o[2].strip(), six.b('`c2` - text'))
+        self.assertEquals(o[3].strip(), six.b('`c3` - text'))
 
         self.assertEquals(
-            e[0], 'Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data')
+            e[0], six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
 
         self.cleanup(tmpfile)
 
@@ -563,7 +559,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 1)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0], 'value1')
+        self.assertEquals(o[0], six.b('value1'))
 
         self.cleanup(tmpfile)
 
@@ -589,9 +585,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0], 'a')
-        self.assertEquals(o[1], 'b')
-        self.assertEquals(o[2], 'c')
+        self.assertEquals(o[0], six.b('a'))
+        self.assertEquals(o[1], six.b('b'))
+        self.assertEquals(o[2], six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -604,9 +600,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0], 'a')
-        self.assertEquals(o[1], '   b')
-        self.assertEquals(o[2], 'c')
+        self.assertEquals(o[0], six.b('a'))
+        self.assertEquals(o[1], six.b('   b'))
+        self.assertEquals(o[2], six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -619,10 +615,10 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 4)
 
-        self.assertEquals(o[0], 'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1].strip(), '`c1` - text')
-        self.assertEquals(o[2].strip(), '`c2` - int')
-        self.assertEquals(o[3].strip(), '`c3` - int')
+        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
+        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
+        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -677,7 +673,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertEquals(e[0],'Query cannot be empty (query number 1)')
+        self.assertEquals(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_failure_in_query_stops_processing_queries(self):
         cmd = '../bin/q -d , "select 500" "select 300" "wrong-query" "select 8000"'
@@ -686,8 +682,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(retcode, 1)
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 2)
-        self.assertEquals(o[0],'500')
-        self.assertEquals(o[1],'300')
+        self.assertEquals(o[0],six.b('500'))
+        self.assertEquals(o[1],six.b('300'))
 
     def test_multiple_queries_in_command_line(self):
         cmd = '../bin/q -d , "select 500" "select 300+100" "select 300" "select 200"'
@@ -697,10 +693,10 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 4)
 
-        self.assertEquals(o[0],'500')
-        self.assertEquals(o[1],'400')
-        self.assertEquals(o[2],'300')
-        self.assertEquals(o[3],'200')
+        self.assertEquals(o[0],six.b('500'))
+        self.assertEquals(o[1],six.b('400'))
+        self.assertEquals(o[2],six.b('300'))
+        self.assertEquals(o[3],six.b('200'))
 
     def test_literal_calculation_query(self):
         cmd = '../bin/q -d , "select 1+40/6"'
@@ -710,7 +706,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 1)
 
-        self.assertEquals(o[0],'7')
+        self.assertEquals(o[0],six.b('7'))
 
     def test_literal_calculation_query_float_result(self):
         cmd = '../bin/q -d , "select 1+40/6.0"'
@@ -733,9 +729,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0], 'a')
-        self.assertEquals(o[1], 'b')
-        self.assertEquals(o[2], 'c')
+        self.assertEquals(o[0], six.b('a'))
+        self.assertEquals(o[1], six.b('b'))
+        self.assertEquals(o[2], six.b('c'))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -751,7 +747,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o),0)
         self.assertEquals(len(e),1)
 
-        self.assertTrue(e[0].startswith('Could not decode query number 1 using the provided query encoding (ascii)'))
+        self.assertTrue(e[0].startswith(six.b('Could not decode query number 1 using the provided query encoding (ascii)')))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -777,7 +773,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_use_query_file_with_query_encoding(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+        tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
         cmd = '../bin/q -d , -q %s -H -Q utf-8' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -795,7 +791,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_use_query_file_and_command_line(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select name from %s" % tmp_data_file.name)
+        tmp_query_file = self.create_file_with_data(six.b("select name from %s" % tmp_data_file.name))
 
         cmd = '../bin/q -d , -q %s -H "select * from ppp"' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
@@ -804,14 +800,14 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertTrue(e[0].startswith("Can't provide both a query file and a query on the command line"))
+        self.assertTrue(e[0].startswith(six.b("Can't provide both a query file and a query on the command line")))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
 
     def test_select_output_encoding(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
-        tmp_query_file = self.create_file_with_data("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name,encoding=None)
+        tmp_query_file = self.create_file_with_data(six.b("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
         for target_encoding in ['utf-8','ibm852']:
             cmd = '../bin/q -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,target_encoding)
@@ -839,7 +835,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertTrue(e[0].startswith('Cannot encode data'))
+        self.assertTrue(e[0].startswith(six.b('Cannot encode data')))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -948,8 +944,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'"quoted,data",23')
-        self.assertEquals(o[1],'unquoted-data,54,')
+        self.assertEquals(o[0],six.b('"quoted,data",23'))
+        self.assertEquals(o[1],six.b('unquoted-data,54,'))
 
         self.cleanup(tmp_data_file)
 
@@ -1022,8 +1018,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'quoted data,23')
-        self.assertEquals(o[1],'unquoted-data,54')
+        self.assertEquals(o[0],six.b('quoted data,23'))
+        self.assertEquals(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1037,8 +1033,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'quoted data,23')
-        self.assertEquals(o[1],'unquoted-data,54')
+        self.assertEquals(o[0],six.b('quoted data,23'))
+        self.assertEquals(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1053,8 +1049,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'"quoted data" 23')
-        self.assertEquals(o[1],'unquoted-data 54')
+        self.assertEquals(o[0],six.b('"quoted data" 23'))
+        self.assertEquals(o[1],six.b('unquoted-data 54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1133,8 +1129,8 @@ class BasicTests(AbstractQTestCase):
     def test_input_field_quoting_and_data_types_with_encoding(self):
         # Checks combination of minimal input field quoting, with special characters that need to be decoded -
         # Both content and proper data types are verified
-        data = '111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n'
-        tmp_data_file = self.create_file_with_data(data,encoding='none')
+        data = six.b('111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n')
+        tmp_data_file = self.create_file_with_data(data)
 
         cmd = '../bin/q -d , "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -1249,8 +1245,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e),0)
         self.assertEquals(len(o),2)
 
-        self.assertEquals(o[0],'escaped_double_quoted')
-        self.assertEquals(o[1],'this is a quoted value with \\escaped')
+        self.assertEquals(o[0],six.b('escaped_double_quoted'))
+        self.assertEquals(o[1],six.b('this is a quoted value with \\escaped'))
 
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -1367,7 +1363,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_column_max_length_parameter(self):
-        file_data = "a,b,c\nvery-long-text,2,3\n"
+        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
         tmpfile = self.create_file_with_data(file_data)
 
         cmd = '../bin/q -H -d , -M 3 "select a from %s"' % tmpfile.name
@@ -1377,9 +1373,9 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue(e[0].startswith("Column length is larger than the maximum"))
-        self.assertTrue(("Offending file is '%s'" % tmpfile.name) in e[0])
-        self.assertTrue('Line is 2' in e[0])
+        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
+        self.assertTrue((six.b("Offending file is '%s'" % tmpfile.name)) in e[0])
+        self.assertTrue(six.b('Line is 2') in e[0])
 
         cmd2 = '../bin/q -H -d , -M 300 -H "select a from %s"' % tmpfile.name
         retcode2, o2, e2 = run_command(cmd2)
@@ -1388,12 +1384,12 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o2), 1)
         self.assertEquals(len(e2), 0)
 
-        self.assertEquals(o2[0],'very-long-text')
+        self.assertEquals(o2[0],six.b('very-long-text'))
 
         self.cleanup(tmpfile)
 
     def test_invalid_column_max_length_parameter(self):
-        file_data = "a,b,c\nvery-long-text,2,3\n"
+        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
         tmpfile = self.create_file_with_data(file_data)
 
         cmd = '../bin/q -H -d , -M 0 "select a from %s"' % tmpfile.name
@@ -1403,7 +1399,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(o), 0)
         self.assertEquals(len(e), 1)
 
-        self.assertTrue(e[0].startswith('Max column length limit must be a positive integer'))
+        self.assertTrue(e[0].startswith(six.b('Max column length limit must be a positive integer')))
 
 
         self.cleanup(tmpfile)

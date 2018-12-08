@@ -183,7 +183,7 @@ class Sqlite3DB(object):
             self.cursor.execute(q)
             if self.cursor.description is not None:
                 # we decode the column names, so they can be encoded to any output format later on
-                query_column_names = [c[0] for c in self.cursor.description]
+                query_column_names = [c[0].decode('utf-8') for c in self.cursor.description]
             else:
                 query_column_names = None
             result = self.cursor.fetchall()
@@ -746,7 +746,6 @@ if six.PY2:
     encoded_csv_reader = py2_encoded_csv_reader
 else:
     encoded_csv_reader = py3_encoded_csv_reader
-
 
 def normalized_filename(filename):
     if filename == '-':
@@ -1454,7 +1453,7 @@ class QTextAsData(object):
         return q_output
 
 def escape_double_quotes_if_needed(v):
-    x = v.replace('"','""')
+    x = v.replace(six.u('"'), six.u('""'))
     return x
 
 def quote_none_func(output_delimiter,v):
@@ -1464,22 +1463,22 @@ def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
     t = type(v)
-    if (t == str or t == unicode) and ((output_delimiter in v) or ('"' in v)):
-        return '"%s"' % (escape_double_quotes_if_needed(v))
+    if (t == str or t == unicode) and ((output_delimiter in v) or (six.u('"') in v)):
+        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
     return v;
 
 def quote_nonnumeric_func(output_delimiter,v):
     if v is None:
         return v
     if type(v) == str or type(v) == unicode:
-        return '"%s"' % (escape_double_quotes_if_needed(v))
+        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
     return v;
 
 def quote_all_func(output_delimiter,v):
     if type(v) == str or type(v) == unicode:
-        return '"%s"' % (escape_double_quotes_if_needed(v))
+        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
     else:
-        return '"%s"' % v
+        return six.u('"{}"').format(v)
 
 class QOutputParams(object):
     def __init__(self,
@@ -1487,12 +1486,14 @@ class QOutputParams(object):
             beautify=False,
             output_quoting_mode='minimal',
             formatting=None,
-            output_header=False):
+            output_header=False,
+                 encoding=None):
         self.delimiter = delimiter
         self.beautify = beautify
         self.output_quoting_mode = output_quoting_mode
         self.formatting = formatting
         self.output_header = output_header
+        self.encoding = encoding
 
     def __str__(self):
         return "QOutputParams<%s>" % str(self.__dict__)
@@ -1597,6 +1598,7 @@ class QOutputPrinter(object):
                 xxxx = self.output_params.delimiter.join(row_str) + "\n"
                 f_out.write(xxxx)
         except (UnicodeEncodeError, UnicodeError) as e:
+            print(traceback.format_exc())
             print("Cannot encode data. Error:%s" % e, file=sys.stderr)
             sys.exit(3)
         except TypeError as e:
@@ -1752,8 +1754,8 @@ def run_standalone():
         print_credentials()
         sys.exit(0)
 
-    SYSTEM_ENCODING = locale.getpreferredencoding()
 
+###
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
         print("Must provide at least one query in the command line, or through a file with the -q parameter", file=sys.stderr)
@@ -1764,7 +1766,7 @@ def run_standalone():
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = open(options.query_filename,encoding=options.query_encoding or SYSTEM_ENCODING)
+            f = file(options.query_filename)
             query_strs = [f.read()]
             f.close()
         except:
@@ -1773,6 +1775,19 @@ def run_standalone():
     else:
         query_strs = args
 
+    if options.query_encoding is not None and options.query_encoding != 'none':
+        try:
+            for idx in range(len(query_strs)):
+                query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
+
+                if len(query_strs[idx]) == 0:
+                    print("Query cannot be empty (query number %s)" % (idx+1), file=sys.stderr)
+                    sys.exit(1)
+
+        except Exception as e:
+            print("Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding), file=sys.stderr)
+            sys.exit(3)
+###
 
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
         print("Parsing mode can be one of fluffy, relaxed or strict", file=sys.stderr)
@@ -1780,10 +1795,7 @@ def run_standalone():
 
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
-        if six.PY2:
-            STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
-        else:
-            STDOUT = sys.stdout
+        STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
     except:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
@@ -1879,7 +1891,8 @@ def run_standalone():
         beautify=options.beautify,
         output_quoting_mode=options.output_quoting_mode,
         formatting=options.formatting,
-        output_header=options.output_header)
+        output_header=options.output_header,
+        encoding=output_encoding)
     q_output_printer = QOutputPrinter(output_params,show_tracebacks=options.verbose)
 
     for query_str in query_strs:

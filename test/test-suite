@@ -22,6 +22,7 @@ import locale
 import pprint
 import six
 from six.moves import range
+import codecs
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
@@ -60,7 +61,7 @@ def run_command(cmd_to_run):
         print("RESULT:{}".format(res))
     return res
 
-uneven_ls_output = """drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
+uneven_ls_output = six.b("""drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
 drwxr-xr-x   2 root     root      4096 Apr 19  2013 /mnt
 drwxr-xr-x   2 root     root      4096 Apr 24  2013 /srv
 drwx------   2 root     root     16384 Jun 21  2013 /lost+found
@@ -69,9 +70,9 @@ drwxr-xr-x   2 root     root      4096 Jun 21  2013 /cdrom
 drwxr-xr-x   3 root     root      4096 Jun 21  2013 /home
 lrwxrwxrwx   1 root     root        29 Jun 21  2013 /vmlinuz -> boot/vmlinuz-3.8.0-19-generic
 lrwxrwxrwx   1 root     root        32 Jun 21  2013 /initrd.img -> boot/initrd.img-3.8.0-19-generic
-"""
+""")
 
-find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 11:00 /tmp
+find_output = six.b("""8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 11:00 /tmp
 8299123    4 drwxrwxr-x   2 harel    harel        4096 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576
 8263229  964 -rw-rw-r--   1 mapred   mapred      984569 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormcode.ser
 8263230    4 -rw-rw-r--   1 harel    harel        1223 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormconf.ser
@@ -81,7 +82,7 @@ find_output = """8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 1
 8263607    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514169735.version
 8263533    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514172733.version
 8263604    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514175754.version
-"""
+""")
 
 header_row = six.b('name,value1,value2')
 sample_data_rows = [six.b('a,1,0'), six.b('b,2,0'), six.b('c,,0')]
@@ -1771,11 +1772,11 @@ class FormattingTests(AbstractQTestCase):
         self.assertEquals(len(o), 2)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0], 'mysum myavg')
-        self.assertEquals(o[1], '55.000 5.500')
+        self.assertEquals(o[0], six.b('mysum myavg'))
+        self.assertEquals(o[1], six.b('55.000 5.500'))
 
     def test_failure_to_parse_universal_newlines_without_explicit_flag(self):
-        data = 'permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a'
+        data = six.b('permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a')
         tmp_data_file = self.create_file_with_data(data)
 
         cmd = '../bin/q -d , -H "select * from %s"' % tmp_data_file.name
@@ -1785,7 +1786,7 @@ class FormattingTests(AbstractQTestCase):
         self.assertEquals(len(e), 1)
         self.assertEquals(len(o), 0)
 
-        self.assertTrue(e[0].startswith('Data contains universal newlines'))
+        self.assertTrue(e[0].startswith(six.b('Data contains universal newlines')))
 
         self.cleanup(tmp_data_file)
 
@@ -1838,8 +1839,8 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 2)
 
-        self.assertEquals(o[0], 'ppp dip.1@otherdomain.com')
-        self.assertEquals(o[1], 'ppp dip.2@otherdomain.com')
+        self.assertEquals(o[0], six.b('ppp dip.1@otherdomain.com'))
+        self.assertEquals(o[1], six.b('ppp dip.2@otherdomain.com'))
 
     def test_join_example_with_output_header(self):
         cmd = '../bin/q -O "select myfiles.c8 aaa,emails.c2 bbb from ../examples/exampledatafile myfiles join ../examples/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
@@ -1848,12 +1849,12 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(retcode, 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0], 'aaa bbb')
-        self.assertEquals(o[1], 'ppp dip.1@otherdomain.com')
-        self.assertEquals(o[2], 'ppp dip.2@otherdomain.com')
+        self.assertEquals(o[0], six.b('aaa bbb'))
+        self.assertEquals(o[1], six.b('ppp dip.1@otherdomain.com'))
+        self.assertEquals(o[2], six.b('ppp dip.2@otherdomain.com'))
 
     def test_self_join1(self):
-        tmpfile = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        tmpfile = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)"' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
@@ -1864,7 +1865,7 @@ class SqlTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_self_join_reuses_table(self):
-        tmpfile = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        tmpfile = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)" -A' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
@@ -1872,14 +1873,14 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 3)
 
-        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1],'  `c1` - int')
-        self.assertEquals(o[2],'  `c2` - int')
+        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1],six.b('  `c1` - int'))
+        self.assertEquals(o[2],six.b('  `c2` - int'))
 
         self.cleanup(tmpfile)
 
     def test_self_join2(self):
-        tmpfile1 = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        tmpfile1 = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2)"' % (tmpfile1.name,tmpfile1.name)
         retcode, o, e = run_command(cmd)
 
@@ -1889,7 +1890,7 @@ class SqlTests(AbstractQTestCase):
 
         self.cleanup(tmpfile1)
 
-        tmpfile2 = self.create_file_with_data("\n".join(["%s 9000" % i for i in range(0,10)]))
+        tmpfile2 = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2) join %s a3 on (a1.c2 = a3.c2)"' % (tmpfile2.name,tmpfile2.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
@@ -1900,12 +1901,12 @@ class SqlTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_disable_column_type_detection(self):
-        tmpfile = self.create_file_with_data('''regular_text,text_with_digits1,text_with_digits2,float_number
+        tmpfile = self.create_file_with_data(six.b('''regular_text,text_with_digits1,text_with_digits2,float_number
 "regular text 1",67,"67",12.3
 "regular text 2",067,"067",22.3
 "regular text 3",123,"123",33.4
 "regular text 4",-123,"-123",0122.2
-''')
+'''))
 
         # Check original column type detection
         cmd = '../bin/q -A -d , -H "select * from %s"' % (tmpfile.name)
@@ -1917,11 +1918,11 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(o), 5)
 
 
-        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1],'  `regular_text` - text')
-        self.assertEquals(o[2],'  `text_with_digits1` - int')
-        self.assertEquals(o[3],'  `text_with_digits2` - int')
-        self.assertEquals(o[4],'  `float_number` - float')
+        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1],six.b('  `regular_text` - text'))
+        self.assertEquals(o[2],six.b('  `text_with_digits1` - int'))
+        self.assertEquals(o[3],six.b('  `text_with_digits2` - int'))
+        self.assertEquals(o[4],six.b('  `float_number` - float'))
 
         # Check column types detected when actual detection is disabled
         cmd = '../bin/q -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
@@ -1932,11 +1933,11 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 5)
 
-        self.assertEquals(o[0],'Table for file: %s' % tmpfile.name)
-        self.assertEquals(o[1],'  `regular_text` - text')
-        self.assertEquals(o[2],'  `text_with_digits1` - text')
-        self.assertEquals(o[3],'  `text_with_digits2` - text')
-        self.assertEquals(o[4],'  `float_number` - text')
+        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEquals(o[1],six.b('  `regular_text` - text'))
+        self.assertEquals(o[2],six.b('  `text_with_digits1` - text'))
+        self.assertEquals(o[3],six.b('  `text_with_digits2` - text'))
+        self.assertEquals(o[4],six.b('  `float_number` - text'))
 
         # Get actual data with regular detection
         cmd = '../bin/q -d , -H "select * from %s"' % (tmpfile.name)
@@ -1947,10 +1948,10 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 4)
 
-        self.assertEquals(o[0],"regular text 1,67,67,12.3");
-        self.assertEquals(o[1],"regular text 2,67,67,22.3");
-        self.assertEquals(o[2],"regular text 3,123,123,33.4");
-        self.assertEquals(o[3],"regular text 4,-123,-123,122.2");
+        self.assertEquals(o[0],six.b("regular text 1,67,67,12.3"))
+        self.assertEquals(o[1],six.b("regular text 2,67,67,22.3"))
+        self.assertEquals(o[2],six.b("regular text 3,123,123,33.4"))
+        self.assertEquals(o[3],six.b("regular text 4,-123,-123,122.2"))
 
         # Get actual data without detection
         cmd = '../bin/q -d , -H --as-text "select * from %s"' % (tmpfile.name)
@@ -1961,10 +1962,10 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 4)
 
-        self.assertEquals(o[0],"regular text 1,67,67,12.3");
-        self.assertEquals(o[1],"regular text 2,067,067,22.3");
-        self.assertEquals(o[2],"regular text 3,123,123,33.4");
-        self.assertEquals(o[3],"regular text 4,-123,-123,0122.2");
+        self.assertEquals(o[0],six.b("regular text 1,67,67,12.3"))
+        self.assertEquals(o[1],six.b("regular text 2,067,067,22.3"))
+        self.assertEquals(o[2],six.b("regular text 3,123,123,33.4"))
+        self.assertEquals(o[3],six.b("regular text 4,-123,-123,0122.2"))
 
         self.cleanup(tmpfile)
 
@@ -1972,7 +1973,7 @@ class SqlTests(AbstractQTestCase):
 class BasicModuleTests(AbstractQTestCase):
 
     def test_simple_query(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select * from %s' % tmpfile.name)
@@ -1988,7 +1989,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_loaded_data_reuse(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r1 = q.execute('select * from %s' % tmpfile.name)
@@ -2013,10 +2014,10 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_stdin_injection(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select * from -',stdin_file=file(tmpfile.name,'rb'))
+        r = q.execute('select * from -',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
@@ -2029,10 +2030,10 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_named_stdin_injection(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select a from my_stdin_data',stdin_file=file(tmpfile.name,'rb'),stdin_filename='my_stdin_data')
+        r = q.execute('select a from my_stdin_data',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data')
 
         self.assertTrue(r.status == 'ok')
         self.assertEquals(len(r.warnings),0)
@@ -2045,11 +2046,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_stdin_injection_isolation(self):
-        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-        tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
+        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from -',stdin_file=file(tmpfile1.name,'rb'))
+        r1 = q.execute('select * from -',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
@@ -2059,7 +2060,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEquals(len(r1.metadata.data_loads),1)
         self.assertEquals(r1.metadata.data_loads[0].filename,'-')
 
-        r2 = q.execute('select * from -',stdin_file=file(tmpfile2.name,'rb'))
+        r2 = q.execute('select * from -',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
@@ -2074,11 +2075,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_multiple_stdin_injection(self):
-        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-        tmpfile2 = self.create_file_with_data("d e f\n7 8 9\n10 11 12")
+        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from my_stdin_data1',stdin_file=file(tmpfile1.name,'rb'),stdin_filename='my_stdin_data1')
+        r1 = q.execute('select * from my_stdin_data1',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data1')
 
         self.assertTrue(r1.status == 'ok')
         self.assertEquals(len(r1.warnings),0)
@@ -2088,7 +2089,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEquals(len(r1.metadata.data_loads),1)
         self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
-        r2 = q.execute('select * from my_stdin_data2',stdin_file=file(tmpfile2.name,'rb'),stdin_filename='my_stdin_data2')
+        r2 = q.execute('select * from my_stdin_data2',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data2')
 
         self.assertTrue(r2.status == 'ok')
         self.assertEquals(len(r2.warnings),0)
@@ -2112,8 +2113,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_different_input_params_for_different_files(self):
-        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(six.b("7\t8\t9\n10\t11\t12"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
 
@@ -2133,8 +2134,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_different_input_params_for_different_files(self):
-        tmpfile1 = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
-        tmpfile2 = self.create_file_with_data("7\t8\t9\n10\t11\t12")
+        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(six.b("7\t8\t9\n10\t11\t12"))
 
         q = QTextAsData()
 
@@ -2154,7 +2155,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_input_params_override(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         default_input_params = QInputParams()
 
@@ -2205,7 +2206,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(q_output.error.msg.startswith('query error'))
 
     def test_execute_response(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData()
 
@@ -2236,7 +2237,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_analyze_response(self):
-        tmpfile = self.create_file_with_data("a b c\n1 2 3\n4 5 6")
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData()
 
@@ -2267,7 +2268,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_load_data_from_string(self):
-        input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
+        input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
 
         q = QTextAsData()
 

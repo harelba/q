@@ -717,7 +717,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEquals(len(e), 0)
         self.assertEquals(len(o), 1)
 
-        self.assertEquals(o[0],'7.66666666667')
+        self.assertEquals(o[0],six.b('7.666666666666667'))
 
     def test_use_query_file(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
@@ -1829,9 +1829,9 @@ class SqlTests(AbstractQTestCase):
         self.assertEquals(len(o), 3)
         self.assertEquals(len(e), 0)
 
-        self.assertEquals(o[0], 'mapred mapred 0.93895816803')
-        self.assertEquals(o[1], 'root root 0.02734375')
-        self.assertEquals(o[2], 'harel harel 0.0108880996704')
+        self.assertEquals(o[0], six.b('mapred mapred 0.9389581680297852'))
+        self.assertEquals(o[1], six.b('root root 0.02734375'))
+        self.assertEquals(o[2], six.b('harel harel 0.010888099670410156'))
 
         self.cleanup(tmpfile)
 

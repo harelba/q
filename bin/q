@@ -27,7 +27,10 @@
 #
 # Run with --help for command line details
 #
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 q_version = "1.8"
 
 __all__ = [ 'QTextAsData' ]
@@ -778,7 +781,7 @@ class MaterializedFileState(object):
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
                 BOM = self.f.read(3)
-                if BOM != '\xef\xbb\xbf':
+                if BOM != six.b('\xef\xbb\xbf'):
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
             except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
@@ -1467,14 +1470,14 @@ def quote_minimal_func(output_delimiter,v):
     t = type(v)
     if (t == str or t == unicode) and ((output_delimiter in v) or (six.u('"') in v)):
         return six.u('"{}"').format(escape_double_quotes_if_needed(v))
-    return v;
+    return v
 
 def quote_nonnumeric_func(output_delimiter,v):
     if v is None:
         return v
     if type(v) == str or type(v) == unicode:
         return six.u('"{}"').format(escape_double_quotes_if_needed(v))
-    return v;
+    return v
 
 def quote_all_func(output_delimiter,v):
     if type(v) == str or type(v) == unicode:
@@ -1575,7 +1578,7 @@ class QOutputPrinter(object):
             formatting_dict = dict(
                 [(x.split("=")[0], x.split("=")[1]) for x in self.output_params.formatting.split(",")])
         else:
-            formatting_dict = None
+            formatting_dict = {}
 
         try:
             if self.output_params.output_header and results.metadata.output_column_name_list is not None:
@@ -1584,7 +1587,7 @@ class QOutputPrinter(object):
                 row_str = []
                 skip_formatting = rownum == 0 and self.output_params.output_header
                 for i, col in enumerate(row):
-                    if formatting_dict is not None and str(i + 1) in formatting_dict.keys() and not skip_formatting:
+                    if str(i + 1) in formatting_dict.keys() and not skip_formatting:
                         fmt_str = formatting_dict[str(i + 1)]
                     else:
                         if self.output_params.beautify:
@@ -1593,6 +1596,9 @@ class QOutputPrinter(object):
                             fmt_str = six.u("{}")
 
                     if col is not None:
+                        # Hack for python2 - The defaulting rendering of a float to string is losing precision. This hack works around it by using repr()
+                        if six.PY2 and isinstance(col, float) and str(i+1) not in formatting_dict:
+                            col = repr(col)
                         xx = self.output_field_quoting_func(self.output_params.delimiter,col)
                         row_str.append(fmt_str.format(xx))
                     else:

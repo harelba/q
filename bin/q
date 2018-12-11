@@ -53,6 +53,7 @@ import hashlib
 import uuid
 import math
 import six
+import io
 
 if six.PY3:
     long = int
@@ -704,10 +705,7 @@ class TableColumnInferer(object):
 
 def py3_encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
     try:
-        if not is_stdin:
-            csv_reader = csv.reader(codecs.iterdecode(f,encoding), dialect,**kwargs)
-        else:
-            csv_reader = csv.reader(f, dialect, **kwargs)
+        csv_reader = csv.reader(f, dialect, **kwargs)
 
         for row in csv_reader:
             yield row
@@ -780,7 +778,11 @@ class MaterializedFileState(object):
         # multiple people.
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
-                BOM = self.f.read(3)
+                if six.PY2:
+                    BOM = self.f.read(3)
+                else:
+                    BOM = self.f.buffer.read(3)
+
                 if BOM != six.b('\xef\xbb\xbf'):
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
             except Exception as e:
@@ -875,13 +877,19 @@ class TableCreator(object):
                 raise CannotUnzipStdInException()
         else:
             if self.gzipped or filename.endswith('.gz'):
-                f = gzip.GzipFile(fileobj=open(filename,'rb'))
+                f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(filename,'rb')),encoding=self.encoding)
             else:
-                if self.with_universal_newlines:
-                    file_opening_mode = 'rbU'
+                if six.PY3:
+                    if self.with_universal_newlines:
+                        f = io.open(filename, 'rU',newline=None,encoding=self.encoding)
+                    else:
+                        f = io.open(filename, 'r', newline=None, encoding=self.encoding)
                 else:
-                    file_opening_mode = 'rb'
-                f = open(filename,file_opening_mode)
+                    if self.with_universal_newlines:
+                        file_opening_mode = 'rbU'
+                    else:
+                        file_opening_mode = 'rb'
+                    f = open(filename, file_opening_mode)
         return f
 
     def _pre_populate(self,dialect):
@@ -1419,6 +1427,8 @@ class QTextAsData(object):
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:
+            if DEBUG:
+                print(traceback.format_exc())
             error = QError(e,repr(e),199)
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))

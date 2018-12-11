@@ -242,7 +242,7 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(len(o) == 0)
         self.assertTrue(len(e) == 1)
 
-        self.assertEquals(e[0],six.b('Cannot decompress standard input. Pipe the input through zcat in order to decompress.'))
+        self.assertEqual(e[0],six.b('Cannot decompress standard input. Pipe the input through zcat in order to decompress.'))
 
         self.cleanup(tmpfile)
 
@@ -253,8 +253,8 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 3)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 3)
 
         self.assertTrue(e[0].startswith(
             six.b("Warning: column count is one - did you provide the correct delimiter")))
@@ -269,11 +269,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c2 from %s where regexp(\'^1\',c2)"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0],six.b("1"))
+        self.assertEqual(o[0],six.b("1"))
 
         self.cleanup(tmpfile)
 
@@ -283,11 +283,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select count(*) from %s where regexp(\'^\',c2)"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0],six.b("2"))
+        self.assertEqual(o[0],six.b("2"))
 
         self.cleanup(tmpfile)
 
@@ -297,11 +297,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(six.b(" ").join(o), six.b('a b c'))
+        self.assertEqual(six.b(" ").join(o), six.b('a b c'))
 
         self.cleanup(tmpfile)
 
@@ -311,12 +311,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -t "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -326,12 +326,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -340,13 +340,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
 
         self.cleanup(tmpfile)
 
@@ -355,13 +355,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -370,13 +370,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEquals(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
 
         self.cleanup(tmpfile)
 
@@ -384,26 +384,26 @@ class BasicTests(AbstractQTestCase):
         cmd = six.b('printf "%s" | ../bin/q -d , "select c1,c2,c3 from -"') % sample_data_no_header
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0])
-        self.assertEquals(o[1], sample_data_rows[1])
-        self.assertEquals(o[2], sample_data_rows[2])
+        self.assertEqual(o[0], sample_data_rows[0])
+        self.assertEqual(o[1], sample_data_rows[1])
+        self.assertEqual(o[2], sample_data_rows[2])
 
     def test_column_separation(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
         cmd = '../bin/q -d , "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], sample_data_rows[0])
-        self.assertEquals(o[1], sample_data_rows[1])
-        self.assertEquals(o[2], sample_data_rows[2])
+        self.assertEqual(o[0], sample_data_rows[0])
+        self.assertEqual(o[1], sample_data_rows[1])
+        self.assertEqual(o[2], sample_data_rows[2])
 
         self.cleanup(tmpfile)
 
@@ -413,11 +413,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
-        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
-        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -427,11 +427,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
-        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
-        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
 
     def test_header_exception_on_numeric_header_data(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -439,8 +439,8 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 3)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 3)
         self.assertTrue(
             six.b('Bad header row: Header must contain only strings') in e[0])
         self.assertTrue(six.b("Column name must be a string") in e[1])
@@ -454,13 +454,13 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o),4)
-        self.assertEquals(len(e),2)
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`name` - text'))
-        self.assertEquals(o[2].strip(), six.b('`value1` - int'))
-        self.assertEquals(o[3].strip(), six.b('`value2` - int'))
-        self.assertEquals(e[0].strip(),six.b('query error: no such column: c1'))
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),2)
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`name` - text'))
+        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
+        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
+        self.assertEqual(e[0].strip(),six.b('query error: no such column: c1'))
         self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
 
         self.cleanup(tmpfile)
@@ -470,9 +470,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select name from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(six.b(" ").join(o), six.b("a b c"))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(six.b(" ").join(o), six.b("a b c"))
 
         self.cleanup(tmpfile)
 
@@ -481,12 +481,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select name from %s" -H -O' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 4)
-        self.assertEquals(o[0],six.b('name'))
-        self.assertEquals(o[1],six.b('a'))
-        self.assertEquals(o[2],six.b('b'))
-        self.assertEquals(o[3],six.b('c'))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 4)
+        self.assertEqual(o[0],six.b('name'))
+        self.assertEqual(o[1],six.b('a'))
+        self.assertEqual(o[2],six.b('b'))
+        self.assertEqual(o[3],six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -497,10 +497,10 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 2)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 2)
         self.assertTrue(six.b('no such column: c3') in e[0])
-        self.assertEquals(
+        self.assertEqual(
             e[1], six.b('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
 
         self.cleanup(tmpfile)
@@ -510,16 +510,16 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 4)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 4)
+        self.assertEqual(len(e), 1)
 
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
-        self.assertEquals(o[2].strip(), six.b('`c2` - text'))
-        self.assertEquals(o[3].strip(), six.b('`c3` - text'))
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - text'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - text'))
 
-        self.assertEquals(
+        self.assertEqual(
             e[0], six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
 
         self.cleanup(tmpfile)
@@ -529,9 +529,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(six.b('Warning - data is empty') in e[0])
 
@@ -543,8 +543,8 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         m = six.b("Header line is expected but missing in file %s" % tmpfile.name)
         self.assertTrue(m in e[0])
@@ -556,11 +556,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c2 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('value1'))
+        self.assertEqual(o[0], six.b('value1'))
 
         self.cleanup(tmpfile)
 
@@ -569,9 +569,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c2 from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(six.b('Warning - data is empty') in e[0])
 
@@ -582,13 +582,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0], six.b('a'))
-        self.assertEquals(o[1], six.b('b'))
-        self.assertEquals(o[2], six.b('c'))
+        self.assertEqual(o[0], six.b('a'))
+        self.assertEqual(o[1], six.b('b'))
+        self.assertEqual(o[2], six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -597,13 +597,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c1 from %s" -k' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0], six.b('a'))
-        self.assertEquals(o[1], six.b('   b'))
-        self.assertEquals(o[2], six.b('c'))
+        self.assertEqual(o[0], six.b('a'))
+        self.assertEqual(o[1], six.b('   b'))
+        self.assertEqual(o[2], six.b('c'))
 
         self.cleanup(tmpfile)
 
@@ -612,14 +612,14 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select c2 from %s" -k -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 4)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
 
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`c1` - text'))
-        self.assertEquals(o[2].strip(), six.b('`c2` - int'))
-        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -629,13 +629,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0], six.b('a,1'))
-        self.assertEquals(o[1], six.b('b,2'))
-        self.assertEquals(o[2], six.b('c,'))
+        self.assertEqual(o[0], six.b('a,1'))
+        self.assertEqual(o[1], six.b('b,2'))
+        self.assertEqual(o[2], six.b('c,'))
 
         self.cleanup(tmpfile)
 
@@ -645,14 +645,14 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 4)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
 
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`name` - text'))
-        self.assertEquals(o[2].strip(), six.b('`value 1` - int'))
-        self.assertEquals(o[3].strip(), six.b('`value2` - int'))
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`name` - text'))
+        self.assertEqual(o[2].strip(), six.b('`value 1` - int'))
+        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -660,64 +660,64 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , ""'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
-        self.assertEquals(e[0],six.b('Query cannot be empty (query number 1)'))
+        self.assertEqual(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_empty_query_in_command_line(self):
         cmd = '../bin/q -d , "  "'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
-        self.assertEquals(e[0],six.b('Query cannot be empty (query number 1)'))
+        self.assertEqual(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_failure_in_query_stops_processing_queries(self):
         cmd = '../bin/q -d , "select 500" "select 300" "wrong-query" "select 8000"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 2)
-        self.assertEquals(o[0],six.b('500'))
-        self.assertEquals(o[1],six.b('300'))
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(o[0],six.b('500'))
+        self.assertEqual(o[1],six.b('300'))
 
     def test_multiple_queries_in_command_line(self):
         cmd = '../bin/q -d , "select 500" "select 300+100" "select 300" "select 200"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 4)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
 
-        self.assertEquals(o[0],six.b('500'))
-        self.assertEquals(o[1],six.b('400'))
-        self.assertEquals(o[2],six.b('300'))
-        self.assertEquals(o[3],six.b('200'))
+        self.assertEqual(o[0],six.b('500'))
+        self.assertEqual(o[1],six.b('400'))
+        self.assertEqual(o[2],six.b('300'))
+        self.assertEqual(o[3],six.b('200'))
 
     def test_literal_calculation_query(self):
         cmd = '../bin/q -d , "select 1+40/6"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 1)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 1)
 
-        self.assertEquals(o[0],six.b('7'))
+        self.assertEqual(o[0],six.b('7'))
 
     def test_literal_calculation_query_float_result(self):
         cmd = '../bin/q -d , "select 1+40/6.0"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 1)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 1)
 
-        self.assertEquals(o[0],six.b('7.666666666666667'))
+        self.assertEqual(o[0],six.b('7.666666666666667'))
 
     def test_use_query_file(self):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
@@ -726,13 +726,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0], six.b('a'))
-        self.assertEquals(o[1], six.b('b'))
-        self.assertEquals(o[2], six.b('c'))
+        self.assertEqual(o[0], six.b('a'))
+        self.assertEqual(o[1], six.b('b'))
+        self.assertEqual(o[2], six.b('c'))
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -744,9 +744,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H -Q ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,3)
-        self.assertEquals(len(o),0)
-        self.assertEquals(len(e),1)
+        self.assertEqual(retcode,3)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
 
         self.assertTrue(e[0].startswith(six.b('Could not decode query number 1 using the provided query encoding (ascii)')))
 
@@ -760,14 +760,14 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H -Q utf-8 -O' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(o),4)
-        self.assertEquals(len(e),0)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),0)
 
-        self.assertEquals(o[0].decode(SYSTEM_ENCODING), u'name,Hr\xe1\u010d')
-        self.assertEquals(o[1].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
-        self.assertEquals(o[2].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
-        self.assertEquals(o[3].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
+        self.assertEqual(o[0].decode(SYSTEM_ENCODING), u'name,Hr\xe1\u010d')
+        self.assertEqual(o[1].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEqual(o[2].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEqual(o[3].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -779,13 +779,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H -Q utf-8' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
-        self.assertEquals(o[1].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
-        self.assertEquals(o[2].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
+        self.assertEqual(o[0].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEqual(o[1].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEqual(o[2].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -797,9 +797,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H "select * from ppp"' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
         self.assertTrue(e[0].startswith(six.b("Can't provide both a query file and a query on the command line")))
 
@@ -814,13 +814,13 @@ class BasicTests(AbstractQTestCase):
             cmd = '../bin/q -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,target_encoding)
             retcode, o, e = run_command(cmd)
 
-            self.assertEquals(retcode, 0)
-            self.assertEquals(len(e), 0)
-            self.assertEquals(len(o), 3)
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(e), 0)
+            self.assertEqual(len(o), 3)
 
-            self.assertEquals(o[0].decode(target_encoding), u'Hr\xe1\u010d')
-            self.assertEquals(o[1].decode(target_encoding), u'Hr\xe1\u010d')
-            self.assertEquals(o[2].decode(target_encoding), u'Hr\xe1\u010d')
+            self.assertEqual(o[0].decode(target_encoding), u'Hr\xe1\u010d')
+            self.assertEqual(o[1].decode(target_encoding), u'Hr\xe1\u010d')
+            self.assertEqual(o[2].decode(target_encoding), u'Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -832,9 +832,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H -Q utf-8 -E ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 3)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 3)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
         self.assertTrue(e[0].startswith(six.b('Cannot encode data')))
 
@@ -848,9 +848,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
         self.assertTrue(e[0].startswith(six.b("Query cannot be empty")))
 
@@ -860,9 +860,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -q non-existent-query-file -H'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 1)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(retcode, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
         self.assertTrue(e[0].startswith(six.b("Could not read query from file")))
 
@@ -873,9 +873,9 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],'non_quoted')
         self.assertTrue(o[1],'control-value-1')
@@ -890,9 +890,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " "select c2 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],'regular_double_quoted')
         self.assertTrue(o[1],'control-value-2')
@@ -907,9 +907,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " "select c3 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],'double_double_quoted')
         self.assertTrue(o[1],'control-value-3')
@@ -924,9 +924,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " "select c4 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],'escaped_double_quoted')
         self.assertTrue(o[1],'control-value-4')
@@ -941,12 +941,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -m relaxed -D , -w none -W none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('"quoted,data",23'))
-        self.assertEquals(o[1],six.b('unquoted-data,54,'))
+        self.assertEqual(o[0],six.b('"quoted,data",23'))
+        self.assertEqual(o[1],six.b('unquoted-data,54,'))
 
         self.cleanup(tmp_data_file)
 
@@ -957,8 +957,8 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(e),1)
-        self.assertEquals(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(len(o),0)
 
         self.assertTrue(e[0].startswith(six.b('Strict mode. Column Count is expected to identical')))
 
@@ -970,12 +970,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('quoted data,23'))
-        self.assertEquals(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],six.b('quoted data,23'))
+        self.assertEqual(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -985,12 +985,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w all "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('quoted data,23'))
-        self.assertEquals(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],six.b('quoted data,23'))
+        self.assertEqual(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1001,8 +1001,8 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(e),1)
-        self.assertEquals(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(len(o),0)
 
         self.assertTrue(e[0].startswith(six.b('Input quoting mode can only be one of all,minimal,none')))
         self.assertTrue(six.b('unknown_wrapping_mode') in e[0])
@@ -1015,12 +1015,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w all -W none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('quoted data,23'))
-        self.assertEquals(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],six.b('quoted data,23'))
+        self.assertEqual(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1030,12 +1030,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w all -W minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('quoted data,23'))
-        self.assertEquals(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],six.b('quoted data,23'))
+        self.assertEqual(o[1],six.b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1046,12 +1046,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D " " -w all -W minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('"quoted data" 23'))
-        self.assertEquals(o[1],six.b('unquoted-data 54'))
+        self.assertEqual(o[0],six.b('"quoted data" 23'))
+        self.assertEqual(o[1],six.b('unquoted-data 54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1061,12 +1061,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w all -W nonnumeric "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('"quoted data",23'))
-        self.assertEquals(o[1],six.b('"unquoted-data",54'))
+        self.assertEqual(o[0],six.b('"quoted data",23'))
+        self.assertEqual(o[1],six.b('"unquoted-data",54'))
 
         self.cleanup(tmp_data_file)
 
@@ -1076,12 +1076,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " -D , -w all -W all "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('"quoted data","23"'))
-        self.assertEquals(o[1],six.b('"unquoted-data","54"'))
+        self.assertEqual(o[0],six.b('"quoted data","23"'))
+        self.assertEqual(o[1],six.b('"unquoted-data","54"'))
 
         self.cleanup(tmp_data_file)
 
@@ -1094,11 +1094,11 @@ class BasicTests(AbstractQTestCase):
 
         retcode, o, e = run_command(chained_cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(six.b("\n").join(o),input_data)
+        self.assertEqual(six.b("\n").join(o),input_data)
 
         self.cleanup(tmp_data_file)
 
@@ -1117,13 +1117,13 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),3)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),3)
 
-        self.assertEquals(o[0],six.b('typeid,limit,apcost,date,checkpointId'))
-        self.assertEquals(o[1],six.b('1,2,5,"1,2,3,4,5,6,7","3000,3001,3002"'))
-        self.assertEquals(o[2],six.b('2,2,5,"1,2,3,4,5,6,7","3003,3004,3005"'))
+        self.assertEqual(o[0],six.b('typeid,limit,apcost,date,checkpointId'))
+        self.assertEqual(o[1],six.b('1,2,5,"1,2,3,4,5,6,7","3000,3001,3002"'))
+        self.assertEqual(o[2],six.b('2,2,5,"1,2,3,4,5,6,7","3003,3004,3005"'))
 
         self.cleanup(tmp_data_file)
 
@@ -1136,26 +1136,26 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),1)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),1)
 
-        self.assertEquals(o[0].decode('utf-8'),u'111,22.22,testing text with special characters - citt\xe0 ,http://somekindofurl.com,12.13.14.15,12.1')
+        self.assertEqual(o[0].decode('utf-8'),u'111,22.22,testing text with special characters - citt\xe0 ,http://somekindofurl.com,12.13.14.15,12.1')
 
         cmd = '../bin/q -d , "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),7)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),7)
 
         self.assertTrue(o[0].startswith(six.b('Table for file')))
-        self.assertEquals(o[1].strip(),six.b('`c1` - int'))
-        self.assertEquals(o[2].strip(),six.b('`c2` - float'))
-        self.assertEquals(o[3].strip(),six.b('`c3` - text'))
-        self.assertEquals(o[4].strip(),six.b('`c4` - text'))
-        self.assertEquals(o[5].strip(),six.b('`c5` - text'))
-        self.assertEquals(o[6].strip(),six.b('`c6` - float'))
+        self.assertEqual(o[1].strip(),six.b('`c1` - int'))
+        self.assertEqual(o[2].strip(),six.b('`c2` - float'))
+        self.assertEqual(o[3].strip(),six.b('`c3` - text'))
+        self.assertEqual(o[4].strip(),six.b('`c4` - text'))
+        self.assertEqual(o[5].strip(),six.b('`c5` - text'))
+        self.assertEqual(o[6].strip(),six.b('`c6` - float'))
 
         self.cleanup(tmp_data_file)
 
@@ -1166,9 +1166,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " "select replace(c5,X\'0A\',\'::\') from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],six.b('multiline_double_double_quoted'))
         self.assertTrue(o[1],six.b('control-value-5'))
@@ -1184,9 +1184,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " "select replace(c6,X\'0A\',\'::\') from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),4)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),4)
 
         self.assertTrue(o[0],'multiline_escaped_double_quoted')
         self.assertTrue(o[1],'control-value-6')
@@ -1204,32 +1204,32 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " --disable-double-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('double_double_quoted'))
-        self.assertEquals(o[1],six.b('this is a quoted value with "double'))
+        self.assertEqual(o[0],six.b('double_double_quoted'))
+        self.assertEqual(o[1],six.b('this is a quoted value with "double'))
 
         cmd = '../bin/q -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b(''))
-        self.assertEquals(o[1],six.b('double'))
+        self.assertEqual(o[0],six.b(''))
+        self.assertEqual(o[1],six.b('double'))
 
         cmd = '../bin/q -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b(''))
-        self.assertEquals(o[1],six.b('quotes"""'))
+        self.assertEqual(o[0],six.b(''))
+        self.assertEqual(o[1],six.b('quotes"""'))
 
         self.cleanup(tmp_data_file)
 
@@ -1242,32 +1242,32 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('escaped_double_quoted'))
-        self.assertEquals(o[1],six.b('this is a quoted value with \\escaped'))
+        self.assertEqual(o[0],six.b('escaped_double_quoted'))
+        self.assertEqual(o[1],six.b('this is a quoted value with \\escaped'))
 
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b(''))
-        self.assertEquals(o[1],six.b('double'))
+        self.assertEqual(o[0],six.b(''))
+        self.assertEqual(o[1],six.b('double'))
 
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b(''))
-        self.assertEquals(o[1],six.b('quotes\\""'))
+        self.assertEqual(o[0],six.b(''))
+        self.assertEqual(o[1],six.b('quotes\\""'))
 
         self.cleanup(tmp_data_file)
 
@@ -1279,38 +1279,38 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -d " " --disable-double-double-quoting --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
         o = o[1:]   # remove the first "Table for file..." line in the output
 
-        self.assertEquals(len(o),7) # found 7 fields
+        self.assertEqual(len(o),7) # found 7 fields
 
         cmd = '../bin/q -d " " --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
         o = o[1:]   # remove the first "Table for file..." line in the output
 
-        self.assertEquals(len(o),5) # found 5 fields
+        self.assertEqual(len(o),5) # found 5 fields
 
         cmd = '../bin/q -d " " --disable-double-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
         o = o[1:]   # remove the first "Table for file..." line in the output
 
-        self.assertEquals(len(o),5) # found 5 fields
+        self.assertEqual(len(o),5) # found 5 fields
 
         cmd = '../bin/q -d " " "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e),0)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
         o = o[1:]   # remove the first "Table for file..." line in the output
 
-        self.assertEquals(len(o),3) # found only 3 fields, which is the correct amount
+        self.assertEqual(len(o),3) # found only 3 fields, which is the correct amount
 
         self.cleanup(tmp_data_file)
 
@@ -1320,10 +1320,10 @@ class BasicTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(o),0)
-        self.assertEquals(len(e),1)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
 
-        self.assertEquals(e[0],six.b("No files matching 'non-existent-file' have been found"))
+        self.assertEqual(e[0],six.b("No files matching 'non-existent-file' have been found"))
 
     def test_default_column_max_length_parameter__short_enough(self):
         huge_text = six.b("x" * 131000)
@@ -1335,11 +1335,11 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0],six.b('1'))
+        self.assertEqual(o[0],six.b('1'))
 
         self.cleanup(tmpfile)
 
@@ -1353,9 +1353,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 31)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
         self.assertTrue(six.b("Offending file is '{}'".format(tmpfile.name)) in e[0])
@@ -1370,9 +1370,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -H -d , -M 3 "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 31)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
         self.assertTrue((six.b("Offending file is '%s'" % tmpfile.name)) in e[0])
@@ -1381,11 +1381,11 @@ class BasicTests(AbstractQTestCase):
         cmd2 = '../bin/q -H -d , -M 300 -H "select a from %s"' % tmpfile.name
         retcode2, o2, e2 = run_command(cmd2)
 
-        self.assertEquals(retcode2, 0)
-        self.assertEquals(len(o2), 1)
-        self.assertEquals(len(e2), 0)
+        self.assertEqual(retcode2, 0)
+        self.assertEqual(len(o2), 1)
+        self.assertEqual(len(e2), 0)
 
-        self.assertEquals(o2[0],six.b('very-long-text'))
+        self.assertEqual(o2[0],six.b('very-long-text'))
 
         self.cleanup(tmpfile)
 
@@ -1396,9 +1396,9 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -H -d , -M 0 "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 31)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(e[0].startswith(six.b('Max column length limit must be a positive integer')))
 
@@ -1412,12 +1412,12 @@ class BasicTests(AbstractQTestCase):
         cmd = '../bin/q -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 35)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 2)
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 2)
 
         self.assertTrue(e[0].startswith(six.b('Bad header row:')))
-        self.assertEquals(e[1],six.b("'a': Column name is duplicated"))
+        self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
 
         self.cleanup(tmpfile)
 
@@ -1430,8 +1430,8 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
         self.assertTrue(six.b("Column Count is expected to identical") in e[0])
 
@@ -1443,10 +1443,10 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
-        self.assertEquals(
+        self.assertEqual(
             e[0], six.b("Strict mode. Column count is expected to be 4 but is 3"))
 
         self.cleanup(tmpfile)
@@ -1457,10 +1457,10 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
-        self.assertEquals(
+        self.assertEqual(
             e[0], six.b("Strict mode. Column count is expected to be 2 but is 3"))
 
         self.cleanup(tmpfile)
@@ -1471,14 +1471,14 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -d , -m relaxed "select count(*) from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 4)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 4)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1].strip(), six.b('`name` - text'))
-        self.assertEquals(o[2].strip(), six.b('`value1` - int'))
-        self.assertEquals(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`name` - text'))
+        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -1489,10 +1489,10 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(o), 0)
-        self.assertEquals(len(e), 1)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
 
-        self.assertEquals(
+        self.assertEqual(
             e[0], six.b('Strict mode. Header row contains less columns than expected column count(2 vs 3)'))
 
         self.cleanup(tmpfile)
@@ -1502,13 +1502,13 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select * from %s" -D ";"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('a;1;0'))
-        self.assertEquals(o[1], six.b('b;2;0'))
-        self.assertEquals(o[2], six.b('c;;0'))
+        self.assertEqual(o[0], six.b('a;1;0'))
+        self.assertEqual(o[1], six.b('b;2;0'))
+        self.assertEqual(o[2], six.b('c;;0'))
 
         self.cleanup(tmpfile)
 
@@ -1517,11 +1517,11 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select avg(c2) from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('1.5'))
+        self.assertEqual(o[0], six.b('1.5'))
 
         self.cleanup(tmpfile)
 
@@ -1530,11 +1530,11 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -d , "select * from %s where c2 is null"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('c,,0'))
+        self.assertEqual(o[0], six.b('c,,0'))
 
         self.cleanup(tmpfile)
 
@@ -1545,11 +1545,11 @@ class ParsingModeTests(AbstractQTestCase):
             tmpfile.name, "''")
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('c,,0'))
+        self.assertEqual(o[0], six.b('c,,0'))
 
         self.cleanup(tmpfile)
 
@@ -1558,21 +1558,21 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select count(*) from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
 
         table_name_row = o[0]
         column_rows = o[1:]
 
-        self.assertEquals(len(column_rows), 11)
+        self.assertEqual(len(column_rows), 11)
 
         column_tuples = [x.strip().split(six.b(" ")) for x in column_rows]
         column_info = [(x[0], x[2]) for x in column_tuples]
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 12)])
-        self.assertEquals(column_types, list(map(lambda x:six.b(x),[
+        self.assertEqual(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 12)])
+        self.assertEqual(column_types, list(map(lambda x:six.b(x),[
                           'text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text', 'text', 'text'])))
 
         self.cleanup(tmpfile)
@@ -1582,21 +1582,21 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select count(*) from %s" -A -c 9' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
 
         table_name_row = o[0]
         column_rows = o[1:]
 
-        self.assertEquals(len(column_rows), 9)
+        self.assertEqual(len(column_rows), 9)
 
         column_tuples = [x.strip().split(six.b(" ")) for x in column_rows]
         column_info = [(x[0], x[2]) for x in column_tuples]
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEquals(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 10)])
-        self.assertEquals(
+        self.assertEqual(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 10)])
+        self.assertEqual(
             column_types, list(map(lambda x:six.b(x),['text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text'])))
 
         self.cleanup(tmpfile)
@@ -1606,14 +1606,14 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select c9 from %s" -c 9' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 9)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 9)
+        self.assertEqual(len(e), 0)
 
         expected_output = list(map(lambda x:six.b(x),["/selinux", "/mnt", "/srv", "/lost+found", '"/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic"',
                            "/cdrom", "/home", '"/vmlinuz -> boot/vmlinuz-3.8.0-19-generic"', '"/initrd.img -> boot/initrd.img-3.8.0-19-generic"']))
 
-        self.assertEquals(o, expected_output)
+        self.assertEqual(o, expected_output)
 
         self.cleanup(tmpfile)
 
@@ -1622,13 +1622,13 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select c1 from %s" -d ,' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
-        self.assertEquals(o[0],six.b('data without commas 1'))
-        self.assertEquals(o[1],six.b('data without commas 2'))
+        self.assertEqual(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
+        self.assertEqual(o[0],six.b('data without commas 1'))
+        self.assertEqual(o[1],six.b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -1637,13 +1637,13 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m strict' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
-        self.assertEquals(o[0],six.b('data without commas 1'))
-        self.assertEquals(o[1],six.b('data without commas 2'))
+        self.assertEqual(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
+        self.assertEqual(o[0],six.b('data without commas 1'))
+        self.assertEqual(o[1],six.b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -1653,12 +1653,12 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m relaxed -c 1' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('data without commas 1'))
-        self.assertEquals(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],six.b('data without commas 1'))
+        self.assertEqual(o[1],six.b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -1667,12 +1667,12 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m relaxed "select c1 from %s" -d , -m strict -c 1' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o),2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o),2)
 
-        self.assertEquals(o[0],six.b('data without commas 1'))
-        self.assertEquals(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],six.b('data without commas 1'))
+        self.assertEqual(o[1],six.b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -1681,14 +1681,14 @@ class ParsingModeTests(AbstractQTestCase):
         cmd = '../bin/q -m fluffy "select c9 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 9)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 9)
+        self.assertEqual(len(e), 0)
 
         expected_output = list(map(lambda x:six.b(x),["/selinux", "/mnt", "/srv", "/lost+found",
                            "/initrd.img.old", "/cdrom", "/home", "/vmlinuz", "/initrd.img"]))
 
-        self.assertEquals(o, expected_output)
+        self.assertEqual(o, expected_output)
 
         self.cleanup(tmpfile)
 
@@ -1702,8 +1702,8 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(o),0)
-        self.assertEquals(len(e),1)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
         self.assertTrue(e[0].startswith(six.b("Deprecated fluffy mode")))
         self.assertTrue(six.b(' row 951 ') in e[0])
 
@@ -1719,8 +1719,8 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(o),0)
-        self.assertEquals(len(e),1)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
         self.assertTrue(e[0].startswith(six.b("Strict mode - Expected 4 columns instead of 3 columns")))
         self.assertTrue(six.b(' row 751.') in e[0])
 
@@ -1736,8 +1736,8 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode,0)
-        self.assertEquals(len(o),0)
-        self.assertEquals(len(e),1)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
         self.assertTrue(e[0].startswith(six.b("Strict mode - Expected 4 columns instead of 5 columns")))
         self.assertTrue(six.b(' row 751.') in e[0])
 
@@ -1754,11 +1754,11 @@ class FormattingTests(AbstractQTestCase):
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 1)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('55.000 5.500'))
+        self.assertEqual(o[0], six.b('55.000 5.500'))
 
     def test_column_formatting_with_output_header(self):
         perl_regex = "'s/1\n/column_name\n1\n/;'"
@@ -1768,12 +1768,12 @@ class FormattingTests(AbstractQTestCase):
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 2)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('mysum myavg'))
-        self.assertEquals(o[1], six.b('55.000 5.500'))
+        self.assertEqual(o[0], six.b('mysum myavg'))
+        self.assertEqual(o[1], six.b('55.000 5.500'))
 
     def test_failure_to_parse_universal_newlines_without_explicit_flag(self):
         data = six.b('permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a')
@@ -1783,8 +1783,8 @@ class FormattingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEquals(retcode, 0)
-        self.assertEquals(len(e), 1)
-        self.assertEquals(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(len(o), 0)
 
         self.assertTrue(e[0].startswith(six.b('Data contains universal newlines')))
 
@@ -1807,13 +1807,13 @@ class FormattingTests(AbstractQTestCase):
         cmd = '../bin/q -d , -H -U "select permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode,0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 6)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 6)
 
         actual_output = map(lambda row: row.split(","),o)
 
-        self.assertEquals(actual_output,expected_output)
+        self.assertEqual(actual_output,expected_output)
 
         self.cleanup(tmp_data_file)
 
@@ -1825,13 +1825,13 @@ class SqlTests(AbstractQTestCase):
         cmd = '../bin/q "select c5,c6,sum(c7)/1024.0/1024 as total from %s group by c5,c6 order by total desc"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
-        self.assertEquals(len(e), 0)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
 
-        self.assertEquals(o[0], six.b('mapred mapred 0.9389581680297852'))
-        self.assertEquals(o[1], six.b('root root 0.02734375'))
-        self.assertEquals(o[2], six.b('harel harel 0.010888099670410156'))
+        self.assertEqual(o[0], six.b('mapred mapred 0.9389581680297852'))
+        self.assertEqual(o[1], six.b('root root 0.02734375'))
+        self.assertEqual(o[2], six.b('harel harel 0.010888099670410156'))
 
         self.cleanup(tmpfile)
 
@@ -1839,31 +1839,31 @@ class SqlTests(AbstractQTestCase):
         cmd = '../bin/q "select myfiles.c8,emails.c2 from ../examples/exampledatafile myfiles join ../examples/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
 
-        self.assertEquals(o[0], six.b('ppp dip.1@otherdomain.com'))
-        self.assertEquals(o[1], six.b('ppp dip.2@otherdomain.com'))
+        self.assertEqual(o[0], six.b('ppp dip.1@otherdomain.com'))
+        self.assertEqual(o[1], six.b('ppp dip.2@otherdomain.com'))
 
     def test_join_example_with_output_header(self):
         cmd = '../bin/q -O "select myfiles.c8 aaa,emails.c2 bbb from ../examples/exampledatafile myfiles join ../examples/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0], six.b('aaa bbb'))
-        self.assertEquals(o[1], six.b('ppp dip.1@otherdomain.com'))
-        self.assertEquals(o[2], six.b('ppp dip.2@otherdomain.com'))
+        self.assertEqual(o[0], six.b('aaa bbb'))
+        self.assertEqual(o[1], six.b('ppp dip.1@otherdomain.com'))
+        self.assertEqual(o[2], six.b('ppp dip.2@otherdomain.com'))
 
     def test_self_join1(self):
         tmpfile = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)"' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 10)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 10)
 
         self.cleanup(tmpfile)
 
@@ -1872,13 +1872,13 @@ class SqlTests(AbstractQTestCase):
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)" -A' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 3)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 3)
 
-        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1],six.b('  `c1` - int'))
-        self.assertEquals(o[2],six.b('  `c2` - int'))
+        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  `c1` - int'))
+        self.assertEqual(o[2],six.b('  `c2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -1887,9 +1887,9 @@ class SqlTests(AbstractQTestCase):
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2)"' % (tmpfile1.name,tmpfile1.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 10*10)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 10*10)
 
         self.cleanup(tmpfile1)
 
@@ -1897,9 +1897,9 @@ class SqlTests(AbstractQTestCase):
         cmd = '../bin/q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2) join %s a3 on (a1.c2 = a3.c2)"' % (tmpfile2.name,tmpfile2.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 10*10*10)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 10*10*10)
 
         self.cleanup(tmpfile2)
 
@@ -1916,59 +1916,59 @@ class SqlTests(AbstractQTestCase):
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 5)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 5)
 
 
-        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1],six.b('  `regular_text` - text'))
-        self.assertEquals(o[2],six.b('  `text_with_digits1` - int'))
-        self.assertEquals(o[3],six.b('  `text_with_digits2` - int'))
-        self.assertEquals(o[4],six.b('  `float_number` - float'))
+        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  `regular_text` - text'))
+        self.assertEqual(o[2],six.b('  `text_with_digits1` - int'))
+        self.assertEqual(o[3],six.b('  `text_with_digits2` - int'))
+        self.assertEqual(o[4],six.b('  `float_number` - float'))
 
         # Check column types detected when actual detection is disabled
         cmd = '../bin/q -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 5)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 5)
 
-        self.assertEquals(o[0],six.b('Table for file: %s' % tmpfile.name))
-        self.assertEquals(o[1],six.b('  `regular_text` - text'))
-        self.assertEquals(o[2],six.b('  `text_with_digits1` - text'))
-        self.assertEquals(o[3],six.b('  `text_with_digits2` - text'))
-        self.assertEquals(o[4],six.b('  `float_number` - text'))
+        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  `regular_text` - text'))
+        self.assertEqual(o[2],six.b('  `text_with_digits1` - text'))
+        self.assertEqual(o[3],six.b('  `text_with_digits2` - text'))
+        self.assertEqual(o[4],six.b('  `float_number` - text'))
 
         # Get actual data with regular detection
         cmd = '../bin/q -d , -H "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 4)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
 
-        self.assertEquals(o[0],six.b("regular text 1,67,67,12.3"))
-        self.assertEquals(o[1],six.b("regular text 2,67,67,22.3"))
-        self.assertEquals(o[2],six.b("regular text 3,123,123,33.4"))
-        self.assertEquals(o[3],six.b("regular text 4,-123,-123,122.2"))
+        self.assertEqual(o[0],six.b("regular text 1,67,67,12.3"))
+        self.assertEqual(o[1],six.b("regular text 2,67,67,22.3"))
+        self.assertEqual(o[2],six.b("regular text 3,123,123,33.4"))
+        self.assertEqual(o[3],six.b("regular text 4,-123,-123,122.2"))
 
         # Get actual data without detection
         cmd = '../bin/q -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
-        self.assertEquals(retcode, 0)
-        self.assertEquals(len(e), 0)
-        self.assertEquals(len(o), 4)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
 
-        self.assertEquals(o[0],six.b("regular text 1,67,67,12.3"))
-        self.assertEquals(o[1],six.b("regular text 2,067,067,22.3"))
-        self.assertEquals(o[2],six.b("regular text 3,123,123,33.4"))
-        self.assertEquals(o[3],six.b("regular text 4,-123,-123,0122.2"))
+        self.assertEqual(o[0],six.b("regular text 1,67,67,12.3"))
+        self.assertEqual(o[1],six.b("regular text 2,067,067,22.3"))
+        self.assertEqual(o[2],six.b("regular text 3,123,123,33.4"))
+        self.assertEqual(o[3],six.b("regular text 4,-123,-123,0122.2"))
 
         self.cleanup(tmpfile)
 
@@ -1982,12 +1982,12 @@ class BasicModuleTests(AbstractQTestCase):
         r = q.execute('select * from %s' % tmpfile.name)
 
         self.assertTrue(r.status == 'ok')
-        self.assertEquals(len(r.warnings),0)
-        self.assertEquals(len(r.data),2)
-        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r.metadata.data_loads),1)
-        self.assertEquals(r.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),2)
+        self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r.metadata.data_loads),1)
+        self.assertEqual(r.metadata.data_loads[0].filename,tmpfile.name)
 
         self.cleanup(tmpfile)
 
@@ -2000,19 +2000,19 @@ class BasicModuleTests(AbstractQTestCase):
         r2 = q.execute('select * from %s' % tmpfile.name)
 
         self.assertTrue(r1.status == 'ok')
-        self.assertEquals(len(r1.warnings),0)
-        self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r1.warnings),0)
+        self.assertEqual(len(r1.data),2)
+        self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(r1.metadata.data_loads[0].filename,tmpfile.name)
 
         self.assertTrue(r2.status == 'ok')
-        self.assertEquals(len(r1.metadata.data_loads),1)
-        self.assertEquals(r1.metadata.data_loads[0].filename,tmpfile.name)
-        self.assertEquals(len(r2.metadata.data_loads),0)
-        self.assertEquals(r2.data,r1.data)
-        self.assertEquals(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
-        self.assertEquals(len(r2.warnings),0)
+        self.assertEqual(len(r1.metadata.data_loads),1)
+        self.assertEqual(r1.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r2.metadata.data_loads),0)
+        self.assertEqual(r2.data,r1.data)
+        self.assertEqual(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
+        self.assertEqual(len(r2.warnings),0)
 
         self.cleanup(tmpfile)
 
@@ -2023,12 +2023,12 @@ class BasicModuleTests(AbstractQTestCase):
         r = q.execute('select * from -',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r.status == 'ok')
-        self.assertEquals(len(r.warnings),0)
-        self.assertEquals(len(r.data),2)
-        self.assertEquals(r.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r.metadata.data_loads),1)
-        self.assertEquals(r.metadata.data_loads[0].filename,'-')
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),2)
+        self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r.metadata.data_loads),1)
+        self.assertEqual(r.metadata.data_loads[0].filename,'-')
 
         self.cleanup(tmpfile)
 
@@ -2039,12 +2039,12 @@ class BasicModuleTests(AbstractQTestCase):
         r = q.execute('select a from my_stdin_data',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data')
 
         self.assertTrue(r.status == 'ok')
-        self.assertEquals(len(r.warnings),0)
-        self.assertEquals(len(r.data),2)
-        self.assertEquals(r.metadata.output_column_name_list,['a'])
-        self.assertEquals(r.data,[(1,),(4,)])
-        self.assertEquals(len(r.metadata.data_loads),1)
-        self.assertEquals(r.metadata.data_loads[0].filename,'my_stdin_data')
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),2)
+        self.assertEqual(r.metadata.output_column_name_list,['a'])
+        self.assertEqual(r.data,[(1,),(4,)])
+        self.assertEqual(len(r.metadata.data_loads),1)
+        self.assertEqual(r.metadata.data_loads[0].filename,'my_stdin_data')
 
         self.cleanup(tmpfile)
 
@@ -2056,23 +2056,23 @@ class BasicModuleTests(AbstractQTestCase):
         r1 = q.execute('select * from -',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r1.status == 'ok')
-        self.assertEquals(len(r1.warnings),0)
-        self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r1.metadata.data_loads),1)
-        self.assertEquals(r1.metadata.data_loads[0].filename,'-')
+        self.assertEqual(len(r1.warnings),0)
+        self.assertEqual(len(r1.data),2)
+        self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r1.metadata.data_loads),1)
+        self.assertEqual(r1.metadata.data_loads[0].filename,'-')
 
         r2 = q.execute('select * from -',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'))
 
         self.assertTrue(r2.status == 'ok')
-        self.assertEquals(len(r2.warnings),0)
-        self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
-        self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
+        self.assertEqual(len(r2.warnings),0)
+        self.assertEqual(len(r2.data),2)
+        self.assertEqual(r2.metadata.output_column_name_list,['d','e','f'])
+        self.assertEqual(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
-        self.assertEquals(len(r2.metadata.data_loads),1)
-        self.assertEquals(r2.metadata.data_loads[0].filename,'-')
+        self.assertEqual(len(r2.metadata.data_loads),1)
+        self.assertEqual(r2.metadata.data_loads[0].filename,'-')
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -2085,32 +2085,32 @@ class BasicModuleTests(AbstractQTestCase):
         r1 = q.execute('select * from my_stdin_data1',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data1')
 
         self.assertTrue(r1.status == 'ok')
-        self.assertEquals(len(r1.warnings),0)
-        self.assertEquals(len(r1.data),2)
-        self.assertEquals(r1.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r1.metadata.data_loads),1)
-        self.assertEquals(r1.metadata.data_loads[0].filename,'my_stdin_data1')
+        self.assertEqual(len(r1.warnings),0)
+        self.assertEqual(len(r1.data),2)
+        self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r1.metadata.data_loads),1)
+        self.assertEqual(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
         r2 = q.execute('select * from my_stdin_data2',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data2')
 
         self.assertTrue(r2.status == 'ok')
-        self.assertEquals(len(r2.warnings),0)
-        self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.metadata.output_column_name_list,['d','e','f'])
-        self.assertEquals(r2.data,[(7,8,9),(10,11,12)])
+        self.assertEqual(len(r2.warnings),0)
+        self.assertEqual(len(r2.data),2)
+        self.assertEqual(r2.metadata.output_column_name_list,['d','e','f'])
+        self.assertEqual(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
-        self.assertEquals(len(r2.metadata.data_loads),1)
-        self.assertEquals(r2.metadata.data_loads[0].filename,'my_stdin_data2')
+        self.assertEqual(len(r2.metadata.data_loads),1)
+        self.assertEqual(r2.metadata.data_loads[0].filename,'my_stdin_data2')
 
         r3 = q.execute('select aa.*,bb.* from my_stdin_data1 aa join my_stdin_data2 bb')
 
         self.assertTrue(r3.status == 'ok')
-        self.assertEquals(len(r3.warnings),0)
-        self.assertEquals(len(r3.data),4)
-        self.assertEquals(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
-        self.assertEquals(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r3.metadata.data_loads),0)
+        self.assertEqual(len(r3.warnings),0)
+        self.assertEqual(len(r3.data),4)
+        self.assertEqual(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
+        self.assertEqual(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEqual(len(r3.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -2127,11 +2127,11 @@ class BasicModuleTests(AbstractQTestCase):
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
         self.assertTrue(r.status == 'ok')
-        self.assertEquals(len(r.warnings),0)
-        self.assertEquals(len(r.data),4)
-        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
-        self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r.metadata.data_loads),0)
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),4)
+        self.assertEqual(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEqual(len(r.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -2148,11 +2148,11 @@ class BasicModuleTests(AbstractQTestCase):
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
         self.assertTrue(r.status == 'ok')
-        self.assertEquals(len(r.warnings),0)
-        self.assertEquals(len(r.data),4)
-        self.assertEquals(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
-        self.assertEquals(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEquals(len(r.metadata.data_loads),0)
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),4)
+        self.assertEqual(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
+        self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
+        self.assertEqual(len(r.metadata.data_loads),0)
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -2176,12 +2176,12 @@ class BasicModuleTests(AbstractQTestCase):
         r2 = q.execute('select * from %s' % tmpfile.name,input_params=overwriting_input_params)
 
         self.assertTrue(r2.status == 'ok')
-        self.assertEquals(len(r2.warnings),0)
-        self.assertEquals(len(r2.data),2)
-        self.assertEquals(r2.metadata.output_column_name_list,['a','b','c'])
-        self.assertEquals(r2.data,[(1,2,3),(4,5,6)])
-        self.assertEquals(len(r2.metadata.data_loads),1)
-        self.assertEquals(r2.metadata.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r2.warnings),0)
+        self.assertEqual(len(r2.data),2)
+        self.assertEqual(r2.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r2.metadata.data_loads),1)
+        self.assertEqual(r2.metadata.data_loads[0].filename,tmpfile.name)
 
         self.cleanup(tmpfile)
 
@@ -2217,22 +2217,22 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertTrue(q_output.status == 'ok')
         self.assertTrue(q_output.error is None)
-        self.assertEquals(len(q_output.warnings),0)
-        self.assertEquals(len(q_output.data),2)
-        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertEqual(len(q_output.warnings),0)
+        self.assertEqual(len(q_output.data),2)
+        self.assertEqual(q_output.data,[ (1,3),(4,6) ])
         self.assertTrue(q_output.metadata is not None)
 
         metadata = q_output.metadata
 
-        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
-        self.assertEquals(len(metadata.data_loads),1)
-        self.assertEquals(len(metadata.table_structures),1)
+        self.assertEqual(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEqual(len(metadata.data_loads),1)
+        self.assertEqual(len(metadata.table_structures),1)
 
         table_structure = metadata.table_structures[0]
 
-        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
-        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
-        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertEqual(table_structure.column_names,[ 'a','b','c'])
+        self.assertEqual(table_structure.column_types,[ 'int','int','int'])
+        self.assertEqual(table_structure.filenames_str,tmpfile.name)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
@@ -2248,22 +2248,22 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertTrue(q_output.status == 'ok')
         self.assertTrue(q_output.error is None)
-        self.assertEquals(len(q_output.warnings),0)
-        self.assertEquals(len(q_output.data),2)
-        self.assertEquals(q_output.data,[ (1,3),(4,6) ])
+        self.assertEqual(len(q_output.warnings),0)
+        self.assertEqual(len(q_output.data),2)
+        self.assertEqual(q_output.data,[ (1,3),(4,6) ])
         self.assertTrue(q_output.metadata is not None)
 
         metadata = q_output.metadata
 
-        self.assertEquals(metadata.output_column_name_list, [ 'a','c'])
-        self.assertEquals(len(metadata.data_loads),1)
-        self.assertEquals(len(metadata.table_structures),1)
+        self.assertEqual(metadata.output_column_name_list, [ 'a','c'])
+        self.assertEqual(len(metadata.data_loads),1)
+        self.assertEqual(len(metadata.table_structures),1)
 
         table_structure = metadata.table_structures[0]
 
-        self.assertEquals(table_structure.column_names,[ 'a','b','c'])
-        self.assertEquals(table_structure.column_types,[ 'int','int','int'])
-        self.assertEquals(table_structure.filenames_str,tmpfile.name)
+        self.assertEqual(table_structure.column_names,[ 'a','b','c'])
+        self.assertEqual(table_structure.column_types,[ 'int','int','int'])
+        self.assertEqual(table_structure.filenames_str,tmpfile.name)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
@@ -2281,22 +2281,22 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertTrue(q_output.status == 'ok')
         self.assertTrue(q_output.error is None)
-        self.assertEquals(len(q_output.warnings),0)
+        self.assertEqual(len(q_output.warnings),0)
         self.assertTrue(len(q_output.data),1000)
-        self.assertEquals(len(set(q_output.data)),1)
-        self.assertEquals(list(set(q_output.data))[0],(2.5,'value3'))
+        self.assertEqual(len(set(q_output.data)),1)
+        self.assertEqual(list(set(q_output.data))[0],(2.5,'value3'))
 
         metadata = q_output.metadata
 
         self.assertTrue(metadata.output_column_name_list,['column2','column3'])
-        self.assertEquals(len(metadata.data_loads),0)
+        self.assertEqual(len(metadata.data_loads),0)
         self.assertTrue(len(metadata.table_structures),1)
 
         table_structure = metadata.table_structures[0]
 
-        self.assertEquals(table_structure.column_names,['column1','column2','column3'])
-        self.assertEquals(table_structure.column_types,['text','float','text'])
-        self.assertEquals(table_structure.filenames_str,'my_data')
+        self.assertEqual(table_structure.column_names,['column1','column2','column3'])
+        self.assertEqual(table_structure.column_types,['text','float','text'])
+        self.assertEqual(table_structure.filenames_str,'my_data')
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)

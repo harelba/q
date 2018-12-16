@@ -14,9 +14,9 @@ This is by no means a scientific benchmark, and it only focuses on the data load
 ## Methodology
 The idea was to compare the time sensitivity of row and column count. 
 
-Row counts: 1,10,100,1000,10000,100000,1000000
-Column counts: 1,5,10,20,50,100
-Iterations for each combination: 3
+* Row counts: 1,10,100,1000,10000,100000,1000000
+* Column counts: 1,5,10,20,50,100
+* Iterations for each combination: 3
 
 The benchmark executes simple `select count(*) from <file>` queries for each combination, calculating the mean and stddev of each set of iterations. The stddev is used in order to measure the validity of the results.
 

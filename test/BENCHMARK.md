@@ -1,9 +1,9 @@
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
-	* q running on python 2.7.11
-  * q running on python 3.6.4
-	* textql 2.0.3
+* q running on python 2.7.11
+* q running on python 3.6.4
+* textql 2.0.3
 
 This is by no means a scientific benchmark, and it only focuses on the data loading time. Also, it does not try to provide any usability comparison between q and textql. Actually, I've created this benchmark in order to compare q over python 2 and 3, and only then decided it would be nice to add a similar comparison to textql.
 

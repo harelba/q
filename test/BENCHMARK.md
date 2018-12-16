@@ -1,5 +1,7 @@
 
 # Benchmark
+*Please don't use or publish this benchmark data yet, it's still alpha, i'm checking the validity of the results, and python 3 q version has not been merged yet.*
+
 This is an initial version of the benchmark, along with some results. The following is compared:
 * q running on python 2.7.11
 * q running on python 3.6.4

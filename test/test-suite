@@ -8,24 +8,24 @@
 # to be executed from the current folder
 #
 #
+from __future__ import print_function
 
-import unittest
-import random
-import json
-from json import JSONEncoder
-from subprocess import PIPE, Popen, STDOUT
-import sys
-import os
-import time
-from tempfile import NamedTemporaryFile
+import codecs
 import locale
-import pprint
+import os
+import random
+import sys
+import time
+import unittest
+from subprocess import PIPE, Popen
+from tempfile import NamedTemporaryFile
+
 import six
 from six.moves import range
-import codecs
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
+from qtextasdata import QTextAsData, QInputParams
+import itertools
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
@@ -2333,6 +2333,130 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
+
+
+class BenchmarkAttemptResults(object):
+    def __init__(self, attempt, lines, columns, duration):
+        self.attempt = attempt
+        self.lines = lines
+        self.columns = columns
+        self.duration = duration
+
+    def __str__(self):
+        return "{}".format(self.__dict__)
+    __repr__ = __str__
+
+class BenchmarkResults(object):
+    def __init__(self, lines, columns, attempt_results, mean, stddev):
+        self.lines = lines
+        self.columns = columns
+        self.attempt_results = attempt_results
+        self.mean = mean
+        self.stddev = stddev
+
+    def __str__(self):
+        return "{}".format(self.__dict__)
+    __repr__ = __str__
+
+class BenchmarkTests(AbstractQTestCase):
+
+    BENCHMARK_DIR = './_benchmark_data'
+
+    def _ensure_benchmark_data_dir_exists(self):
+        try:
+            os.mkdir(BenchmarkTests.BENCHMARK_DIR)
+        except Exception as e:
+            pass
+
+    def _create_benchmark_file_if_needed(self):
+        self._ensure_benchmark_data_dir_exists()
+
+        if os.path.exists('{}/benchmark-file.csv'.format(BenchmarkTests.BENCHMARK_DIR)):
+            return
+
+        d = open('unit-file.csv').read()
+        f = open('{}/benchmark-file.csv'.format(BenchmarkTests.BENCHMARK_DIR), 'w')
+        for i in range(100):
+            f.write(d)
+        f.close()
+
+    def _prepare_test_file(self, lines, columns):
+
+        filename = '{}/_benchmark_data__lines_{}_columns_{}.csv'.format(BenchmarkTests.BENCHMARK_DIR,lines, columns)
+
+        if os.path.exists(filename):
+            return filename
+
+        c = ['c{}'.format(x + 1) for x in range(columns)]
+
+        r, o, e = run_command('head -{} {}/benchmark-file.csv | ../bin/q -d , "select {} from -" > {}'.format(lines, BenchmarkTests.BENCHMARK_DIR, ','.join(c), filename))
+        self.assertEqual(r, 0)
+        return filename
+
+    def _decide_result(self,attempt_results):
+
+        mean = sum([x.duration for x in attempt_results]) / len(attempt_results)
+        sum_squared = sum([(x.duration - mean)**2 for x in attempt_results])
+        ddof = 0
+        pvar = sum_squared / (len(attempt_results) - ddof)
+        stddev = pvar ** 0.5
+
+        return BenchmarkResults(
+            attempt_results[0].lines,
+            attempt_results[0].columns,
+            attempt_results,
+            mean,
+            stddev
+        )
+
+    def _perform_test_performance_matrix(self,name,cmd_template):
+        results = []
+
+        self._create_benchmark_file_if_needed()
+        for columns in [1, 5, 10, 20, 50, 100]:
+            for lines in [1, 10, 100, 1000, 10000, 100000, 1000000]:
+                attempt_results = []
+                for attempt in range(3):
+                    filename = self._prepare_test_file(lines, columns)
+                    if DEBUG:
+                        print("Testing {}".format(filename))
+                    t0 = time.time()
+                    r, o, e = run_command(cmd_template.format(filename))
+                    self.assertEqual(r, 0)
+                    duration = time.time() - t0
+                    attempt_result = BenchmarkAttemptResults(attempt, lines, columns, duration)
+                    attempt_results += [attempt_result]
+                    if DEBUG:
+                        print("Results: {}".format(attempt_result.__dict__))
+                final_result = self._decide_result(attempt_results)
+                results += [final_result]
+
+        series_fields = [six.u('lines'),six.u('columns')]
+        value_fields = [six.u('mean'),six.u('stddev')]
+
+        all_fields = series_fields + value_fields
+
+        output_filename = '{}.benchmark-results'.format(name)
+        output_file = open(output_filename,'w')
+        for columns,g in itertools.groupby(sorted(results,key=lambda x:x.columns),key=lambda x:x.columns):
+            x = six.u("\t").join(series_fields + [six.u('{}_{}').format(name, f) for f in value_fields])
+            print(x,file=output_file)
+            for result in g:
+                print(six.u("\t").join(map(str,[getattr(result,f) for f in all_fields])),file=output_file)
+        output_file.close()
+
+        print("results have been written to : {}".format(output_filename))
+        if DEBUG:
+            print("RESULTS FOR {}".format(name))
+            print(open(output_filename,'r').read())
+
+    def test_q_matrix(self):
+        venv = os.path.basename(os.environ.get('VIRTUAL_ENV') or 'unknown-virtual-env')
+        self._perform_test_performance_matrix(venv,'../bin/q -d , "select count(*) from {}"')
+
+    def test_textql_matrix(self):
+        self._perform_test_performance_matrix('textql','textql -dlm , -sql "select count(*)" {}')
+
 
 
 def suite():

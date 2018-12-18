@@ -2416,7 +2416,7 @@ class BenchmarkTests(AbstractQTestCase):
         for columns in [1, 5, 10, 20, 50, 100]:
             for lines in [1, 10, 100, 1000, 10000, 100000, 1000000]:
                 attempt_results = []
-                for attempt in range(3):
+                for attempt in range(10):
                     filename = self._prepare_test_file(lines, columns)
                     if DEBUG:
                         print("Testing {}".format(filename))

@@ -23,6 +23,27 @@ The benchmark executes simple `select count(*) from <file>` queries for each com
 ## Hardware
 OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
 
+
+## Running the benchmark
+
+* Create and activate a python 2.7 virtual environment called `py2-q`, and `pip install -r requirements.txt`
+* $ `./test-all BenchmarkTests.test_q_matrix`
+* Create and avtivate a python 3.x virtual environment called `py3-q`, and `pip install -r requirements.txt`
+* $ `./test-all BenchmarkTests.test_q_matrix`
+* Ensure that textql is installed
+* $ `./test-all BenchmarkTests.test_textql`
+
+The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, and `textql.benchmark-results` for the textql test.
+
+* $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results > all.benchmark-results`
+
+## Updating the benchmark markdown document file
+The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing).
+
+* Paste `all.benchmark-results` to the google sheet, near "Fil raw results here".
+
+* All the graphs below will be updated automatically.
+
 ## Results
 
 ### 1 Column Table

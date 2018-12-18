@@ -26,6 +26,8 @@ OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal
 
 ## Running the benchmark
 
+Please note that the initial run generates big files, so you'd need more than 3GB of free space available. This also means that the first run will take much longer than additional runs. This is typical, and does not affect the benchmark results. All the generated files reside in the `_benchmark_data/` folder.
+
 * Create and activate a python 2.7 virtual environment called `py2-q`, and `pip install -r requirements.txt`
 * $ `./test-all BenchmarkTests.test_q_matrix`
 * Create and avtivate a python 3.x virtual environment called `py3-q`, and `pip install -r requirements.txt`

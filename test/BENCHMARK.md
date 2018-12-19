@@ -1,7 +1,11 @@
 
-# Benchmark
+
 *Please don't use or publish this benchmark data yet, it's still alpha, i'm checking the validity of the results, and python 3 q version has not been merged yet.*
 
+**NOTE**
+This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, please follow the "Running the benchmark" part, and send me the `all.benchmark-results` file, along with some details about your hardware. <harelba@gmail.com>
+
+# Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
 * q running on python 2.7.11
 * q running on python 3.6.4
@@ -16,7 +20,7 @@ The idea was to compare the time sensitivity of row and column count.
 
 * Row counts: 1,10,100,1000,10000,100000,1000000
 * Column counts: 1,5,10,20,50,100
-* Iterations for each combination: 3
+* Iterations for each combination: 10
 
 The benchmark executes simple `select count(*) from <file>` queries for each combination, calculating the mean and stddev of each set of iterations. The stddev is used in order to measure the validity of the results.
 

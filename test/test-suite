@@ -17,6 +17,7 @@ import random
 import sys
 import time
 import unittest
+from gzip import GzipFile
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 
@@ -2374,7 +2375,8 @@ class BenchmarkTests(AbstractQTestCase):
         if os.path.exists('{}/benchmark-file.csv'.format(BenchmarkTests.BENCHMARK_DIR)):
             return
 
-        d = open('unit-file.csv').read()
+        g = GzipFile('unit-file.csv.gz')
+        d = g.read().decode('utf-8')
         f = open('{}/benchmark-file.csv'.format(BenchmarkTests.BENCHMARK_DIR), 'w')
         for i in range(100):
             f.write(d)

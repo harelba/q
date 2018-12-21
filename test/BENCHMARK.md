@@ -56,13 +56,15 @@ The results from each of the benchmarks will be written to `<virtual-env-name>.b
 * $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results > all.benchmark-results`
 
 ## Updating the benchmark markdown document file
-The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing).
+The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 
 
-* Paste `all.benchmark-results` to the google sheet, near "Fil raw results here".
+* Duplicat the baseline tab inside the spreadsheet.
+* Paste the content of `all.benchmark-results` to the new tab, near "Fill raw results here".
 
 * All the graphs below will be updated automatically.
 
 ## Results
+(Results are automatically updated from the baseline tab in the google spreadsheet).
 
 ### 1 Column Table
 ![1 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1332039801&format=image)

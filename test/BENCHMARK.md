@@ -32,6 +32,9 @@ OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal
 
 Please note that the initial run generates big files, so you'd need more than 3GB of free space available. This also means that the first run will take much longer than additional runs. This is typical, and does not affect the benchmark results. All the generated files reside in the `_benchmark_data/` folder.
 
+### Preparations
+Make sure you have pyenv and pyenv-virtualenv installed.
+
 * $ `cd test/`
 * $ `pyenv install 2.7.11`
 * $ `pyenv virtualenv 2.7.11 py2-q
@@ -39,11 +42,13 @@ Please note that the initial run generates big files, so you'd need more than 3G
 * $ `pyenv install 3.6.4`
 * $ `pyenv virtualenv 3.6.4 py3-q`
 * $ `pip install -r ../requirements.txt`
+* Install `textql` (brew/apt-get/whatever)
+
+### Execution
 * $ `pyenv activate py2-q`
 * $ `./test-all BenchmarkTests.test_q_matrix` (this will take longer since it's the first time - it generates the test files)
 * $ `pyenv activate py3-q`
 * $ `./test-all BenchmarkTests.test_q_matrix`
-* Install `textql` (brew/apt-get/whatever)
 * $ `./test-all BenchmarkTests.test_textql`
 
 The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, and `textql.benchmark-results` for the textql test.

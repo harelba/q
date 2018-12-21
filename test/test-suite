@@ -1842,7 +1842,16 @@ class FormattingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
-        self.assertEqual(len(e), 0)
+
+        if len(e) == 2:
+            # In python 3.7, there's a deprecation warning for the 'U' file opening mode, which is ok for now
+            self.assertEqual(len(e), 2)
+            self.assertTrue(b"DeprecationWarning: 'U' mode is deprecated" in e[0])
+        elif len(e) != 0:
+            # Nothing should be output to stderr in other versions
+            self.assertTrue(False,msg='Unidentified output in stderr')
+
+
         self.assertEqual(len(o), 6)
 
         actual_output = list(map(lambda row: row.split(six.b(",")),o))

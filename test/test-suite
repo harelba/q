@@ -1851,7 +1851,6 @@ class FormattingTests(AbstractQTestCase):
             # Nothing should be output to stderr in other versions
             self.assertTrue(False,msg='Unidentified output in stderr')
 
-
         self.assertEqual(len(o), 6)
 
         actual_output = list(map(lambda row: row.split(six.b(",")),o))

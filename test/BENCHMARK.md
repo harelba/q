@@ -3,7 +3,7 @@
 *Please don't use or publish this benchmark data yet, it's still alpha, i'm checking the validity of the results, and python 3 q version has not been merged yet.*
 
 **NOTE**
-This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, please clone q, checkout the `q-benchmark` branch, and follow the "Running the benchmark" part, and send me the `all.benchmark-results` file, along with some details about your hardware. <harelba@gmail.com>
+This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, please clone q, checkout the `q-benchmark` branch, and follow the "Running the benchmark" part. After the benchmark is finished, send me the `all.benchmark-results` file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:

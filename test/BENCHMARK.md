@@ -47,10 +47,12 @@ Make sure you have pyenv and pyenv-virtualenv installed.
 * $ `pyenv activate py3-q`
 * $ `pip install -r ../requirements.txt`
 * Install `textql` (brew/apt-get/whatever)
+* $ `wget "https://s3.amazonaws.com/harelba-q-public/benchmark_data.tar.gz"`
+* $ `tar xvzf benchmark_data.tar.gz`
 
 ### Execution
 * $ `pyenv activate py2-q`
-* $ `./test-all BenchmarkTests.test_q_matrix` (this will take longer since it's the first time - it generates the test files)
+* $ `./test-all BenchmarkTests.test_q_matrix` 
 * $ `pyenv activate py3-q`
 * $ `./test-all BenchmarkTests.test_q_matrix`
 * $ `./test-all BenchmarkTests.test_textql`

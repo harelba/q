@@ -3,7 +3,7 @@
 *Please don't use or publish this benchmark data yet, it's still alpha, i'm checking the validity of the results, and python 3 q version has not been merged yet.*
 
 **NOTE**
-This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, please clone q, checkout the `q-benchmark` branch, and follow the "Running the benchmark" part. After the benchmark is finished, send me the `all.benchmark-results` file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
+This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, follow the "Running the benchmark" part. After the benchmark is finished, send me the `all.benchmark-results` file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
@@ -35,6 +35,8 @@ Please note that the initial run generates big files, so you'd need more than 3G
 ### Preparations
 Make sure you have pyenv and pyenv-virtualenv installed.
 
+* $ `git clone git@github.com:harelba/q.git`
+* $ `git checkout q-benchmark`
 * $ `cd test/`
 * $ `pyenv install 2.7.11`
 * $ `pyenv virtualenv 2.7.11 py2-q

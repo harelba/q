@@ -39,10 +39,12 @@ Make sure you have pyenv and pyenv-virtualenv installed.
 * $ `git checkout q-benchmark`
 * $ `cd test/`
 * $ `pyenv install 2.7.11`
-* $ `pyenv virtualenv 2.7.11 py2-q
+* $ `pyenv virtualenv 2.7.11 py2-q`
+* $ `pyenv activate py2-q`
 * $ `pip install -r ../requirements.txt`
 * $ `pyenv install 3.6.4`
 * $ `pyenv virtualenv 3.6.4 py3-q`
+* $ `pyenv activate py3-q`
 * $ `pip install -r ../requirements.txt`
 * Install `textql` (brew/apt-get/whatever)
 

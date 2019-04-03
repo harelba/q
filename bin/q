@@ -509,6 +509,8 @@ class TableColumnInferer(object):
             value = value.strip()
         if value == '' or value is None:
             return None
+        if value[0] == '0' and len(value) > 1:
+            return str
 
         try:
             i = int(value)

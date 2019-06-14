@@ -3,7 +3,7 @@
 # q - Text as Data
 q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
 
-q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and type detection, and q provides full support for multiple character encodings.
+q treats ordinary files as database tables, and supports all SQL constructs, such as `WHERE`, `GROUP BY`, `JOIN`s, etc. It supports automatic column name and type detection, and q provides full support for multiple character encodings.
 
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/). It contains everything you need to download and use q immediately.
 
@@ -14,7 +14,11 @@ Instructions for all OSs are [here](http://harelba.github.io/q/install.html).
 
 ## Examples
 
-![blah](doc/basic-examples.png)
+```
+q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
+
+ps -ef | q -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+```
 
 Go [here](http://harelba.github.io/q/examples.html) for more examples.
 

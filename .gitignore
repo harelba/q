@@ -12,3 +12,8 @@ packages
 .idea/
 dist/windows/
 dist/
+*.iml
+*.egg-info
+
+# pytest
+.pytest_cache/

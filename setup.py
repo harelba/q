@@ -20,7 +20,7 @@ from setuptools import setup
 setup(
     name='q',
     license='LICENSE',
-    version='2.0.5',
+    version='1.7.4',
     author='Harel Ben-Attia',
     author_email='harelba@gmail.com',
     install_requires=[

@@ -17,9 +17,7 @@ _commands_provider:
 
   _release: &_release make release
 
-  _install_test_requirements: &_install_test_requirements make dep-test
-
-  _install_requirements: &_install_requirements make dep-project
+  _install_requirements: &_install_requirements make dep
 
   # https://ttcshelbyville.wordpress.com/2012/12/19/disable-remote-differential-compression-form-the-command-line/
   _disable_windows_compression: &_disable_windows_compression "powershell Disable-WindowsOptionalFeature -Online -FeatureName MSRDC-Infrastructure"
@@ -33,7 +31,6 @@ _steps_provider:
   _test: &_step_test
 
     install:
-      - *_install_test_requirements
       - *_install_requirements
     before_script: *_lint
     script: *_test

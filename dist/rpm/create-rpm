@@ -1,0 +1,53 @@
+#!/bin/bash
+
+#
+# Commit tag and Version number should be provided as input in the command line
+#
+#
+
+if [ $# -ne 1 ];
+then
+	echo 'create-rpm <version>'
+	exit 1
+fi
+
+command -v ronn &>/dev/null || { echo >&2 "ronn needs to be installed."; exit 1; }
+command -v rpmbuild &>/dev/null || { echo >&2 "rpmbuild needs to be installed."; exit 1; }
+
+set -e 
+
+base_folder=`readlink -m $(dirname $0)`
+
+pushd ${base_folder} >/dev/null
+
+rpm_build_area=${base_folder}/rpm_build_area
+rm -rf ${rpm_build_area:=/non-existent-dir}
+mkdir -p ${rpm_build_area}/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
+
+echo RPM build area is in ${rpm_build_area}
+
+VERSION=$1
+REAL_PACKAGE_NAME=q
+RPM_PACKAGE_NAME=q-text-as-data
+
+FULL_NAME_FOLDER=${RPM_PACKAGE_NAME}-${VERSION}
+
+if [ ! -e ${RPM_PACKAGE_NAME}.spec.template ];
+then
+	echo "spec template does not exist. can't continue"
+	exit 1
+fi
+
+curl -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/${VERSION}"
+mkdir -p ${rpm_build_area}/SOURCES
+pushd ${rpm_build_area}/SOURCES >/dev/null
+tar xvzf ./q.tar.gz --strip-components=1
+rm -vf ./q.tar.gz
+popd >/dev/null
+find ${rpm_build_area}/ -ls
+
+cat ${RPM_PACKAGE_NAME}.spec.template | sed "s/VERSION_PLACEHOLDER/$VERSION/g" > ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
+
+rpmbuild -v --define "_topdir ${rpm_build_area}" -ba ${rpm_build_area}/SPECS/${RPM_PACKAGE_NAME}.spec
+
+popd >/dev/null

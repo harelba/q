@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ $# -ne 1 ];
+then
+        echo "Usage: $(basename $0) <version-tag>"
+        exit 1
+fi
+VERSION_TAG="$1"
+
+docker build -f dist/rpm-builder-Dockerfile -t q-text-as-data-rpm-builder:${VERSION_TAG} .

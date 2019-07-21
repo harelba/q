@@ -10,6 +10,7 @@ This is an initial version of the benchmark, along with some results. The follow
 * q running on python 2.7.11
 * q running on python 3.6.4
 * textql 2.0.3
+* octosql
 
 The q version used for the benchmark is still on the python2/3 compatibility branch (hash f0b62b15b91583cd944ea2e8daf6f730198959fa)
 

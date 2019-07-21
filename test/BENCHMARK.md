@@ -10,6 +10,7 @@ This is an initial version of the benchmark, along with some results. The follow
 * q running on python 2.7.11
 * q running on python 3.6.4
 * textql 2.0.3
+* octosql
 
 The q version used for the benchmark is still on the python2/3 compatibility branch (hash f0b62b15b91583cd944ea2e8daf6f730198959fa)
 
@@ -55,11 +56,12 @@ Make sure you have pyenv and pyenv-virtualenv installed.
 * $ `./test-all BenchmarkTests.test_q_matrix` 
 * $ `pyenv activate py3-q`
 * $ `./test-all BenchmarkTests.test_q_matrix`
-* $ `./test-all BenchmarkTests.test_textql`
+* $ `./test-all BenchmarkTests.test_textql_matrix`
+* $ `./test-all BenchmarkTests.test_octosql_matrix`
 
-The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, and `textql.benchmark-results` for the textql test.
+The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, `textql.benchmark-results` for the textql test, and `octosql.benchmark-results`.
 
-* $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results > all.benchmark-results`
+* $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results octosql.benchmark-results > all.benchmark-results`
 
 ## Updating the benchmark markdown document file
 The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 
@@ -73,20 +75,20 @@ The results should reside in the following [google sheet](https://docs.google.co
 (Results are automatically updated from the baseline tab in the google spreadsheet).
 
 ### 1 Column Table
-![1 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1332039801&format=image)
+![1 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1119350798&format=image)
 
 ### 5 Column Table
-![5 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=693226704&format=image)
+![5 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=599223098&format=image)
 
 ### 10 Column Table
-![10 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1439130326&format=image)
+![10 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=82695414&format=image)
 
 ### 20 Column Table
-![20 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1648886784&format=image)
+![20 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1573199483&format=image)
 
 ### 50 Column Table
 ![50 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1895066152&format=image)
 
 ### 100 Column Table
-![100 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1125692157&format=image)
+![100 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=2101488258&format=image)
 

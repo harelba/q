@@ -2345,11 +2345,12 @@ class BasicModuleTests(AbstractQTestCase):
 
 
 class BenchmarkAttemptResults(object):
-    def __init__(self, attempt, lines, columns, duration):
+    def __init__(self, attempt, lines, columns, duration,return_code):
         self.attempt = attempt
         self.lines = lines
         self.columns = columns
         self.duration = duration
+        self.return_code = return_code
 
     def __str__(self):
         return "{}".format(self.__dict__)
@@ -2405,11 +2406,17 @@ class BenchmarkTests(AbstractQTestCase):
 
     def _decide_result(self,attempt_results):
 
-        mean = sum([x.duration for x in attempt_results]) / len(attempt_results)
-        sum_squared = sum([(x.duration - mean)**2 for x in attempt_results])
-        ddof = 0
-        pvar = sum_squared / (len(attempt_results) - ddof)
-        stddev = pvar ** 0.5
+        failed = list(filter(lambda a: a.return_code != 0,attempt_results))
+
+        if len(failed) == 0:
+            mean = sum([x.duration for x in attempt_results]) / len(attempt_results)
+            sum_squared = sum([(x.duration - mean)**2 for x in attempt_results])
+            ddof = 0
+            pvar = sum_squared / (len(attempt_results) - ddof)
+            stddev = pvar ** 0.5
+        else:
+            mean = None
+            stddev = None
 
         return BenchmarkResults(
             attempt_results[0].lines,
@@ -2419,7 +2426,7 @@ class BenchmarkTests(AbstractQTestCase):
             stddev
         )
 
-    def _perform_test_performance_matrix(self,name,cmd_template):
+    def _perform_test_performance_matrix(self,name,generate_cmd_function):
         results = []
 
         self._create_benchmark_file_if_needed()
@@ -2431,10 +2438,9 @@ class BenchmarkTests(AbstractQTestCase):
                     if DEBUG:
                         print("Testing {}".format(filename))
                     t0 = time.time()
-                    r, o, e = run_command(cmd_template.format(filename))
-                    self.assertEqual(r, 0)
+                    r, o, e = run_command(generate_cmd_function(filename,lines,columns))
                     duration = time.time() - t0
-                    attempt_result = BenchmarkAttemptResults(attempt, lines, columns, duration)
+                    attempt_result = BenchmarkAttemptResults(attempt, lines, columns, duration, r)
                     attempt_results += [attempt_result]
                     if DEBUG:
                         print("Results: {}".format(attempt_result.__dict__))
@@ -2462,12 +2468,29 @@ class BenchmarkTests(AbstractQTestCase):
 
     def test_q_matrix(self):
         venv = os.path.basename(os.environ.get('VIRTUAL_ENV') or 'unknown-virtual-env')
-        self._perform_test_performance_matrix(venv,'../bin/q -d , "select count(*) from {}"')
+
+        def generate_q_cmd(data_filename,line_count,column_count):
+            if column_count == 1:
+                additional_params = '-c 1'
+            else:
+                additional_params = ''
+            return '../bin/q -d , {} "select count(*) from {}"'.format(additional_params, data_filename)
+        self._perform_test_performance_matrix(venv,generate_q_cmd)
 
     def test_textql_matrix(self):
-        self._perform_test_performance_matrix('textql','textql -dlm , -sql "select count(*)" {}')
+        def generate_textql_cmd(data_filename,line_count,column_count):
+            return 'textql -dlm , -sql "select count(*)" {}'.format(data_filename)
+        self._perform_test_performance_matrix('textql',generate_textql_cmd)
 
-
+    def test_octosql_matrix(self):
+        config_fn = self.random_tmp_filename('octosql', 'config')
+        def generate_octosql_cmd(data_filename,line_count,column_count):
+            j = """dataSources:\n  - name: bmdata\n    type: csv\n    config:\n      path: "{}"\n""".format(data_filename)
+            f = open(config_fn,'w')
+            f.write(j)
+            f.close()
+            return 'octosql -c {} -o table "select count(*) from bmdata a"'.format(config_fn)
+        self._perform_test_performance_matrix('octosql',generate_octosql_cmd)
 
 def suite():
     tl = unittest.TestLoader()

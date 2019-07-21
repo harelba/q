@@ -55,11 +55,12 @@ Make sure you have pyenv and pyenv-virtualenv installed.
 * $ `./test-all BenchmarkTests.test_q_matrix` 
 * $ `pyenv activate py3-q`
 * $ `./test-all BenchmarkTests.test_q_matrix`
-* $ `./test-all BenchmarkTests.test_textql`
+* $ `./test-all BenchmarkTests.test_textql_matrix`
+* $ `./test-all BenchmarkTests.test_octosql_matrix`
 
-The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, and `textql.benchmark-results` for the textql test.
+The results from each of the benchmarks will be written to `<virtual-env-name>.benchmark-results`, `textql.benchmark-results` for the textql test, and `octosql.benchmark-results`.
 
-* $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results > all.benchmark-results`
+* $ `paste py2-q.benchmark-results py3-q.benchmark-results textql.benchmark-results octosql.benchmark-results > all.benchmark-results`
 
 ## Updating the benchmark markdown document file
 The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 

@@ -1,5 +1,7 @@
-  Copyright (C) 2012-2014 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)
+  Copyright (C) 2012-2019 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)
 
 Jens Neu (jens@zeeroos.de) - For writing the initial RPM package spec
 barsnick (https://github.com/barsnick) - Thanks for additional RPM help
 StreakyCobra (https://github.com/StreakyCobra) - For providing Arch Linux RPMs
+Eli Polonsky (https://github.com/iliapolo) - For writing PyCI and moving q to use it, allowing for faster and more robust q releases
+

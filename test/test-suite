@@ -2400,7 +2400,13 @@ class BenchmarkTests(AbstractQTestCase):
 
         c = ['c{}'.format(x + 1) for x in range(columns)]
 
-        r, o, e = run_command('head -{} {}/benchmark-file.csv | ../bin/q -d , "select {} from -" > {}'.format(lines, BenchmarkTests.BENCHMARK_DIR, ','.join(c), filename))
+        # write a header line
+        ff = open(filename,'w')
+        ff.write(",".join(c))
+        ff.write('\n')
+        ff.close()
+
+        r, o, e = run_command('head -{} {}/benchmark-file.csv | ../bin/q -d , "select {} from -" >> {}'.format(lines, BenchmarkTests.BENCHMARK_DIR, ','.join(c), filename))
         self.assertEqual(r, 0)
         return filename
 
@@ -2474,7 +2480,7 @@ class BenchmarkTests(AbstractQTestCase):
                 additional_params = '-c 1'
             else:
                 additional_params = ''
-            return '../bin/q -d , {} "select count(*) from {}"'.format(additional_params, data_filename)
+            return '../bin/q -H -d , {} "select count(*) from {}"'.format(additional_params, data_filename)
         self._perform_test_performance_matrix(venv,generate_q_cmd)
 
     def test_textql_matrix(self):

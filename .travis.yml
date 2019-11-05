@@ -15,7 +15,7 @@ _commands_provider:
 
   _lint: &_lint make lint
 
-  _release: &_release make release
+  _release: &_release make local-release
 
   _install_requirements: &_install_requirements make dep
 

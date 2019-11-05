@@ -28,3 +28,7 @@ test: dep ## Run the unit tests.
 release: ## Run release
 	pip install py-ci==0.7.3
 	pyci release --no-wheel-publish --wheel-universal
+
+local-release:
+	pip pyci pack
+	pyci github upload

@@ -47,9 +47,10 @@ Make sure you have pyenv and pyenv-virtualenv installed.
 * $ `pyenv virtualenv 3.6.4 py3-q`
 * $ `pyenv activate py3-q`
 * $ `pip install -r ../requirements.txt`
-* Install `textql` (brew/apt-get/whatever)
 * $ `wget "https://s3.amazonaws.com/harelba-q-public/benchmark_data.tar.gz"`
 * $ `tar xvzf benchmark_data.tar.gz`
+* Install [`textql`](https://github.com/dinedal/textql#install)
+* Install [`octosql`](https://github.com/cube2222/octosql#installation)
 
 ### Execution
 * $ `pyenv activate py2-q`

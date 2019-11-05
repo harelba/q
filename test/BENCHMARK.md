@@ -14,7 +14,7 @@ This is an initial version of the benchmark, along with some results. The follow
 
 The q version used for the benchmark is still on the python2/3 compatibility branch (hash f0b62b15b91583cd944ea2e8daf6f730198959fa)
 
-This is by no means a scientific benchmark, and it only focuses on the data loading time. Also, it does not try to provide any usability comparison between q and textql. Actually, I've created this benchmark in order to compare q over python 2 and 3, and only then decided it would be nice to add a similar comparison to textql.
+This is by no means a scientific benchmark, and it only focuses on the data loading time. Also, it does not try to provide any usability comparison between q and textql. Actually, I've created this benchmark in order to compare q over python 2 and 3, and only then decided it would be interesting to compare the results to textql and octosql.
 
 ## Methodology
 The idea was to compare the time sensitivity of row and column count. 
@@ -24,6 +24,8 @@ The idea was to compare the time sensitivity of row and column count.
 * Iterations for each combination: 10
 
 The benchmark executes simple `select count(*) from <file>` queries for each combination, calculating the mean and stddev of each set of iterations. The stddev is used in order to measure the validity of the results.
+
+The graphs below only compare the means of the results, the standard deviations are written into the google sheet itself, and can be viewed there if needed.
 
 ## Hardware
 OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
@@ -67,7 +69,7 @@ The results from each of the benchmarks will be written to `<virtual-env-name>.b
 ## Updating the benchmark markdown document file
 The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 
 
-* Duplicat the baseline tab inside the spreadsheet.
+* Duplicate the baseline tab inside the spreadsheet.
 * Paste the content of `all.benchmark-results` to the new tab, near "Fill raw results here".
 
 * All the graphs below will be updated automatically.

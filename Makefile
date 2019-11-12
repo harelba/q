@@ -30,5 +30,5 @@ release: ## Run release
 	pyci release --no-wheel-publish --wheel-universal
 
 local-release:
-	pip pyci pack
-	pyci github upload
+	./do-manual-release.sh
+	

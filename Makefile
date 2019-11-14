@@ -30,5 +30,6 @@ release: ## Run release
 	pyci release --no-wheel-publish --wheel-universal
 
 local-release:
+	pip install py-ci==0.7.3
 	./do-manual-release.sh
 	

@@ -2250,7 +2250,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(q_output.error.msg.startswith('query error'))
 
     def test_execute_response(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5.0 6"))
 
         q = QTextAsData()
 
@@ -2272,7 +2272,7 @@ class BasicModuleTests(AbstractQTestCase):
         table_structure = metadata.table_structures[0]
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
-        self.assertEqual(table_structure.column_types,[ 'int','int','int'])
+        self.assertEqual(table_structure.column_types,[ 'int','float','int'])
         self.assertEqual(table_structure.filenames_str,tmpfile.name)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)

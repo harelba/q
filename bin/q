@@ -535,12 +535,15 @@ class TableColumnInferer(object):
             return type_list[0]
         else:
             # check for the number of types without nulls,
-            type_list_without_nulls = list(filter(
+            type_set_without_nulls = set(filter(
                 lambda x: x is not None, type_list))
             # If all the sample lines are of the same type,
-            if len(set(type_list_without_nulls)) == 1:
+            if len(type_set_without_nulls) == 1:
                 # return it
-                return type_list_without_nulls[0]
+                return list(type_set_without_nulls)[0]
+            # Check whether the sample lines are of mixed numeric type
+            elif type_set_without_nulls == {int, float}:
+                return float
             else:
                 return str
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 set -e
 
@@ -13,6 +13,7 @@ else
 	echo "Packing windows installer"
 	pyci pack binary
 	find ./ -ls
-	pyci pack nsis --binary-path ./q-AMD64-Windows.exe
-	pyci github upload-asset --asset q-AMD64-Windows.exe --release 2.0.2
+	BINARY_LOCATION=`pwd`/q-AMD64-Windows.exe
+	pyci pack nsis --binary-path $BINARY_LOCATION --version 2.0.2.0
+	pyci github upload-asset --asset $BINARY_LOCATION --release 2.0.2
 fi

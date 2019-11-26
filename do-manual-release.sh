@@ -12,7 +12,7 @@ then
 else
 	echo "Packing windows installer"
 	pyci pack binary
-	find ./ -ls
+	find `pwd` -ls
 	BINARY_LOCATION=`pwd`/q-AMD64-Windows.exe
 	pyci pack nsis --binary-path $BINARY_LOCATION --version 2.0.2.0
 	pyci github upload-asset --asset $BINARY_LOCATION --release 2.0.2

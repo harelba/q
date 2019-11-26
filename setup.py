@@ -21,7 +21,7 @@ setup(
     name='q',
     url='https://github.com/harelba/q',
     license='LICENSE',
-    version='1.7.4',
+    version='2.0.2',
     author='Harel Ben-Attia',
     description="Run SQL directly on CSV or TSV files",
     author_email='harelba@gmail.com',

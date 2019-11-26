@@ -26,6 +26,7 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(q.__file__, os.pardir, os.pardir, 'examples'))
 
+Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', 'q')
 
 DEBUG = False
 if len(sys.argv) > 2 and sys.argv[2] == '-v':
@@ -163,7 +164,7 @@ class SaveDbToDiskTests(AbstractQTestCase):
         db_filename = self.random_tmp_filename('store-to-disk','db')
         self.assertFalse(os.path.exists(db_filename))
 
-        retcode, o, e = run_command('seq 1 1000 | q "select count(*) from -" -c 1 -S %s' % db_filename)
+        retcode, o, e = run_command('seq 1 1000 | ' + Q_EXECUTABLE + ' "select count(*) from -" -c 1 -S %s' % db_filename)
 
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 0)
@@ -189,12 +190,12 @@ class SaveDbToDiskTests(AbstractQTestCase):
         db_filename = self.random_tmp_filename('store-to-disk', 'db')
         self.assertFalse(os.path.exists(db_filename))
 
-        retcode, o, e = run_command('seq 1 1000 | q "select count(*) from -" -c 1 -S %s' % db_filename)
+        retcode, o, e = run_command('seq 1 1000 | ' + Q_EXECUTABLE + ' "select count(*) from -" -c 1 -S %s' % db_filename)
 
         self.assertTrue(retcode == 0)
         self.assertTrue(os.path.exists(db_filename))
 
-        retcode2, o2, e2 = run_command('seq 1 1000 | q "select count(*) from -" -c 1 -S %s' % db_filename)
+        retcode2, o2, e2 = run_command('seq 1 1000 | ' + Q_EXECUTABLE + ' "select count(*) from -" -c 1 -S %s' % db_filename)
         self.assertTrue(retcode2 != 0)
         self.assertTrue(e2[0].startswith(six.b('Going to save data into a disk database')))
         self.assertTrue(e2[1] == six.b('Disk database file {} already exists.'.format(db_filename)))
@@ -206,7 +207,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_basic_aggregation(self):
         retcode, o, e = run_command(
-            'seq 1 10 | q "select sum(c1),avg(c1) from -"')
+            'seq 1 10 | ' + Q_EXECUTABLE + ' "select sum(c1),avg(c1) from -"')
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 1)
         self.assertTrue(len(e) == 1)
@@ -219,7 +220,7 @@ class BasicTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(
             six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
 
-        cmd = 'q -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
 
         retcode, o, e = run_command(cmd)
         self.assertTrue(retcode == 0)
@@ -236,7 +237,7 @@ class BasicTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(
             six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
 
-        cmd = 'cat %s | q -z "select sum(c1),avg(c1) from -"' % tmpfile.name
+        cmd = 'cat %s | ' % tmpfile.name + Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from -"'
 
         retcode, o, e = run_command(cmd)
         self.assertTrue(retcode != 0)
@@ -250,7 +251,7 @@ class BasicTests(AbstractQTestCase):
     def test_delimition_mistake_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d " " "select * from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d " " "select * from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -267,7 +268,7 @@ class BasicTests(AbstractQTestCase):
     def test_regexp_int_data_handling(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d , "select c2 from %s where regexp(\'^1\',c2)"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c2 from %s where regexp(\'^1\',c2)"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -281,7 +282,7 @@ class BasicTests(AbstractQTestCase):
     def test_regexp_null_data_handling(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d , "select count(*) from %s where regexp(\'^\',c2)"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select count(*) from %s where regexp(\'^\',c2)"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -295,7 +296,7 @@ class BasicTests(AbstractQTestCase):
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d , "select c1 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -309,7 +310,7 @@ class BasicTests(AbstractQTestCase):
     def test_tab_delimition_parameter(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("\t")))
-        cmd = 'q -t "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -t "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -324,7 +325,7 @@ class BasicTests(AbstractQTestCase):
     def test_tab_delimition_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("\t")))
-        cmd = 'q -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -338,7 +339,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_output_delimiter(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -353,7 +354,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_output_delimiter_tab_parameter(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -368,7 +369,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_output_delimiter_tab_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -382,7 +383,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_stdin_input(self):
-        cmd = six.b('printf "%s" | q -d , "select c1,c2,c3 from -"') % sample_data_no_header
+        cmd = six.b('printf "%s" | ' + Q_EXECUTABLE + ' -d , "select c1,c2,c3 from -"') % sample_data_no_header
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -395,7 +396,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_column_separation(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1,c2,c3 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -411,7 +412,7 @@ class BasicTests(AbstractQTestCase):
     def test_column_analysis(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d , "select c1 from %s" -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -425,7 +426,7 @@ class BasicTests(AbstractQTestCase):
     def test_column_analysis_no_header(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
-        cmd = 'q -d , "select c1 from %s" -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -436,7 +437,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_header_exception_on_numeric_header_data(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , "select * from %s" -A -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s" -A -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -451,7 +452,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_column_analysis_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = 'q -d , "select c1 from %s" -A -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -468,7 +469,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_data_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = 'q -d , "select name from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -479,7 +480,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_output_header_when_input_header_exists(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = 'q -d , "select name from %s" -H -O' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name from %s" -H -O' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -493,7 +494,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_generated_column_name_warning_when_header_line_exists(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = 'q -d , "select c3 from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c3 from %s" -H' % tmpfile.name
 
         retcode, o, e = run_command(cmd)
 
@@ -508,7 +509,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_column_analysis_with_unexpected_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = 'q -d , "select c1 from %s" -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -527,7 +528,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_empty_data(self):
         tmpfile = self.create_file_with_data(six.b(''))
-        cmd = 'q -d , "select c1 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -540,7 +541,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_empty_data_with_header_param(self):
         tmpfile = self.create_file_with_data(six.b(''))
-        cmd = 'q -d , "select c1 from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -554,7 +555,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_one_row_of_data_without_header_param(self):
         tmpfile = self.create_file_with_data(header_row)
-        cmd = 'q -d , "select c2 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c2 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -567,7 +568,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_one_row_of_data_with_header_param(self):
         tmpfile = self.create_file_with_data(header_row)
-        cmd = 'q -d , "select c2 from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c2 from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -580,7 +581,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_dont_leading_keep_whitespace_in_values(self):
         tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
-        cmd = 'q -d , "select c1 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -595,7 +596,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_keep_leading_whitespace_in_values(self):
         tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
-        cmd = 'q -d , "select c1 from %s" -k' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -k' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -610,7 +611,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_no_impact_of_keeping_leading_whitespace_on_integers(self):
         tmpfile = self.create_file_with_data(sample_data_with_spaces_no_header)
-        cmd = 'q -d , "select c2 from %s" -k -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select c2 from %s" -k -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -627,7 +628,7 @@ class BasicTests(AbstractQTestCase):
     def test_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
             header_row_with_spaces + six.b("\n") + sample_data_no_header)
-        cmd = 'q -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -643,7 +644,7 @@ class BasicTests(AbstractQTestCase):
     def test_column_analysis_for_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
             header_row_with_spaces + six.b("\n") + sample_data_no_header)
-        cmd = 'q -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -658,7 +659,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_no_query_in_command_line(self):
-        cmd = 'q -d , ""'
+        cmd = Q_EXECUTABLE + ' -d , ""'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -668,7 +669,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_empty_query_in_command_line(self):
-        cmd = 'q -d , "  "'
+        cmd = Q_EXECUTABLE + ' -d , "  "'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -678,7 +679,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(e[0],six.b('Query cannot be empty (query number 1)'))
 
     def test_failure_in_query_stops_processing_queries(self):
-        cmd = 'q -d , "select 500" "select 300" "wrong-query" "select 8000"'
+        cmd = Q_EXECUTABLE + ' -d , "select 500" "select 300" "wrong-query" "select 8000"'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -688,7 +689,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[1],six.b('300'))
 
     def test_multiple_queries_in_command_line(self):
-        cmd = 'q -d , "select 500" "select 300+100" "select 300" "select 200"'
+        cmd = Q_EXECUTABLE + ' -d , "select 500" "select 300+100" "select 300" "select 200"'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -701,7 +702,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[3],six.b('200'))
 
     def test_literal_calculation_query(self):
-        cmd = 'q -d , "select 1+40/6"'
+        cmd = Q_EXECUTABLE + ' -d , "select 1+40/6"'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -711,7 +712,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('7'))
 
     def test_literal_calculation_query_float_result(self):
-        cmd = 'q -d , "select 1+40/6.0"'
+        cmd = Q_EXECUTABLE + ' -d , "select 1+40/6.0"'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -724,7 +725,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name from %s" % tmp_data_file.name))
 
-        cmd = 'q -d , -q %s -H' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -742,7 +743,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = 'q -d , -q %s -H -Q ascii' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,3)
@@ -758,7 +759,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' Hr\xc3\xa1\xc4\x8d from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = 'q -d , -q %s -H -Q utf-8 -O' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -O' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -777,7 +778,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = 'q -d , -q %s -H -Q utf-8' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -795,7 +796,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name from %s" % tmp_data_file.name))
 
-        cmd = 'q -d , -q %s -H "select * from ppp"' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H "select * from ppp"' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -812,7 +813,7 @@ class BasicTests(AbstractQTestCase):
         tmp_query_file = self.create_file_with_data(six.b("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
         for target_encoding in ['utf-8','ibm852']:
-            cmd = 'q -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,target_encoding)
+            cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,target_encoding)
             retcode, o, e = run_command(cmd)
 
             self.assertEqual(retcode, 0)
@@ -830,7 +831,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select 'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = 'q -d , -q %s -H -Q utf-8 -E ascii' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -E ascii' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 3)
@@ -846,7 +847,7 @@ class BasicTests(AbstractQTestCase):
     def test_use_query_file_with_empty_query(self):
         tmp_query_file = self.create_file_with_data(six.b("   "))
 
-        cmd = 'q -d , -q %s -H' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H' % tmp_query_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -858,7 +859,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmp_query_file)
 
     def test_use_non_existent_query_file(self):
-        cmd = 'q -d , -q non-existent-query-file -H'
+        cmd = Q_EXECUTABLE + ' -d , -q non-existent-query-file -H'
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 1)
@@ -870,7 +871,7 @@ class BasicTests(AbstractQTestCase):
     def test_non_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
-        cmd = 'q -d " " "select c1 from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select c1 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
 
@@ -888,7 +889,7 @@ class BasicTests(AbstractQTestCase):
     def test_regular_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
-        cmd = 'q -d " " "select c2 from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select c2 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -905,7 +906,7 @@ class BasicTests(AbstractQTestCase):
     def test_double_double_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
-        cmd = 'q -d " " "select c3 from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select c3 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -922,7 +923,7 @@ class BasicTests(AbstractQTestCase):
     def test_escaped_double_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
-        cmd = 'q -d " " "select c4 from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select c4 from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -939,7 +940,7 @@ class BasicTests(AbstractQTestCase):
     def test_none_input_quoting_mode_in_relaxed_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -m relaxed -D , -w none -W none "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -m relaxed -D , -w none -W none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -954,7 +955,7 @@ class BasicTests(AbstractQTestCase):
     def test_none_input_quoting_mode_in_strict_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -m strict -D , -w none "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -m strict -D , -w none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode,0)
@@ -968,7 +969,7 @@ class BasicTests(AbstractQTestCase):
     def test_minimal_input_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w minimal "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -983,7 +984,7 @@ class BasicTests(AbstractQTestCase):
     def test_all_input_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w all "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w all "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -998,7 +999,7 @@ class BasicTests(AbstractQTestCase):
     def test_incorrect_input_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w unknown_wrapping_mode "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w unknown_wrapping_mode "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode,0)
@@ -1013,7 +1014,7 @@ class BasicTests(AbstractQTestCase):
     def test_none_output_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w all -W none "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w all -W none "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1028,7 +1029,7 @@ class BasicTests(AbstractQTestCase):
     def test_minimal_output_quoting_mode__without_need_to_quote_in_output(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w all -W minimal "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w all -W minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1044,7 +1045,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
         # output delimiter is set to space, so the output will contain it
-        cmd = 'q -d " " -D " " -w all -W minimal "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D " " -w all -W minimal "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1059,7 +1060,7 @@ class BasicTests(AbstractQTestCase):
     def test_nonnumeric_output_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w all -W nonnumeric "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w all -W nonnumeric "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1074,7 +1075,7 @@ class BasicTests(AbstractQTestCase):
     def test_all_output_quoting_mode(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
-        cmd = 'q -d " " -D , -w all -W all "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " -D , -w all -W all "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1090,7 +1091,7 @@ class BasicTests(AbstractQTestCase):
 
         tmp_data_file = self.create_file_with_data(input_data)
 
-        basic_cmd = 'q -w %s -W %s "select * from -"' % (input_wrapping_mode,output_wrapping_mode)
+        basic_cmd = Q_EXECUTABLE + ' -w %s -W %s "select * from -"' % (input_wrapping_mode,output_wrapping_mode)
         chained_cmd = 'cat %s | %s | %s | %s' % (tmp_data_file.name,basic_cmd,basic_cmd,basic_cmd)
 
         retcode, o, e = run_command(chained_cmd)
@@ -1115,7 +1116,7 @@ class BasicTests(AbstractQTestCase):
         utf_8_data_with_bom = six.b('\xef\xbb\xbf"typeid","limit","apcost","date","checkpointId"\n"1","2","5","1,2,3,4,5,6,7","3000,3001,3002"\n"2","2","5","1,2,3,4,5,6,7","3003,3004,3005"\n')
         tmp_data_file = self.create_file_with_data(utf_8_data_with_bom,encoding=None)
 
-        cmd = 'q -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1134,7 +1135,7 @@ class BasicTests(AbstractQTestCase):
         data = six.b('111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n')
         tmp_data_file = self.create_file_with_data(data)
 
-        cmd = 'q -d , "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1143,7 +1144,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEqual(o[0].decode('utf-8'),u'111,22.22,testing text with special characters - citt\xe0 ,http://somekindofurl.com,12.13.14.15,12.1')
 
-        cmd = 'q -d , "select * from %s" -A' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1164,7 +1165,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
         # FIXME Need to convert \0a to proper encoding suitable for the person running the tests.
-        cmd = 'q -d " " "select replace(c5,X\'0A\',\'::\') from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select replace(c5,X\'0A\',\'::\') from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1182,7 +1183,7 @@ class BasicTests(AbstractQTestCase):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
         # FIXME Need to convert \0a to proper encoding suitable for the person running the tests.
-        cmd = 'q -d " " "select replace(c6,X\'0A\',\'::\') from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select replace(c6,X\'0A\',\'::\') from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1202,7 +1203,7 @@ class BasicTests(AbstractQTestCase):
 
         tmp_data_file = self.create_file_with_data(double_double_quoted_data)
 
-        cmd = 'q -d " " --disable-double-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1212,7 +1213,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('double_double_quoted'))
         self.assertEqual(o[1],six.b('this is a quoted value with "double'))
 
-        cmd = 'q -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1222,7 +1223,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b(''))
         self.assertEqual(o[1],six.b('double'))
 
-        cmd = 'q -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1240,7 +1241,7 @@ class BasicTests(AbstractQTestCase):
 
         tmp_data_file = self.create_file_with_data(escaped_double_quoted_data)
 
-        cmd = 'q -d " " --disable-escaped-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select c2 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1250,7 +1251,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('escaped_double_quoted'))
         self.assertEqual(o[1],six.b('this is a quoted value with \\escaped'))
 
-        cmd = 'q -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1260,7 +1261,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b(''))
         self.assertEqual(o[1],six.b('double'))
 
-        cmd = 'q -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1277,7 +1278,7 @@ class BasicTests(AbstractQTestCase):
         # these flags will be removed completely in the future
         tmp_data_file = self.create_file_with_data(combined_quoted_data)
 
-        cmd = 'q -d " " --disable-double-double-quoting --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1286,7 +1287,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEqual(len(o),7) # found 7 fields
 
-        cmd = 'q -d " " --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1295,7 +1296,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEqual(len(o),5) # found 5 fields
 
-        cmd = 'q -d " " --disable-double-double-quoting "select * from %s" -A' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1304,7 +1305,7 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEqual(len(o),5) # found 5 fields
 
-        cmd = 'q -d " " "select * from %s" -A' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d " " "select * from %s" -A' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
@@ -1316,7 +1317,7 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmp_data_file)
 
     def test_nonexistent_file(self):
-        cmd = 'q "select * from non-existent-file"'
+        cmd = Q_EXECUTABLE + ' "select * from non-existent-file"'
 
         retcode, o, e = run_command(cmd)
 
@@ -1333,7 +1334,7 @@ class BasicTests(AbstractQTestCase):
 
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = 'q -H -d , "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1351,7 +1352,7 @@ class BasicTests(AbstractQTestCase):
 
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = 'q -H -d , "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 31)
@@ -1368,7 +1369,7 @@ class BasicTests(AbstractQTestCase):
         file_data = six.b("a,b,c\nvery-long-text,2,3\n")
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = 'q -H -d , -M 3 "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , -M 3 "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 31)
@@ -1394,7 +1395,7 @@ class BasicTests(AbstractQTestCase):
         file_data = six.b("a,b,c\nvery-long-text,2,3\n")
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = 'q -H -d , -M 0 "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , -M 0 "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 31)
@@ -1410,7 +1411,7 @@ class BasicTests(AbstractQTestCase):
         file_data = six.b("a,b,a\n10,20,30\n30,40,50")
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = 'q -H -d , "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 35)
@@ -1427,7 +1428,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_strict_mode_column_count_mismatch_error(self):
         tmpfile = self.create_file_with_data(uneven_ls_output)
-        cmd = 'q -m strict "select count(*) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m strict "select count(*) from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -1440,7 +1441,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_strict_mode_too_large_specific_column_count(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , -m strict -c 4 "select count(*) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -m strict -c 4 "select count(*) from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -1454,7 +1455,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_strict_mode_too_small_specific_column_count(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , -m strict -c 2 "select count(*) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -m strict -c 2 "select count(*) from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -1469,7 +1470,7 @@ class ParsingModeTests(AbstractQTestCase):
     def test_relaxed_mode_missing_columns_in_header(self):
         tmpfile = self.create_file_with_data(
             sample_data_with_missing_header_names)
-        cmd = 'q -d , -m relaxed "select count(*) from %s" -H -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -m relaxed "select count(*) from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1486,7 +1487,7 @@ class ParsingModeTests(AbstractQTestCase):
     def test_strict_mode_missing_columns_in_header(self):
         tmpfile = self.create_file_with_data(
             sample_data_with_missing_header_names)
-        cmd = 'q -d , -m strict "select count(*) from %s" -H -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , -m strict "select count(*) from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -1500,7 +1501,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_output_delimiter_with_missing_fields(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , "select * from %s" -D ";"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s" -D ";"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1515,7 +1516,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_handling_of_null_integers(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , "select avg(c2) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select avg(c2) from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1528,7 +1529,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_empty_integer_values_converted_to_null(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = 'q -d , "select * from %s where c2 is null"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s where c2 is null"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1542,7 +1543,7 @@ class ParsingModeTests(AbstractQTestCase):
     def test_empty_string_values_not_converted_to_null(self):
         tmpfile = self.create_file_with_data(
             sample_data_with_empty_string_no_header)
-        cmd = 'q -d , "select * from %s where c2 == %s"' % (
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s where c2 == %s"' % (
             tmpfile.name, "''")
         retcode, o, e = run_command(cmd)
 
@@ -1556,7 +1557,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_relaxed_mode_detected_columns(self):
         tmpfile = self.create_file_with_data(uneven_ls_output)
-        cmd = 'q -m relaxed "select count(*) from %s" -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select count(*) from %s" -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1580,7 +1581,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_relaxed_mode_detected_columns_with_specific_column_count(self):
         tmpfile = self.create_file_with_data(uneven_ls_output)
-        cmd = 'q -m relaxed "select count(*) from %s" -A -c 9' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select count(*) from %s" -A -c 9' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1604,7 +1605,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_relaxed_mode_last_column_data_with_specific_column_count(self):
         tmpfile = self.create_file_with_data(uneven_ls_output)
-        cmd = 'q -m relaxed "select c9 from %s" -c 9' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select c9 from %s" -c 9' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1620,7 +1621,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_1_column_warning_in_relaxed_mode(self):
         tmpfile = self.create_file_with_data(one_column_data)
-        cmd = 'q -m relaxed "select c1 from %s" -d ,' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select c1 from %s" -d ,' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1635,7 +1636,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_1_column_warning_in_strict_mode(self):
         tmpfile = self.create_file_with_data(one_column_data)
-        cmd = 'q -m relaxed "select c1 from %s" -d , -m strict' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select c1 from %s" -d , -m strict' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1651,7 +1652,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_1_column_warning_suppression_in_relaxed_mode_when_column_count_is_specific(self):
         tmpfile = self.create_file_with_data(one_column_data)
-        cmd = 'q -m relaxed "select c1 from %s" -d , -m relaxed -c 1' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select c1 from %s" -d , -m relaxed -c 1' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1665,7 +1666,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_1_column_warning_suppression_in_strict_mode_when_column_count_is_specific(self):
         tmpfile = self.create_file_with_data(one_column_data)
-        cmd = 'q -m relaxed "select c1 from %s" -d , -m strict -c 1' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m relaxed "select c1 from %s" -d , -m strict -c 1' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1679,7 +1680,7 @@ class ParsingModeTests(AbstractQTestCase):
 
     def test_fluffy_mode(self):
         tmpfile = self.create_file_with_data(uneven_ls_output)
-        cmd = 'q -m fluffy "select c9 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m fluffy "select c9 from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1699,7 +1700,7 @@ class ParsingModeTests(AbstractQTestCase):
         data_list[950] = six.b("column1 column2 column3 column4 column5")
         tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
 
-        cmd = 'q -m fluffy "select * from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m fluffy "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode,0)
@@ -1716,7 +1717,7 @@ class ParsingModeTests(AbstractQTestCase):
         data_list[750] = six.b("column1 column3 column4")
         tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
 
-        cmd = 'q -m strict "select * from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m strict "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode,0)
@@ -1733,7 +1734,7 @@ class ParsingModeTests(AbstractQTestCase):
         data_list[750] = six.b("column1 column2 column3 column4 column5")
         tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
 
-        cmd = 'q -m strict "select * from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -m strict "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode,0)
@@ -1749,8 +1750,8 @@ class FormattingTests(AbstractQTestCase):
 
     def test_column_formatting(self):
         # TODO Decide if this breaking change is reasonable
-        #cmd = 'seq 1 10 | q -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -" -c 1'
-        cmd = 'seq 1 10 | q -f 1={:4.3f},2={:4.3f} "select sum(c1),avg(c1) from -" -c 1'
+        #cmd = 'seq 1 10 | ' + Q_EXECUTABLE + ' -f 1=%4.3f,2=%4.3f "select sum(c1),avg(c1) from -" -c 1'
+        cmd = 'seq 1 10 | ' + Q_EXECUTABLE + ' -f 1={:4.3f},2={:4.3f} "select sum(c1),avg(c1) from -" -c 1'
 
         retcode, o, e = run_command(cmd)
 
@@ -1763,8 +1764,8 @@ class FormattingTests(AbstractQTestCase):
     def test_column_formatting_with_output_header(self):
         perl_regex = "'s/1\n/column_name\n1\n/;'"
         # TODO Decide if this breaking change is reasonable
-        #cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | q -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
-        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | q -f 1={:4.3f},2={:4.3f} "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        #cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ' + Q_EXECUTABLE + ' -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ' + Q_EXECUTABLE + ' -f 1={:4.3f},2={:4.3f} "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
 
         retcode, o, e = run_command(cmd)
 
@@ -1779,7 +1780,7 @@ class FormattingTests(AbstractQTestCase):
         data = six.b('permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a')
         tmp_data_file = self.create_file_with_data(data)
 
-        cmd = 'q -d , -H "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , -H "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
@@ -1804,7 +1805,7 @@ class FormattingTests(AbstractQTestCase):
         data = six.b('permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a')
         tmp_data_file = self.create_file_with_data(data)
 
-        cmd = 'q -d , -H "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , -H "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1837,14 +1838,14 @@ class FormattingTests(AbstractQTestCase):
         data = six.b('permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round\rlifelock,LifeLock,,web,Tempe,AZ,1-May-07,6850000,USD,b\rlifelock,LifeLock,,web,Tempe,AZ,1-Oct-06,6000000,USD,a\rlifelock,LifeLock,,web,Tempe,AZ,1-Jan-08,25000000,USD,c\rmycityfaces,MyCityFaces,7,web,Scottsdale,AZ,1-Jan-08,50000,USD,seed\rflypaper,Flypaper,,web,Phoenix,AZ,1-Feb-08,3000000,USD,a\rinfusionsoft,Infusionsoft,105,software,Gilbert,AZ,1-Oct-07,9000000,USD,a')
         tmp_data_file = self.create_file_with_data(data)
 
-        cmd = 'q -d , -H -U "select permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , -H -U "select permalink,company,numEmps,category,city,state,fundedDate,raisedAmt,raisedCurrency,round from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
 
-        if len(e) == 2:
+        if len(e) == 2 or len(e) == 1:
             # In python 3.7, there's a deprecation warning for the 'U' file opening mode, which is ok for now
-            self.assertEqual(len(e), 2)
+            self.assertIn(len(e), [1,2])
             self.assertTrue(b"DeprecationWarning: 'U' mode is deprecated" in e[0])
         elif len(e) != 0:
             # Nothing should be output to stderr in other versions
@@ -1863,7 +1864,7 @@ class SqlTests(AbstractQTestCase):
 
     def test_find_example(self):
         tmpfile = self.create_file_with_data(find_output)
-        cmd = 'q "select c5,c6,sum(c7)/1024.0/1024 as total from %s group by c5,c6 order by total desc"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' "select c5,c6,sum(c7)/1024.0/1024 as total from %s group by c5,c6 order by total desc"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1877,7 +1878,7 @@ class SqlTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_join_example(self):
-        cmd = 'q "select myfiles.c8,emails.c2 from {0}/exampledatafile myfiles join {0}/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'.format(EXAMPLES)
+        cmd = Q_EXECUTABLE + ' "select myfiles.c8,emails.c2 from {0}/exampledatafile myfiles join {0}/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'.format(EXAMPLES)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1887,7 +1888,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(o[1], six.b('ppp dip.2@otherdomain.com'))
 
     def test_join_example_with_output_header(self):
-        cmd = 'q -O "select myfiles.c8 aaa,emails.c2 bbb from {0}/exampledatafile myfiles join {0}/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'.format(EXAMPLES)
+        cmd = Q_EXECUTABLE + ' -O "select myfiles.c8 aaa,emails.c2 bbb from {0}/exampledatafile myfiles join {0}/group-emails-example emails on (myfiles.c4 = emails.c1) where myfiles.c8 = \'ppp\'"'.format(EXAMPLES)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1899,7 +1900,7 @@ class SqlTests(AbstractQTestCase):
 
     def test_self_join1(self):
         tmpfile = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
-        cmd = 'q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)"' % (tmpfile.name,tmpfile.name)
+        cmd = Q_EXECUTABLE + ' "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)"' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1910,7 +1911,7 @@ class SqlTests(AbstractQTestCase):
 
     def test_self_join_reuses_table(self):
         tmpfile = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
-        cmd = 'q "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)" -A' % (tmpfile.name,tmpfile.name)
+        cmd = Q_EXECUTABLE + ' "select * from %s a1 join %s a2 on (a1.c1 = a2.c1)" -A' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1925,7 +1926,7 @@ class SqlTests(AbstractQTestCase):
 
     def test_self_join2(self):
         tmpfile1 = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
-        cmd = 'q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2)"' % (tmpfile1.name,tmpfile1.name)
+        cmd = Q_EXECUTABLE + ' "select * from %s a1 join %s a2 on (a1.c2 = a2.c2)"' % (tmpfile1.name,tmpfile1.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1935,7 +1936,7 @@ class SqlTests(AbstractQTestCase):
         self.cleanup(tmpfile1)
 
         tmpfile2 = self.create_file_with_data(six.b("\n").join([six.b("{} 9000".format(i)) for i in range(0,10)]))
-        cmd = 'q "select * from %s a1 join %s a2 on (a1.c2 = a2.c2) join %s a3 on (a1.c2 = a3.c2)"' % (tmpfile2.name,tmpfile2.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' "select * from %s a1 join %s a2 on (a1.c2 = a2.c2) join %s a3 on (a1.c2 = a3.c2)"' % (tmpfile2.name,tmpfile2.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1953,7 +1954,7 @@ class SqlTests(AbstractQTestCase):
 '''))
 
         # Check original column type detection
-        cmd = 'q -A -d , -H "select * from %s"' % (tmpfile.name)
+        cmd = Q_EXECUTABLE + ' -A -d , -H "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
@@ -1969,7 +1970,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(o[4],six.b('  `float_number` - float'))
 
         # Check column types detected when actual detection is disabled
-        cmd = 'q -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
+        cmd = Q_EXECUTABLE + ' -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
@@ -1984,7 +1985,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(o[4],six.b('  `float_number` - text'))
 
         # Get actual data with regular detection
-        cmd = 'q -d , -H "select * from %s"' % (tmpfile.name)
+        cmd = Q_EXECUTABLE + ' -d , -H "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 
@@ -1998,7 +1999,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(o[3],six.b("regular text 4,-123,-123,122.2"))
 
         # Get actual data without detection
-        cmd = 'q -d , -H --as-text "select * from %s"' % (tmpfile.name)
+        cmd = Q_EXECUTABLE + ' -d , -H --as-text "select * from %s"' % (tmpfile.name)
 
         retcode, o, e = run_command(cmd)
 

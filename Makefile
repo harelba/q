@@ -16,7 +16,6 @@ dep: ## Install the dependent libraries.
 
 	pip install -r test-requirements.txt
 	pip install -e .
-	scp run-q-linux /Users/harel/.pyenv/shims/q
 
 lint: dep ## Run lint validations.
 
@@ -24,7 +23,7 @@ lint: dep ## Run lint validations.
 
 test: dep ## Run the unit tests.
 
-	py.test -rs -c pytest.ini -s -v q/tests/suite.py --rootdir . "$@" q/tests/suite.py::FormattingTests::test_universal_newlines_parsing_flag
+	py.test -rs -c pytest.ini -s -v q/tests/suite.py --rootdir . 
 
 release: ## Run release
 	pip install py-ci==0.7.3

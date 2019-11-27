@@ -19,5 +19,7 @@ else
 	pyci pack nsis --binary-path $BINARY_LOCATION --version 2.0.2.0
 	echo "Packing windows installer - uploading"
 	pyci github upload-asset --asset $BINARY_LOCATION --release 2.0.2
+	SETUP_LOCATION="c:\\Users\\travis\\build\\harelba\\q\\q-AMD64-Windows-installer.exe"
+	pyci github upload-asset --asset $SETUP_LOCATION --release 2.0.2
 	echo "done"
 fi

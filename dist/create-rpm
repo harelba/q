@@ -43,6 +43,8 @@ mkdir -p ${rpm_build_area}/SOURCES
 pushd ${rpm_build_area}/SOURCES >/dev/null
 tar xvzf ./q.tar.gz --strip-components=1
 rm -vf ./q.tar.gz
+wget -q -o ./q "https://github.com/harelba/q/releases/download/${VERSION}/q-x86_64-Linux"
+chmod +x ./q
 popd >/dev/null
 find ${rpm_build_area}/ -ls
 

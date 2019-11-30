@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION=2.0.5
+VERSION=2.0.6
 
 echo "Packing binary for $TRAVIS_OS_NAME"
 

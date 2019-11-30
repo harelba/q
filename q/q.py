@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2012-2018 Harel Ben-Attia
+#   Copyright (C) 2012-2019 Harel Ben-Attia
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-q_version = "2.0.2"
+q_version = "2.0.5"
 
 __all__ = [ 'QTextAsData' ]
 

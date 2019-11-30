@@ -29,7 +29,7 @@ mkdir -p ${base_folder}/packages
 sleep 1
 docker exec -it ${cid1} /bin/bash -i -c "/q/dist/create-rpm ${TAG}"
 
-docker cp ${cid1}:/q/dist/rpm_build_area/RPMS/noarch/q-text-as-data-${TAG}-1.el6.noarch.rpm ${base_folder}/packages/q-text-as-data-${TAG}-1.noarch.rpm
+docker cp ${cid1}:/q/dist/rpm_build_area/RPMS/x86_64/q-text-as-data-${TAG}-1.el6.x86_64.rpm ${base_folder}/packages/q-text-as-data-${TAG}-1.x86_64.rpm
 
-docker exec -it ${cid2} /bin/bash -i -c "cd /q/packages && alien ./q-text-as-data-${TAG}-1.noarch.rpm"
+docker exec -it ${cid2} /bin/bash -i -c "cd /q/packages && alien ./q-text-as-data-${TAG}-1.x86_64.rpm"
 

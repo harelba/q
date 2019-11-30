@@ -11,4 +11,3 @@ win_build
 packages
 .idea/
 dist/windows/
-dist/

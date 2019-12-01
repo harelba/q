@@ -1,13 +1,13 @@
-#!/bin/bash
+#!/bin/bash -x
 
 #
 # Commit tag and Version number should be provided as input in the command line
 #
 #
 
-if [ $# -ne 1 ];
+if [ $# -ne 2 ];
 then
-	echo 'create-rpm <version>'
+	echo 'create-rpm <version> <based_on_tag>'
 	exit 1
 fi
 
@@ -27,6 +27,8 @@ mkdir -p ${rpm_build_area}/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
 echo RPM build area is in ${rpm_build_area}
 
 VERSION=$1
+BASED_ON_TAG=$2
+
 REAL_PACKAGE_NAME=q
 RPM_PACKAGE_NAME=q-text-as-data
 
@@ -38,12 +40,12 @@ then
 	exit 1
 fi
 
-curl -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/${VERSION}"
+curl -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/$BASED_ON_TAG"
 mkdir -p ${rpm_build_area}/SOURCES
 pushd ${rpm_build_area}/SOURCES >/dev/null
 tar xvzf ./q.tar.gz --strip-components=1
 rm -vf ./q.tar.gz
-curl -R -L -o ./bin/q "https://github.com/harelba/q/releases/download/${VERSION}/q-x86_64-Linux"
+curl -o ./bin/q -L -R "https://github.com/harelba/packages-for-q/raw/master/single-binary/x86_64/${VERSION}/q"
 chmod +x ./bin/q
 popd >/dev/null
 find ${rpm_build_area}/ -ls

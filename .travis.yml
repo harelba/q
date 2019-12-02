@@ -6,9 +6,6 @@ matrix:
   include:
     - python: "3.7"
       dist: xenial  # Need for python 3.7
-  allow_failures:
-    - python: "3.6"
-    - python: "3.7"
 install: pip install -r requirements.txt
 before_script: flake8 ./bin/q ./test/test-suite --count --select=E901,E999,F821,F822,F823 --show-source --statistics
 script: PYTHONIOENCODING=UTF-8 test/test-all

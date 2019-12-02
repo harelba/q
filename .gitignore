@@ -11,6 +11,5 @@ win_build
 packages
 .idea/
 dist/windows/
-dist/
 _benchmark_data*
 *.benchmark-results

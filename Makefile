@@ -26,10 +26,10 @@ test: dep ## Run the unit tests.
 	py.test -rs -c pytest.ini -s -v q/tests/suite.py --rootdir . 
 
 release: ## Run release
-	pip install py-ci==0.7.3
+	pip install py-ci
 	pyci release --no-wheel-publish --wheel-universal
 
 local-release:
-	pip install py-ci==0.7.3
+	pip install py-ci
 	./do-manual-release.sh
 	

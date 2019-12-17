@@ -40,12 +40,12 @@ then
 	exit 1
 fi
 
-curl -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/$BASED_ON_TAG"
+curl -f -o ${rpm_build_area}/SOURCES/q.tar.gz -L -R "https://github.com/harelba/q/tarball/$BASED_ON_TAG"
 mkdir -p ${rpm_build_area}/SOURCES
 pushd ${rpm_build_area}/SOURCES >/dev/null
 tar xvzf ./q.tar.gz --strip-components=1
 rm -vf ./q.tar.gz
-curl -o ./bin/q -L -R "https://github.com/harelba/packages-for-q/raw/master/single-binary/x86_64/${VERSION}/q"
+curl -f -o ./bin/q -L -R "https://github.com/harelba/packages-for-q/raw/master/single-binary/x86_64/${VERSION}/q"
 chmod +x ./bin/q
 popd >/dev/null
 find ${rpm_build_area}/ -ls

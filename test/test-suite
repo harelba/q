@@ -93,6 +93,9 @@ sample_data_with_empty_string_no_header = six.b("\n").join(
 sample_data_with_header = header_row + six.b("\n") + sample_data_no_header
 sample_data_with_missing_header_names = six.b("name,value1\n") + sample_data_no_header
 
+def generate_sample_data_with_header(header):
+    return header + six.b("\n") + sample_data_no_header
+
 sample_quoted_data = six.b('''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
 non-quoted-value "this is a quoted value" "this is a ""double double"" quoted value" "this is an escaped \\"quoted value\\"" "this is a double double quoted ""multiline
@@ -1422,6 +1425,109 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
 
+class MultiHeaderTests(AbstractQTestCase):
+    def test_output_header_when_multiple_input_headers_exist(self):
+        TMPFILE_COUNT = 5
+        tmpfiles = [self.create_file_with_data(sample_data_with_header) for x in range(TMPFILE_COUNT)]
+
+        tmpfilenames = "+".join(map(lambda x:x.name, tmpfiles))
+
+        cmd = '../bin/q -d , "select name,value1,value2 from %s order by name" -H -O' % tmpfilenames
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), TMPFILE_COUNT*3+1)
+        self.assertEqual(o[0], six.b("name,value1,value2"))
+
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[1+i],sample_data_rows[0])
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[TMPFILE_COUNT+1+i],sample_data_rows[1])
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[TMPFILE_COUNT*2+1+i],sample_data_rows[2])
+
+        for oi in o[1:]:
+            self.assertTrue(six.b('name') not in oi)
+
+        for i in range(TMPFILE_COUNT):
+            self.cleanup(tmpfiles[i])
+
+    def test_output_header_when_extra_header_column_names_are_different(self):
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('othername,value1,value2')))
+
+        cmd = '../bin/q -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0].startswith(six.b("Bad header row:")))
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
+    def test_output_header_when_extra_header_has_different_number_of_columns(self):
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('name,value1')))
+
+        cmd = '../bin/q -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0].startswith(six.b("Bad header row:")))
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
+    def test_output_header_when_extra_header_has_different_number_of_columns2(self):
+        original_header = header_row
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        different_header = six.b('name,value1,value2,value3')
+        tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(different_header))
+
+        SELECT_table_name = '%s+%s' % (tmpfile1.name,tmpfile2.name)
+        cmd = '../bin/q -d , "select name,value1,value2 from %s order by name" -H -O' % (SELECT_table_name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        expected_message = six.b('Bad header row: Extra header %s in file %s mismatches original header %s from file %s. Table name is %s') % \
+                           (different_header,six.b(tmpfile2.name),original_header,six.b(tmpfile1.name),six.b(SELECT_table_name))
+
+        self.assertEqual(e[0],expected_message)
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
+    # Not the best behavior, this means that if the first file in additional files contains exactly the
+    # same content as the original header, then q would skip this line instead of failing.
+    # Extremely rare case, and for any table with numeric values, this is not an issue, since column names
+    # cannot be numbers.
+    def test_output_header_when_additional_files_dont_have_a_header(self):
+        original_header = header_row
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        tmpfile2 = self.create_file_with_data(sample_data_no_header)
+
+        SELECT_table_name = '%s+%s' % (tmpfile1.name,tmpfile2.name)
+        cmd = '../bin/q -d , "select name,value1,value2 from %s order by name" -H -O' % (SELECT_table_name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        expected_message = six.b('Bad header row: Extra header %s in file %s mismatches original header %s from file %s. Table name is %s') % \
+                           (sample_data_rows[0],six.b(tmpfile2.name),original_header,six.b(tmpfile1.name),six.b(SELECT_table_name))
+
+        self.assertEqual(e[0],expected_message)
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
+
 class ParsingModeTests(AbstractQTestCase):
 
     def test_strict_mode_column_count_mismatch_error(self):
@@ -2351,7 +2457,8 @@ def suite():
     formatting = tl.loadTestsFromTestCase(FormattingTests)
     basic_module_stuff = tl.loadTestsFromTestCase(BasicModuleTests)
     save_db_to_disk_tests = tl.loadTestsFromTestCase(SaveDbToDiskTests)
-    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests])
+    multi_header_tests = tl.loadTestsFromTestCase(MultiHeaderTests)
+    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests,multi_header_tests])
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

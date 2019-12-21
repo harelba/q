@@ -17,6 +17,9 @@ import six
 from six.moves import range
 import codecs
 
+
+# NOTE: Manually merged multi-header fixes from master into here
+
 import q
 from q.q import QTextAsData,QOutput,QOutputPrinter,QInputParams
 
@@ -92,6 +95,9 @@ sample_data_with_empty_string_no_header = six.b("\n").join(
     sample_data_rows_with_empty_string) + six.b("\n")
 sample_data_with_header = header_row + six.b("\n") + sample_data_no_header
 sample_data_with_missing_header_names = six.b("name,value1\n") + sample_data_no_header
+
+def generate_sample_data_with_header(header):
+    return header + six.b("\n") + sample_data_no_header
 
 sample_quoted_data = six.b('''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
@@ -1422,6 +1428,58 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
 
         self.cleanup(tmpfile)
+
+
+class MultiHeaderTests(AbstractQTestCase):
+    def test_output_header_when_multiple_input_headers_exist(self):
+        TMPFILE_COUNT = 5
+        tmpfiles = [self.create_file_with_data(sample_data_with_header) for x in range(TMPFILE_COUNT)]
+
+        tmpfilenames = "+".join(map(lambda x:x.name, tmpfiles))
+
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s order by name" -H -O' % tmpfilenames
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), TMPFILE_COUNT*3+1)
+        self.assertEqual(o[0], six.b("name,value1,value2"))
+
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[1+i],sample_data_rows[0])
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[TMPFILE_COUNT+1+i],sample_data_rows[1])
+        for i in range (TMPFILE_COUNT):
+            self.assertEqual(o[TMPFILE_COUNT*2+1+i],sample_data_rows[2])
+
+        for oi in o[1:]:
+            self.assertTrue(six.b('name') not in oi)
+
+        for i in range(TMPFILE_COUNT):
+            self.cleanup(tmpfiles[i])
+
+    def test_output_header_when_extra_header_column_names_are_different(self):
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('othername,value1,value2')))
+
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0].startswith(six.b("Bad header row:")))
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
+    def test_output_header_when_extra_header_has_different_number_of_columns(self):
+        tmpfile1 = self.create_file_with_data(sample_data_with_header)
+        tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('name,value1')))
+
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
 
 
 class ParsingModeTests(AbstractQTestCase):

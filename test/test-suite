@@ -3,7 +3,7 @@
 #
 # test suite for q.
 # 
-# All tests must be end-to-end tests, running the actual q command and testing stdout/stderr, and the return code.
+# Prefer end-to-end tests, running the actual q command and testing stdout/stderr, and the return code.
 # Some utilities are provided for making that easy, see other tests for examples.
 #
 # Don't forget to use the Q_EXECUTABLE instead of hardcoding the q command line. This will be used in the near future
@@ -26,13 +26,14 @@ from six.moves import range
 import codecs
 
 
-import QTextAsData,QOutput,QOutputPrinter,QInputParams
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
+from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
 SYSTEM_ENCODING = locale.getpreferredencoding()
 
-EXAMPLES = os.path.abspath(os.path.join(q.__file__, os.pardir, os.pardir, 'examples'))
+EXAMPLES = os.path.abspath(os.path.join(os.pardir, 'examples'))
 
 Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q')
 
@@ -1391,7 +1392,7 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue((six.b("Offending file is '%s'" % tmpfile.name)) in e[0])
         self.assertTrue(six.b('Line is 2') in e[0])
 
-        cmd2 = 'q -H -d , -M 300 -H "select a from %s"' % tmpfile.name
+        cmd2 = Q_EXECUTABLE + ' -H -d , -M 300 -H "select a from %s"' % tmpfile.name
         retcode2, o2, e2 = run_command(cmd2)
 
         self.assertEqual(retcode2, 0)
@@ -2405,3 +2406,30 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
+
+def suite():
+    tl = unittest.TestLoader()
+    basic_stuff = tl.loadTestsFromTestCase(BasicTests)
+    parsing_mode = tl.loadTestsFromTestCase(ParsingModeTests)
+    sql = tl.loadTestsFromTestCase(SqlTests)
+    formatting = tl.loadTestsFromTestCase(FormattingTests)
+    basic_module_stuff = tl.loadTestsFromTestCase(BasicModuleTests)
+    save_db_to_disk_tests = tl.loadTestsFromTestCase(SaveDbToDiskTests)
+    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests])
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        suite = unittest.TestSuite()
+        if '.' in sys.argv[1]:
+            c,m = sys.argv[1].split(".")
+            suite.addTest(globals()[c](m))
+        else:
+            tl = unittest.TestLoader()
+            tc = tl.loadTestsFromTestCase(globals()[sys.argv[1]])
+            suite = unittest.TestSuite([tc])
+    else:
+        suite = suite()
+
+    test_runner = unittest.TextTestRunner(verbosity=2)
+    result = test_runner.run(suite)
+    sys.exit(not result.wasSuccessful())

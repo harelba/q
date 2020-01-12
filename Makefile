@@ -23,7 +23,9 @@ lint: dep ## Run lint validations.
 
 test: dep ## Run the unit tests.
 
-	py.test -rs -c pytest.ini -s -v q/tests/suite.py --rootdir . 
+	test/test-all
+	## TODO Bring back pytest
+	## py.test -rs -c pytest.ini -s -v q/tests/suite.py --rootdir . 
 
 release: ## Run release
 	pip install py-ci

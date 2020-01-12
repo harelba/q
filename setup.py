@@ -14,7 +14,7 @@ setup(
         'six==1.11.0'
     ],
     packages=[
-        'q'
+        'bin'
     ],
     entry_points={
         'console_scripts': [

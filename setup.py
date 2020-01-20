@@ -18,7 +18,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'q = bin.q_standalone:run'
+            'q = bin.qtextasdata:run_standalone'
         ]
     }
 )

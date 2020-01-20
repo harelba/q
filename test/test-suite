@@ -27,7 +27,7 @@ import codecs
 
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from qtextasdata import QTextAsData,QOutput,QOutputPrinter,QInputParams
+from q import QTextAsData,QOutput,QOutputPrinter,QInputParams
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
@@ -35,7 +35,7 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(os.pardir, 'examples'))
 
-Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q')
+Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q.py')
 
 DEBUG = False
 if len(sys.argv) > 2 and sys.argv[2] == '-v':

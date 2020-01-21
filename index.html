@@ -82,11 +82,17 @@
 
     <div id="main_content" class="inner">
 			<h1> News</h1>
-			<p>A new release is ready, version <code>2.0.9</code>, but I would like to validate it a bit more before making it the official one. The links above still point to the older version, and the links to the new version are provided at the end of this section. The new version includes the following major changes:</p>
+			<p><u><strong>Links to a newer version <code>2.0.9</code> which can provide speed gains of up to 40%</strong></u></p>
+			<p><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.9-2_amd64.deb"><strong>Debian</strong> - x86-64 Version - run <code>dpkg -i</code> on the filename. Rollback by running <code>dpkg -U</code> on the filename and reinstall old deb</a></p>
+			<p><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.9-1.x86_64.rpm"><strong>RPM</strong> - x86-64 Version - run <code>rpm -ivh</code> on the filename. Rollback by running <code>rpm -e q-text-as-data</code> on the filename and reinstall old version.</a></p>
+			<p><a href="https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.9/q"><strong>OSX</strong> 64 bit - Mark the file as executable using <code>chmod +x <filename></code> , and just use it. No need for rollback unless you overwrite the old binary. Once the version is official, i'll update <code>brew</code> to install this new version.</a></p>
+			<p><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.9.exe"><strong>Windows</strong> - 64 bit installer. Just run the installer to install the new version. Rollback by uninstalling and reinstalling the old version</a></p>
+
+			<p>These links direct to a new release, version <code>2.0.9</code>, but I would like to validate it a bit more before making it the official one. The links at the top of the page still point to the older version for the next day or two. The new version includes the following major changes:</p>
 			<ul>
 			<li>Full python 3 support, with major performance improvements out of the box.</li>
 			<li>New packaging - a single binary executable for each platform, independent of any system python. The binaries are using python 3.7 behind the scenes.</li>
-			<li>Startup time is a bit slower than it used to be - Should be insignificant for any real world use case</li>
+			<li>Startup time is a bit slower than it used to be (&lt;500ms) - Should be insignificant for any real world use case</li>
 			<li>Some bug fixes and additions:</li>
 			<ul>
 			<li>#212 - Multiple headers rows are output when using -O with wildcard-specified table names</li>
@@ -96,11 +102,6 @@
 			</ul>
 			<p/>
 			<p>The need for validating this release is because of the new packaging. Once I get enough feedback for the new version installation and usage, I'll make the new version official (and probably update this crazy-old and poorly written site). I'd be glad for any feedback you might have, either related to the installation or the behavior of the new version.</p>
-			<p><u><strong>Links</strong></u></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.9-2_amd64.deb"><strong>Debian</strong> - x86-64 Version - run <code>dpkg -i</code> on the filename. Rollback by running <code>dpkg -U</code> on the filename and reinstall old deb</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.9-1.x86_64.rpm"><strong>RPM</strong> - x86-64 Version - run <code>rpm -ivh</code> on the filename. Rollback by running <code>rpm -e q-text-as-data</code> on the filename and reinstall old version.</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.9/q"><strong>OSX</strong> 64 bit - Put the file in the. Mark the file as executable using <code>chmod +x <filename></code> , and just use it. No need for rollback unless you overwrite the old binary. Once the version is official, i'll update <code>brew</code> to install this new version.</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.9.exe"><strong>Windows</strong> - 64 bit installer. Just run the installer to install the new version. Rollback by uninstalling and reinstalling the old version</a></p>
 			<p/>
 			<p>I'll publish some benchmark results comparing py2, py3 and other competing tools later after I validate the results some more. If you wanna participate in the validation, please let me know.</p>
 			<p>

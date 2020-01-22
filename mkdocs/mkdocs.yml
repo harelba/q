@@ -1,0 +1,41 @@
+site_name: q - Text as Data
+site_url: http://harelba.github.io/q/
+repo_url: http://github.com/harelba/q
+edit_uri: ""
+site_description: Text as Data - q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
+site_author: Harel Ben-Attia
+copyright: 'Copyright &copy; 2012-2019 Harel Ben-Attia'
+google_analytics: 
+  - "UA-48316355-1"
+  - "auto"
+nav:
+    - Home: index.md
+    - About: about.md
+theme: 
+  name: material
+  language: 'en'
+  palette:
+    primary: purple
+    accent: amber
+  fonts:
+    text: 'Roboto'
+    code: 'Roboto Mono'
+  favicon: 'images/q-logo.png'
+extra:
+  social:
+    - type: 'github'
+      link: 'https://github.com/harelba'
+    - type: 'twitter'
+      link: 'https://twitter.com/harelba'
+    - type: 'linkedin'
+      link: 'https://www.linkedin.com/in/harelba'
+extra_css:
+  - 'stylesheets/extra.css'
+markdown_extensions:
+  - meta
+  - toc:
+      permalink: true
+  - tables
+  - fenced_code
+  - admonition
+  - codehilite

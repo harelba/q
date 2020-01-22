@@ -1,0 +1,10 @@
+site_name: q - Text as Data
+nav:
+    - Home: index.md
+    - About: about.md
+theme: spacelab
+markdown_extensions:
+  - meta
+  - toc
+  - tables
+  - fenced_code

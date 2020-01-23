@@ -1,1 +1,22 @@
 
+div.md-content pre {
+  background-color: black;
+  color: #41FF00;
+}
+
+.md-typeset code pre {
+  background-color: black;
+  color: #41FF00;
+}
+
+.md-typeset p code {
+  color: rgba(0,0,0,.87);
+}
+
+.md-typeset code.bash {
+  color: #41FF00;
+}
+
+.md-typeset__scrollwrap {
+  text-align: center;
+}

@@ -10,7 +10,7 @@ q is a command line tool that allows direct execution of SQL-like queries on CSV
 
 q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.
 
-``` bash
+```
 q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ```
 
@@ -90,7 +90,7 @@ NOTE2: When using the `-O` output header option, use column name aliases if you 
 
 ### Flags
 
-``` text
+``` bash
 Usage: 
         q allows performing SQL-like statements on tabular text data.
 
@@ -252,7 +252,7 @@ Perform a COUNT DISTINCT values of specific field (uuid of clicks data).
 q -H -t "SELECT COUNT(DISTINCT(uuid)) FROM ./clicks.csv"
 ```
 Output
-``` text
+``` bash
 229
 ```
 ### Example 2
@@ -264,7 +264,7 @@ Note that q understands that the column is numeric and filters according to its 
 q -H -t "SELECT request_id,score FROM ./clicks.csv WHERE score > 0.7 ORDER BY score DESC LIMIT 5"
 ```
 Output:
-``` text
+``` bash
 2cfab5ceca922a1a2179dc4687a3b26e    1.0
 f6de737b5aa2c46a3db3208413a54d64    0.986665809568
 766025d25479b95a224bd614141feee5    0.977105183282
@@ -278,7 +278,7 @@ Illustrate GROUP BY
 q -t -H "SELECT hashed_source_machine,count(*) FROM ./clicks.csv GROUP BY hashed_source_machine"
 ```
 Output:
-``` text
+``` bash
 47d9087db433b9ba.domain.com 400000
 ```
 
@@ -289,7 +289,7 @@ More complex GROUP BY (group by time expression)
 q -t -H "SELECT strftime('%H:%M',date_time) hour_and_minute,count(*) FROM ./clicks.csv GROUP BY hour_and_minute"
 ```
 Output:
-``` text
+``` bash
 07:00   138148
 07:01   140026
 07:02   121826
@@ -304,7 +304,7 @@ Calculates the total size per user/group in the /tmp subtree.
 sudo find /tmp -ls | q "SELECT c5,c6,sum(c7)/1024.0/1024 AS total FROM - GROUP BY c5,c6 ORDER BY total desc"
 ```
 Output:
-``` text
+``` bash
 mapred hadoop   304.00390625
 root   root     8.0431451797485
 smith  smith    4.34389972687
@@ -321,7 +321,7 @@ Note the usage of the autodetected column name UID in the query.
 ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 ```
 Output:
-``` text
+``` bash
 root 152
 harel 119
 avahi 2
@@ -336,7 +336,7 @@ The following command joins an ls output (exampledatafile) and a file containing
 q "SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'"
 ```
 Output:
-``` text
+``` bash
 ppp dip.1@otherdomain.com
 ppp dip.2@otherdomain.com
 ```

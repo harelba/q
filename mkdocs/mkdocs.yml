@@ -38,4 +38,4 @@ markdown_extensions:
   - tables
   - fenced_code
   - admonition
-  - codehilite
+    #  - codehilite

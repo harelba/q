@@ -20,3 +20,12 @@ div.md-content pre {
 .md-typeset__scrollwrap {
   text-align: center;
 }
+
+.md-typeset .headerlink {
+  opacity: 50%;
+}
+
+article.md-content__inner.md-typeset>p {
+  text-align: center;
+}
+

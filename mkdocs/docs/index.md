@@ -1,4 +1,4 @@
-# q - Text as Data 
+# q - Run SQL directly on CSV or TSV files
 
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
@@ -10,7 +10,7 @@ q is a command line tool that allows direct execution of SQL-like queries on CSV
 
 q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.
 
-```
+``` bash
 q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ```
 
@@ -18,7 +18,7 @@ q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 ```
 
-Look at the examples page for some more examples, or just download the tool using the links above or in the installation page and play with it.
+Look at some examples [here](#examples), or just download the tool using the links in the [installation](#installation) below and play with it.
 
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
@@ -26,6 +26,8 @@ Look at the examples page for some more examples, or just download the tool usin
 | 모든 문자 인코딩이 완벽하게 지원됩니다 | все кодировки символов полностью поддерживаются |
 
 **Non-english users:** q fully supports all types of encoding. Use `-e data-encoding` to set the input data encoding, `-Q query-encoding` to set the query encoding, and use `-E output-encoding` to set the output encoding. Sensible defaults are in place for all three parameters. Please contact me if you encounter any issues and I'd be glad to help.
+
+**Files with BOM:** Files which contain a BOM ([Byte Order Mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are not properly supported inside python's csv module. q contains a workaround that allows reading UTF8 files which contain a BOM - Use `-e utf-8-sig` for this. I plan to separate the BOM handling from the encoding itself, which would allow to support BOMs for all encodings.
 
 ## Installation
 
@@ -41,15 +43,7 @@ Look at the examples page for some more examples, or just download the tool usin
 **Older versions can be downloaded [here](https://github.com/harelba/packages-for-q). Please let me know if you plan on using an older version, and why - I know of no reason to use any of them.**
 
 ## Requirements
-As of version `2.0.9`, there's no need for any external dependency. Python itself (3.7), and any needed libraries are self-contained inside the installation, not affecting anything but q itself.
-
-## Limitations
-Here's the list of known limitations. Please contact me if you have a use case that needs any of those missing capabilities.
-
-* `FROM <subquery>` is not supported
-* Common Table Expressions (CTE) are not supported
-* Spaces in file names are not supported. Use stdin for piping the data into q, or rename the file
-* Some rare cases of subqueries are not supported yet.
+As of version `2.0.9`, there's no need for any external dependency. Python itself (3.7), and any needed libraries are self-contained inside the installation, isolated from the rest of your system.
 
 ## Usage
 
@@ -73,10 +67,10 @@ Please note that column names that include spaces need to be used in the query w
 
 Query/Input/Output encodings are fully supported (and q tries to provide out-of-the-box usability in that area). Please use `-e`,`-E` and `-Q` to control encoding if needed.
 
-All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table).
+All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
 
 ### Query
-q gets one parameter - An SQL-like query.
+Each parameter that q gets is a full SQL query. All queries are executed one after another, outputing the results to standard output. Note that data loading is done only once, so when passing multiple queries on the same command-line, only the first one will take a long time. The rest will starting running almost instantanously, since all the data will already have been loaded. Remeber to double-quote each of the queries - Each parameter is a full SQL query.
 
 Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
 
@@ -96,7 +90,7 @@ Usage:
 
         Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 
-        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
+        Basic usage is q "<sql-like query>" where table names are just regular file names (Use - to read from standard input)
             When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
 
         Column types are detected automatically. Use -A in order to see the column name/type analysis.
@@ -346,16 +340,24 @@ You can see that the ppp filename appears twice, each time matched to one of the
 Column name detection is supported for JOIN scenarios as well. Just specify `-H` in the command line and make sure that the source files contain the header rows.
 
 ## Implementation
-The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). If you want to do further analysis on the data, you can use the `--save-to-db` option to write the resulting tables to an sqlite database file, and then use `seqlite3` in order to perform queries on the data separately from q itself.
+The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). If you want to do further analysis on the data, you can use the `--save-db-to-disk` option to write the resulting tables to an sqlite database file, and then use `seqlite3` in order to perform queries on the data separately from q itself.
 
 Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
 
-Please make sure to read the limitations section as well.
+Please make sure to read the [limitations](#limitations) section as well.
 
 ## Development
 
 ### Tests
-The code includes a test suite runnable through test/test-all. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. 
+The code includes a test suite runnable through `test/test-all`. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. 
+
+## Limitations
+Here's the list of known limitations. Please contact me if you have a use case that needs any of those missing capabilities.
+
+* `FROM <subquery>` is not supported
+* Common Table Expressions (CTE) are not supported
+* Spaces in file names are not supported. Use stdin for piping the data into q, or rename the file
+* Some rare cases of subqueries are not supported yet.
 
 ## Rationale
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the database that I want. It's the language - SQL.

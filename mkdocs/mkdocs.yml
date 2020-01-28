@@ -20,7 +20,8 @@ theme:
   fonts:
     text: 'Roboto'
     code: 'Roboto Mono'
-  favicon: 'images/q-logo.png'
+  favicon: 'img/q-logo1.ico'
+  logo: 'img/q-logo1.ico'
 extra:
   social:
     - type: 'github'

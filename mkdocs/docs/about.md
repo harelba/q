@@ -4,5 +4,5 @@
 
 ### Twitter [@harelba](https://twitter.com/harelba)
 
-### Email [harelba@gmail.com](harelba@gmail.com)
+### Email [harelba@gmail.com](mailto:harelba@gmail.com)
 

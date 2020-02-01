@@ -2,7 +2,6 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
-[![License](https://img.shields.io/github/license/harelba/q.svg?style=social&label=License&maxAge=600)](https://github.com/harelba/q/blob/master/LICENSE)
 
 
 ## Overview

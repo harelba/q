@@ -29,3 +29,10 @@ article.md-content__inner.md-typeset>p {
   text-align: center;
 }
 
+.md-nav__link[data-md-state=blur] {
+    color: rgba(0.3,0.5,0.4,.4)
+}
+
+.md-nav__link[data-md-state=current] {
+    font-weight: 700;
+}

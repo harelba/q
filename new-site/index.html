@@ -72,18 +72,18 @@
       <link rel="stylesheet" href="stylesheets/extra.css">
     
     
-      
-        
+<!-- Global site tag (gtag.js) - Google Analytics -->
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-48316355-1"></script>
 <script>
-  window.ga = window.ga || function() {
-    (ga.q = ga.q || []).push(arguments)
-  }
-  ga.l = +new Date
-  /* Setup integration and send page view */
-  ga("create", "UA-48316355-1", "auto")
-  ga("set", "anonymizeIp", true)
-  ga("send", "pageview")
-  /* Register handler to log search on blur */
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+gtag('config', 'UA-48316355-1');
+gtag('send','pageview');
+
+/* Register handler to log search on blur */
   document.addEventListener("DOMContentLoaded", () => {
     if (document.forms.search) {
       var query = document.forms.search.query
@@ -94,11 +94,9 @@
         }
       })
     }
-  })
+  });
 </script>
-<script async src="https://www.google-analytics.com/analytics.js"></script>
-      
-    
+
     
   </head>
   
@@ -1131,6 +1129,8 @@ ppp dip.2@otherdomain.com
       <script src="assets/javascripts/application.808e90bb.js"></script>
       
       <script>app.initialize({version:"1.0.4",url:{base:"."}})</script>
+      
+        <script src="js/google-analytics.js"></script>
       
     
   </body>

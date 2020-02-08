@@ -40,7 +40,7 @@ function GAizeTOCLink(l) {
                 gtag('event','navigate', { 'event_category': 'Navigation', 'event_label': 'go to ' + toc_name, 'value': 1 });
                 setTimeout(function() {
                     location.href = that.href;
-                }, 500);
+                }, 250);
                 return false;
             };
 

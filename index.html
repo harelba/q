@@ -1,136 +1,1137 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-  <meta charset='utf-8' />
-  <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-  <meta name="description" content="q : q - Text as Data" />
-
-  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-
-  <title>Run SQL directly on CSV files | Text as Data | q</title>
-  <meta name="description" content="Execute SQL queries directly on CSV/TSV files using the command-line. Automatically detects column names and types.">
-  <script type="text/javascript" src="javascripts/google-analytics.js"></script>
-</head>
-
-<body>
-
-  <!-- HEADER -->
-  <div id="header_wrap" class="outer">
-    <header class="inner">
-      <select id="language_switcher" onChange="window.location.href=this.value">
-        <option value="index.html" selected>English</option>
-        <option value="ja/index.html">Japanese</option>
-      </select>
-      <img id="q-logo" src="images/q-logo1.png"/>
-      <a id="forkme_banner" href="https://github.com/harelba/q">View on GitHub</a>
-
-      <h1 id="project_title">q</h1>
-      <h2 id="project_tagline">q - Text as Data</h2>
 
 
-      <iframe src="//ghbtns.com/github-btn.html?user=harelba&repo=q&type=watch&count=true&size=large"  allowtransparency="true" frameborder="0" scrolling="0" width="170" height="30"></iframe>
-
-      <section id="downloads">
-        <a class="zip_download_link" download href="https://github.com/harelba/q/archive/1.7.1.zip">Download the last stable version zip file </a>
-        <a class="tar_download_link" download href="https://github.com/harelba/q/archive/1.7.1.tar.gz">Download the last stable version tar.gz file</a>
-        <a class="rpm_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-1.7.1-1.noarch.rpm">Download the latest stable version RPM</a>
-        <a class="deb_download_link" download href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_1.7.1-2_all.deb">Download the latest stable version Debian package</a>
-        <a class="executable_download_link" title="Single file executable, for systems with python installed" href="https://cdn.rawgit.com/harelba/q/1.7.1/bin/q">Download the single-file executable</a>
-        <a class="windows_download_link" title="Installation for Windows systems. Adds q.exe to the path. Please send me any comments" href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-1.7.4.exe">Download the single-file executable</a>
-      </section>
-    </header>
-  </div>
-
-  <div id="sidenav">
-    <h1 id="general">General</h1>
-    <ul>
-      <li><a href="index.html">Home</a></li>
-      <li><a href="install.html">Download and Install</a></li>
-      <li><a href="requirements.html">Requirements</a></li>
-      <li><a href="limitations.html">Limitations</a></li>
-      <li><a href="future-ideas.html">Future Ideas</a></li>
-    </ul>
-    <h1 id="documentation">Documentation</h1>
-    <ul>
-      <li><a href="usage.html">Usage</a></li>
-      <li><a href="examples.html">Examples</a></li>
-      <li><a href="tutorial.html">Tutorial for Beginners</a></li>
-    </ul>
-    <h1 id="other">Behind the Scenes</h1>
-    <ul>
-      <li><a href="changelog.html">Change Log</a></li>
-      <li><a href="implementation.html">Implementation</a></li>
-      <li><a href="rationale.html">Rationale</a></li>
-    </ul>
-    <h1 id="author">Author</h1>
-    <ul>
-      <li><a href="contact.html">Contact</a><br/>Twitter: <a href="https://twitter.com/harelba">@harelba</a><br/>Email: <a href="mailto:harelba@gmail.com">harelba@gmail.com</a></li>
-    </ul>
-    <h1 id="social">Social</h1>
-    <ul>
-      <li>Twitter: <a target="_blank" href="https://twitter.com/search?f=realtime&q=%23qtextasdata&src=typd">#qtextasdata</a></li>
-    </ul>
 
 
-  </div>
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+        <meta name="description" content="Text as Data - q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).">
+      
+      
+        <link rel="canonical" href="http://harelba.github.io/q/">
+      
+      
+        <meta name="author" content="Harel Ben-Attia">
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="img/q-logo1.ico">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.6.0">
+    
+    
+      
+        <title>q - Text as Data</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/application.1b62728e.css">
+      
+        <link rel="stylesheet" href="assets/stylesheets/application-palette.a8b3c06d.css">
+      
+      
+        
+        
+        <meta name="theme-color" content="#ab47bc">
+      
+    
+    
+      <script src="assets/javascripts/modernizr.268332fc.js"></script>
+    
+    
+      
+        <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700%7CRoboto+Mono&display=fallback">
+        <style>body,input{font-family:"Roboto","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"Roboto Mono","Courier New",Courier,monospace}</style>
+      
+    
+    <link rel="stylesheet" href="assets/fonts/material-icons.css">
+    
+    
+      <link rel="stylesheet" href="stylesheets/extra.css">
+    
+    
+<!-- Global site tag (gtag.js) - Google Analytics -->
 
-  <!-- MAIN CONTENT -->
-  <div id="main_content_wrap" class="outer">
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-48316355-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
-    <div id="main_content" class="inner">
-			<h1> News</h1>
-			<p><u><strong>Links to a newer version <code>2.0.9</code> which can provide speed gains of up to 40%</strong></u></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.9-2_amd64.deb"><strong>Debian</strong> - x86-64 Version - run <code>dpkg -i</code> on the filename. Rollback by running <code>dpkg -U</code> on the filename and reinstall old deb</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.9-1.x86_64.rpm"><strong>RPM</strong> - x86-64 Version - run <code>rpm -ivh</code> on the filename. Rollback by running <code>rpm -e q-text-as-data</code> on the filename and reinstall old version.</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.9/q"><strong>OSX</strong> 64 bit - Mark the file as executable using <code>chmod +x <filename></code> , and just use it. No need for rollback unless you overwrite the old binary. Once the version is official, i'll update <code>brew</code> to install this new version.</a></p>
-			<p><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.9.exe"><strong>Windows</strong> - 64 bit installer. Just run the installer to install the new version. Rollback by uninstalling and reinstalling the old version</a></p>
+gtag('config', 'UA-48316355-1');
+gtag('send','pageview');
 
-			<p>These links direct to a new release, version <code>2.0.9</code>, but I would like to validate it a bit more before making it the official one. The links at the top of the page still point to the older version for the next day or two. The new version includes the following major changes:</p>
-			<ul>
-			<li>Full python 3 support, with major performance improvements out of the box.</li>
-			<li>New packaging - a single binary executable for each platform, independent of any system python. The binaries are using python 3.7 behind the scenes.</li>
-			<li>Startup time is a bit slower than it used to be (&lt;500ms) - Should be insignificant for any real world use case</li>
-			<li>Some bug fixes and additions:</li>
-			<ul>
-			<li>#212 - Multiple headers rows are output when using -O with wildcard-specified table names</li>
-			<li>#159 - Save-to-db functionality</li>
-			<li>#175 - Improve performance by consolidating effective column names calculation and storage</li>
-			</ul>
-			</ul>
-			<p/>
-			<p>The need for validating this release is because of the new packaging. Once I get enough feedback for the new version installation and usage, I'll make the new version official (and probably update this crazy-old and poorly written site). I'd be glad for any feedback you might have, either related to the installation or the behavior of the new version.</p>
-			<p/>
-			<p>I'll publish some benchmark results comparing py2, py3 and other competing tools later after I validate the results some more. If you wanna participate in the validation, please let me know.</p>
-			<p>
-			<p>The new version is fully compatible with the previous one, the only differences are in the packaging, no changes to the actual interface.</p>
-			<p>
-			<p>Note that from this version onwards, there's no plan to publish q as a single-python-file executable. If that causes any problems for your use-case, please contact me at <code>harelba@gmail.com</code> so we can discuss the implications and see what can be done.</p>
+/* Register handler to log search on blur */
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.forms.search) {
+      var query = document.forms.search.query
+      query.addEventListener("blur", function() {
+        if (this.value) {
+          var path = document.location.pathname;
+          ga("send", "pageview", path + "?q=" + this.value)
+        }
+      })
+    }
+  });
+</script>
 
-			<h1>Overview</h1>
-
-      <p>q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).</p>
-
-      <p>q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.</p>
-
-      <pre class="main_example_wrapper">
-        <code class="main_example">q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 &gt; 32.3"</code>
-      </pre>
-      <br/>
-      <pre class="main_example_wrapper">
-        <code class="main_example2">ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"</code>
-      </pre>
-      <p>Look at the <a href="examples.html">examples</a> page for some more examples, or just download the tool using the links above or in the <a href="install.html">installation page</a> and play with it.</p>
-      <br/>
-      <div style="text-align: center;">
-        <table style="margin: 0px auto; ">
-          <tr><td style="text-align: center; padding: 1;" ><p>完全支持所有的字符编码</p></td><td style="text-align: center; padding: 1;" ><p>すべての文字エンコーディングを完全にサポート</p></td></tr>
-          <tr><td style="text-align: center; padding: 1;" ><p>모든 문자 인코딩이 완벽하게 지원됩니다</p></td><td style="text-align: center; padding: 1;" ><p>все кодировки символов полностью поддерживаются</p></td></tr>
-        </table>
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="purple" data-md-color-accent="amber">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+    
+      <a href="#q-run-sql-directly-on-csv-or-tsv-files" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="http://harelba.github.io/q/" title="q - Text as Data" class="md-header-nav__button md-logo">
+          
+            <img src="img/q-logo1.ico" width="24" height="24">
+          
+        </a>
       </div>
-      <p><strong>Non-english users:</strong> q fully supports all types of encoding. Use <strong>"-e data-encoding"</strong> to set the input data encoding, <strong>"-Q query-encoding"</strong> to set the query encoding, and use <strong>"-E output-encoding"</strong> to set the output encoding. Sensible defaults are in place for all three parameters. Please contact me if you encounter any issues and I'd be glad to help.</p>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            <span class="md-header-nav__topic">
+              q - Text as Data
+            </span>
+            <span class="md-header-nav__topic">
+              
+                Home
+              
+            </span>
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+          
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
 
-    </body>
-    </html>
+
+  
+
+<a href="http://github.com/harelba/q" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main" role="main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="http://harelba.github.io/q/" title="q - Text as Data" class="md-nav__button md-logo">
+      
+        <img src="img/q-logo1.ico" width="48" height="48">
+      
+    </a>
+    q - Text as Data
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+<a href="http://github.com/harelba/q" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Home
+      </label>
+    
+    <a href="." title="Home" class="md-nav__link md-nav__link--active">
+      Home
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    Installation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query" class="md-nav__link">
+    Query
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags" class="md-nav__link">
+    Flags
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1" class="md-nav__link">
+    Example 1
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2" class="md-nav__link">
+    Example 2
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3" class="md-nav__link">
+    Example 3
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-4" class="md-nav__link">
+    Example 4
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-5" class="md-nav__link">
+    Example 5
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-6" class="md-nav__link">
+    Example 6
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-7" class="md-nav__link">
+    Example 7
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    Implementation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" class="md-nav__link">
+    Development
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    Tests
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    Limitations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    Rationale
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-arent-other-linux-tools-enough" class="md-nav__link">
+    Why aren't other Linux tools enough?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#philosophy" class="md-nav__link">
+    Philosophy
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future" class="md-nav__link">
+    Future
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="about/" title="About" class="md-nav__link">
+      About
+    </a>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    Overview
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    Installation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    Usage
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#query" class="md-nav__link">
+    Query
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags" class="md-nav__link">
+    Flags
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1" class="md-nav__link">
+    Example 1
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2" class="md-nav__link">
+    Example 2
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3" class="md-nav__link">
+    Example 3
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-4" class="md-nav__link">
+    Example 4
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-5" class="md-nav__link">
+    Example 5
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-6" class="md-nav__link">
+    Example 6
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-7" class="md-nav__link">
+    Example 7
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    Implementation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" class="md-nav__link">
+    Development
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    Tests
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    Limitations
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    Rationale
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-arent-other-linux-tools-enough" class="md-nav__link">
+    Why aren't other Linux tools enough?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#philosophy" class="md-nav__link">
+    Philosophy
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future" class="md-nav__link">
+    Future
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                
+                <h1 id="q-run-sql-directly-on-csv-or-tsv-files">q - Run SQL directly on CSV or TSV files<a class="headerlink" href="#q-run-sql-directly-on-csv-or-tsv-files" title="Permanent link">&para;</a></h1>
+<p><a href="https://GitHub.com/harelba/q/stargazers/"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/harelba/q.svg?style=social&amp;label=GitHub Stars&amp;maxAge=600" /></a>
+<a href="https://GitHub.com/harelba/q/network/"><img alt="GitHub forks" src="https://img.shields.io/github/forks/harelba/q.svg?style=social&amp;label=GitHub Forks&amp;maxAge=600" /></a></p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).</p>
+<p>q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.</p>
+<pre><code class="bash">q &quot;SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 &gt; 32.3&quot;
+</code></pre>
+
+<pre><code class="bash">ps -ef | q -H &quot;SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3&quot;
+</code></pre>
+
+<p>Look at some examples <a href="#examples">here</a>, or just download the tool using the links in the <a href="#installation">installation</a> below and play with it.</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">完全支持所有的字符编码</td>
+<td align="center">すべての文字エンコーディングを完全にサポート</td>
+</tr>
+<tr>
+<td align="center">모든 문자 인코딩이 완벽하게 지원됩니다</td>
+<td align="center">все кодировки символов полностью поддерживаются</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Non-english users:</strong> q fully supports all types of encoding. Use <code>-e data-encoding</code> to set the input data encoding, <code>-Q query-encoding</code> to set the query encoding, and use <code>-E output-encoding</code> to set the output encoding. Sensible defaults are in place for all three parameters. Please contact me if you encounter any issues and I'd be glad to help.</p>
+<p><strong>Files with BOM:</strong> Files which contain a BOM (<a href="https://en.wikipedia.org/wiki/Byte_order_mark">Byte Order Mark</a>) are not properly supported inside python's csv module. q contains a workaround that allows reading UTF8 files which contain a BOM - Use <code>-e utf-8-sig</code> for this. I plan to separate the BOM handling from the encoding itself, which would allow to support BOMs for all encodings.</p>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th align="left">Format</th>
+<th align="left">Instructions</th>
+<th align="left">Comments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.9/q">OSX</a></td>
+<td align="left">Download the executable from the link on the left, make it executable, and use it.</td>
+<td align="left"><code>brew install q</code> currently downloads the older version <code>1.7.1</code>. I'll update it to install the new version soon</td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.9-1.x86_64.rpm">RPM Package</a></td>
+<td align="left">run <code>rpm -ivh &lt;package-filename&gt;</code> or <code>rpm -U &lt;package-filename&gt;</code> if you already have an older version of q.</td>
+<td align="left">A man page is available for this release. Just enter man q.</td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.9-2_amd64.deb">DEB Package</a></td>
+<td align="left">Run <code>sudo dpkg -i &lt;package-filename&gt;</code></td>
+<td align="left">A man page is available for this release. Just enter <code>man q</code>.</td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.9.exe">Windows Installer</a></td>
+<td align="left">Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.</td>
+<td align="left">Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.</td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/harelba/q/archive/2.0.9.tar.gz">tar.gz</a></td>
+<td align="left">Full source file tree for latest stable version</td>
+<td align="left"></td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/harelba/q/archive/2.0.9.zip">zip</a></td>
+<td align="left">Full source file tree for the latest stable version</td>
+<td align="left"></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Older versions can be downloaded <a href="https://github.com/harelba/packages-for-q">here</a>. Please let me know if you plan on using an older version, and why - I know of no reason to use any of them.</strong></p>
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
+<p>As of version <code>2.0.9</code>, there's no need for any external dependency. Python itself (3.7), and any needed libraries are self-contained inside the installation, isolated from the rest of your system.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<pre><code class="bash">q &lt;flags&gt; &quot;&lt;query&gt;&quot;
+
+  Simplest execution is `q &quot;SELECT * FROM myfile&quot;` which prints the entire file.
+</code></pre>
+
+<p>q allows performing SQL-like statements on tabular text data. Its purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.</p>
+<p>Query should be an SQL-like query which contains <em>filenames instead of table names</em> (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes). Multiple files can be used as one table by either writing them as <code>filename1+filename2+...</code> or by using shell wildcards (e.g. <code>my_files*.csv</code>).</p>
+<p>Use <code>-H</code> to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. <code>q "SELECT c3,c8 from ..."</code>).</p>
+<p>Use <code>-d</code> to specify the input delimiter.</p>
+<p>Column types are auto detected by the tool, no casting is needed. Note that there's a flag <code>--as-text</code> which forces all columns to be treated as text columns.</p>
+<p>Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard.</p>
+<p>Query/Input/Output encodings are fully supported (and q tries to provide out-of-the-box usability in that area). Please use <code>-e</code>,<code>-E</code> and <code>-Q</code> to control encoding if needed.</p>
+<p>All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the <a href="#limitations">limitations</a> section below for some rarely-used use cases which are not fully supported.</p>
+<h3 id="query">Query<a class="headerlink" href="#query" title="Permanent link">&para;</a></h3>
+<p>Each parameter that q gets is a full SQL query. All queries are executed one after another, outputing the results to standard output. Note that data loading is done only once, so when passing multiple queries on the same command-line, only the first one will take a long time. The rest will starting running almost instantanously, since all the data will already have been loaded. Remeber to double-quote each of the queries - Each parameter is a full SQL query.</p>
+<p>Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.</p>
+<p>JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.</p>
+<p>The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.</p>
+<p>NOTE: Full type detection is implemented, so there is no need for any casting or anything.</p>
+<p>NOTE2: When using the <code>-O</code> output header option, use column name aliases if you want to control the output column names. For example, <code>q -O -H "select count(*) cnt,sum(*) as mysum from -"</code> would output <code>cnt</code> and <code>mysum</code> as the output header column names.</p>
+<h3 id="flags">Flags<a class="headerlink" href="#flags" title="Permanent link">&para;</a></h3>
+<pre><code class="bash">Usage: 
+        q allows performing SQL-like statements on tabular text data.
+
+        Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+
+        Basic usage is q &quot;&lt;sql-like query&gt;&quot; where table names are just regular file names (Use - to read from standard input)
+            When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+
+        Column types are detected automatically. Use -A in order to see the column name/type analysis.
+
+        Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
+
+        All sqlite3 SQL constructs are supported.
+
+        Examples:
+
+              Example 1: ls -ltrd * | q &quot;select c1,count(1) from - group by c1&quot;
+            This example would print a count of each unique permission string in the current folder.
+
+          Example 2: seq 1 1000 | q &quot;select avg(c1),sum(c1) from -&quot;
+            This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+          Example 3: sudo find /tmp -ls | q &quot;select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc&quot;
+            This example will output the total size in MB per user+group in the /tmp subtree
+
+
+            See the help or https://github.com/harelba/q/ for more details.
+
+
+Options:
+  -h, --help            show this help message and exit
+  -v, --version         Print version
+  -V, --verbose         Print debug info in case of problems
+  -S SAVE_DB_TO_DISK_FILENAME, --save-db-to-disk=SAVE_DB_TO_DISK_FILENAME
+                        Save database to an sqlite database file
+  --save-db-to-disk-method=SAVE_DB_TO_DISK_METHOD
+                        Method to use to save db to disk. 'standard' does not
+                        require any deps, 'fast' currenty requires manually
+                        running `pip install sqlitebck` on your python
+                        installation. Once packing issues are solved, the fast
+                        method will be the default.
+
+  Input Data Options:
+    -H, --skip-header   Skip header row. This has been changed from earlier
+                        version - Only one header row is supported, and the
+                        header row is used for column naming
+    -d DELIMITER, --delimiter=DELIMITER
+                        Field delimiter. If none specified, then space is used
+                        as the delimiter.
+    -t, --tab-delimited
+                        Same as -d &lt;tab&gt;. Just a shorthand for handling
+                        standard tab delimited file You can use $'\t' if you
+                        want (this is how Linux expects to provide tabs in the
+                        command line
+    -e ENCODING, --encoding=ENCODING
+                        Input file encoding. Defaults to UTF-8. set to none
+                        for not setting any encoding - faster, but at your own
+                        risk...
+    -z, --gzipped       Data is gzipped. Useful for reading from stdin. For
+                        files, .gz means automatic gunzipping
+    -A, --analyze-only  Analyze sample input and provide information about
+                        data types
+    -m MODE, --mode=MODE
+                        Data parsing mode. fluffy, relaxed and strict. In
+                        strict mode, the -c column-count parameter must be
+                        supplied as well
+    -c COLUMN_COUNT, --column-count=COLUMN_COUNT
+                        Specific column count when using relaxed or strict
+                        mode
+    -k, --keep-leading-whitespace
+                        Keep leading whitespace in values. Default behavior
+                        strips leading whitespace off values, in order to
+                        provide out-of-the-box usability for simple use cases.
+                        If you need to preserve whitespace, use this flag.
+    --disable-double-double-quoting
+                        Disable support for double double-quoting for escaping
+                        the double quote character. By default, you can use &quot;&quot;
+                        inside double quoted fields to escape double quotes.
+                        Mainly for backward compatibility.
+    --disable-escaped-double-quoting
+                        Disable support for escaped double-quoting for
+                        escaping the double quote character. By default, you
+                        can use \&quot; inside double quoted fields to escape
+                        double quotes. Mainly for backward compatibility.
+    --as-text           Don't detect column types - All columns will be
+                        treated as text columns
+    -w INPUT_QUOTING_MODE, --input-quoting-mode=INPUT_QUOTING_MODE
+                        Input quoting mode. Possible values are all, minimal
+                        and none. Note the slightly misleading parameter name,
+                        and see the matching -W parameter for output quoting.
+    -M MAX_COLUMN_LENGTH_LIMIT, --max-column-length-limit=MAX_COLUMN_LENGTH_LIMIT
+                        Sets the maximum column length.
+    -U, --with-universal-newlines
+                        Expect universal newlines in the data. Limitation: -U
+                        works only with regular files for now, stdin or .gz
+                        files are not supported yet.
+
+  Output Options:
+    -D OUTPUT_DELIMITER, --output-delimiter=OUTPUT_DELIMITER
+                        Field delimiter for output. If none specified, then
+                        the -d delimiter is used if present, or space if no
+                        delimiter is specified
+    -T, --tab-delimited-output
+                        Same as -D &lt;tab&gt;. Just a shorthand for outputting tab
+                        delimited output. You can use -D $'\t' if you want.
+    -O, --output-header
+                        Output header line. Output column-names are determined
+                        from the query itself. Use column aliases in order to
+                        set your column names in the query. For example,
+                        'select name FirstName,value1/value2 MyCalculation
+                        from ...'. This can be used even if there was no
+                        header in the input.
+    -b, --beautify      Beautify output according to actual values. Might be
+                        slow...
+    -f FORMATTING, --formatting=FORMATTING
+                        Output-level formatting, in the format X=fmt,Y=fmt
+                        etc, where X,Y are output column numbers (e.g. 1 for
+                        first SELECT column etc.
+    -E OUTPUT_ENCODING, --output-encoding=OUTPUT_ENCODING
+                        Output encoding. Defaults to 'none', leading to
+                        selecting the system/terminal encoding
+    -W OUTPUT_QUOTING_MODE, --output-quoting-mode=OUTPUT_QUOTING_MODE
+                        Output quoting mode. Possible values are all, minimal,
+                        nonnumeric and none. Note the slightly misleading
+                        parameter name, and see the matching -w parameter for
+                        input quoting.
+
+  Query Related Options:
+    -q QUERY_FILENAME, --query-filename=QUERY_FILENAME
+                        Read query from the provided filename instead of the
+                        command line, possibly using the provided query
+                        encoding (using -Q).
+    -Q QUERY_ENCODING, --query-encoding=QUERY_ENCODING
+                        query text encoding. Experimental. Please send your
+                        feedback on this
+</code></pre>
+
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>The <code>-H</code> flag in the examples below signifies that the file has a header row which is used for naming columns.</p>
+<p>The <code>-t</code> flag is just a shortcut for saying that the file is a tab-separated file (any delimiter is supported - Use the <code>-d</code> flag).</p>
+<p>Queries are given using upper case for clarity, but actual query keywords such as SELECT and WHERE are not really case sensitive.</p>
+<p>Example List:</p>
+<ul>
+<li><a href="#example-1">Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)</a></li>
+<li><a href="#example-2">Example 2 - Filter numeric data, controlling ORDERing and LIMITing output</a></li>
+<li><a href="#example-3">Example 3 - Illustrate GROUP BY</a></li>
+<li><a href="#example-4">Example 4 - More complex GROUP BY (group by time expression)</a></li>
+<li><a href="#example-5">Example 5 - Read input from standard input</a></li>
+<li><a href="#example-6">Example 6 - Use column names from header row</a></li>
+<li><a href="#example-7">Example 7 - JOIN two files</a></li>
+</ul>
+<h3 id="example-1">Example 1<a class="headerlink" href="#example-1" title="Permanent link">&para;</a></h3>
+<p>Perform a COUNT DISTINCT values of specific field (uuid of clicks data).</p>
+<pre><code class="bash">q -H -t &quot;SELECT COUNT(DISTINCT(uuid)) FROM ./clicks.csv&quot;
+</code></pre>
+
+<p>Output</p>
+<pre><code class="bash">229
+</code></pre>
+
+<h3 id="example-2">Example 2<a class="headerlink" href="#example-2" title="Permanent link">&para;</a></h3>
+<p>Filter numeric data, controlling ORDERing and LIMITing output</p>
+<p>Note that q understands that the column is numeric and filters according to its numeric value (real numeric value comparison, not string comparison).</p>
+<pre><code class="bash">q -H -t &quot;SELECT request_id,score FROM ./clicks.csv WHERE score &gt; 0.7 ORDER BY score DESC LIMIT 5&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">2cfab5ceca922a1a2179dc4687a3b26e    1.0
+f6de737b5aa2c46a3db3208413a54d64    0.986665809568
+766025d25479b95a224bd614141feee5    0.977105183282
+2c09058a1b82c6dbcf9dc463e73eddd2    0.703255121794
+</code></pre>
+
+<h3 id="example-3">Example 3<a class="headerlink" href="#example-3" title="Permanent link">&para;</a></h3>
+<p>Illustrate GROUP BY</p>
+<pre><code class="bash">q -t -H &quot;SELECT hashed_source_machine,count(*) FROM ./clicks.csv GROUP BY hashed_source_machine&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">47d9087db433b9ba.domain.com 400000
+</code></pre>
+
+<h3 id="example-4">Example 4<a class="headerlink" href="#example-4" title="Permanent link">&para;</a></h3>
+<p>More complex GROUP BY (group by time expression)</p>
+<pre><code class="bash">q -t -H &quot;SELECT strftime('%H:%M',date_time) hour_and_minute,count(*) FROM ./clicks.csv GROUP BY hour_and_minute&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">07:00   138148
+07:01   140026
+07:02   121826
+</code></pre>
+
+<h3 id="example-5">Example 5<a class="headerlink" href="#example-5" title="Permanent link">&para;</a></h3>
+<p>Read input from standard input</p>
+<p>Calculates the total size per user/group in the /tmp subtree.</p>
+<pre><code class="bash">sudo find /tmp -ls | q &quot;SELECT c5,c6,sum(c7)/1024.0/1024 AS total FROM - GROUP BY c5,c6 ORDER BY total desc&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">mapred hadoop   304.00390625
+root   root     8.0431451797485
+smith  smith    4.34389972687
+</code></pre>
+
+<h3 id="example-6">Example 6<a class="headerlink" href="#example-6" title="Permanent link">&para;</a></h3>
+<p>Use column names from header row</p>
+<p>Calculate the top 3 user ids with the largest number of owned processes, sorted in descending order.</p>
+<p>Note the usage of the autodetected column name UID in the query.</p>
+<pre><code class="bash">ps -ef | q -H &quot;SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">root 152
+harel 119
+avahi 2
+</code></pre>
+
+<h3 id="example-7">Example 7<a class="headerlink" href="#example-7" title="Permanent link">&para;</a></h3>
+<p>JOIN two files</p>
+<p>The following command joins an ls output (exampledatafile) and a file containing rows of group-name,email (group-emails-example) and provides a row of filename,email for each of the emails of the group. For brevity of output, there is also a filter for a specific filename called ppp which is achieved using a WHERE clause.</p>
+<pre><code class="bash">q &quot;SELECT myfiles.c8,emails.c2 FROM exampledatafile myfiles JOIN group-emails-example emails ON (myfiles.c4 = emails.c1) WHERE myfiles.c8 = 'ppp'&quot;
+</code></pre>
+
+<p>Output:</p>
+<pre><code class="bash">ppp dip.1@otherdomain.com
+ppp dip.2@otherdomain.com
+</code></pre>
+
+<p>You can see that the ppp filename appears twice, each time matched to one of the emails of the group dip to which it belongs. Take a look at the files <code>exampledatafile</code> and <code>group-emails-example</code> for the data.</p>
+<p>Column name detection is supported for JOIN scenarios as well. Just specify <code>-H</code> in the command line and make sure that the source files contain the header rows.</p>
+<h2 id="implementation">Implementation<a class="headerlink" href="#implementation" title="Permanent link">&para;</a></h2>
+<p>The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). If you want to do further analysis on the data, you can use the <code>--save-db-to-disk</code> option to write the resulting tables to an sqlite database file, and then use <code>seqlite3</code> in order to perform queries on the data separately from q itself.</p>
+<p>Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.</p>
+<p>Please make sure to read the <a href="#limitations">limitations</a> section as well.</p>
+<h2 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h2>
+<h3 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h3>
+<p>The code includes a test suite runnable through <code>test/test-all</code>. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. </p>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<p>Here's the list of known limitations. Please contact me if you have a use case that needs any of those missing capabilities.</p>
+<ul>
+<li><code>FROM &lt;subquery&gt;</code> is not supported</li>
+<li>Common Table Expressions (CTE) are not supported</li>
+<li>Spaces in file names are not supported. Use stdin for piping the data into q, or rename the file</li>
+<li>Some rare cases of subqueries are not supported yet.</li>
+</ul>
+<h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
+<p>Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the database that I want. It's the language - SQL.</p>
+<p>SQL is a declarative language for data, and as such it allows me to define what I want without caring about how exactly it's done. This is the reason SQL is so powerful, because it treats data as data and not as bits and bytes (and chars).</p>
+<p>The goal of this tool is to provide a bridge between the world of text files and of SQL.</p>
+<h3 id="why-arent-other-linux-tools-enough">Why aren't other Linux tools enough?<a class="headerlink" href="#why-arent-other-linux-tools-enough" title="Permanent link">&para;</a></h3>
+<p>The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.</p>
+<p>One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).</p>
+<h3 id="philosophy">Philosophy<a class="headerlink" href="#philosophy" title="Permanent link">&para;</a></h3>
+<p>This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read this amazing <a href="http://catb.org/~esr/writings/taoup/">book</a> and specifically <a href="http://catb.org/~esr/writings/taoup/html/ch01s06.html">this part</a>. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.</p>
+<h2 id="future">Future<a class="headerlink" href="#future" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Expose python as a python module - Mostly implemented. Requires some internal API changes with regard to handling stdin before exposing it.</li>
+<li>Allow to use a distributed backend for scaling the computations</li>
+</ul>
+                
+                  
+                
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+        
+          <a href="about/" title="About" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                About
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+          <div class="md-footer-copyright__highlight">
+            Copyright &copy; 2012-2019 Harel Ben-Attia
+          </div>
+        
+        powered by
+        <a href="https://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+  <div class="md-footer-social">
+    <link rel="stylesheet" href="assets/fonts/font-awesome.css">
+    
+      <a href="https://github.com/harelba" class="md-footer-social__link fa fa-github"></a>
+    
+      <a href="https://twitter.com/harelba" class="md-footer-social__link fa fa-twitter"></a>
+    
+      <a href="https://www.linkedin.com/in/harelba" class="md-footer-social__link fa fa-linkedin"></a>
+    
+  </div>
+
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="assets/javascripts/application.808e90bb.js"></script>
+      
+      <script>app.initialize({version:"1.0.4",url:{base:"."}})</script>
+      
+        <script src="js/google-analytics.js"></script>
+      
+    
+  </body>
+</html>

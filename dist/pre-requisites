@@ -1,7 +1,0 @@
-#!/bin/bash
-
-sudo apt-get install gem
-sudo gem install ruby-ronn
-sudo apt-get install rpm
-sudo apt-get install alien
-pyinstaller (For windows version creation)

@@ -32,6 +32,8 @@ extra:
       link: 'https://www.linkedin.com/in/harelba'
 extra_css:
   - 'stylesheets/extra.css'
+extra_javascript:
+  - 'js/google-analytics.js'
 markdown_extensions:
   - meta
   - toc:

@@ -1,20 +1,3 @@
-(function(i, s, o, g, r, a, m) {
-    i['GoogleAnalyticsObject'] = r;
-    i[r] = i[r] || function() {
-        (i[r].q = i[r].q || []).push(arguments)
-    }, i[r].l = 1 * new Date();
-    a = s.createElement(o),
-        m = s.getElementsByTagName(o)[0];
-    a.async = 1;
-    a.src = g;
-    m.parentNode.insertBefore(a, m)
-})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-
-ga('create', 'UA-48316355-1', 'auto');
-ga('require', 'displayfeatures');
-//ga('require', 'linkid', 'linkid.js');
-ga('send', 'pageview');
-
 // Monitor all download links in GA
 window.onload = function() {
     var a = document.getElementsByTagName('a');
@@ -25,7 +8,7 @@ window.onload = function() {
         if (x != -1) {
             url = url.substr(0, x);
         }
-        var url_test = url.match(/^https?:\/\/.+(\.rpm|\.deb|\/q|\.tar\.gz|\.zip|\.bat|\.exe)$/i);
+        var url_test = url.match(/^https?:\/\/.+(\/rpms\/.*\.rpm|\/deb\/.*\.deb|single-binary\/Darwin\/.*\/q|\/archive\/.*\.tar\.gz|\/archive\/.*\.zip|\/windows\/.*\.exe)$/i);
         if (url_test) {
             console.log("Converting url to be GA aware: " + url);
             if (url_test.length > 1) {
@@ -38,7 +21,8 @@ window.onload = function() {
             a[i].onclick = function() {
                 console.log("Sending GA event for link" + url);
                 var that = this;
-                ga('send', 'event', 'Downloads', 'Click on ' + this.event_action, this.getAttribute('href'));
+              //ga('send', 'event', 'Downloads', 'Click on ' + this.event_action, this.getAttribute('href'));
+                gtag('event','perform download', { 'event_category': 'Downloads', 'event_label': 'Download ' + this.event_action  , 'value': 1 });
                 setTimeout(function() {
                     location.href = that.href;
                 }, 500);

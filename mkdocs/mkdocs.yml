@@ -22,6 +22,7 @@ theme:
     code: 'Roboto Mono'
   favicon: 'img/q-logo1.ico'
   logo: 'img/q-logo1.ico'
+  custom_dir: 'theme'
 extra:
   social:
     - type: 'github'
@@ -42,3 +43,15 @@ markdown_extensions:
   - fenced_code
   - admonition
     #  - codehilite
+
+
+##<!-- Global site tag (gtag.js) - Google Analytics -->
+##<script async src="https://www.googletagmanager.com/gtag/js?id=UA-48316355-1"></script>
+##<script>
+##  window.dataLayer = window.dataLayer || [];
+##  function gtag(){dataLayer.push(arguments);}
+##  gtag('js', new Date());
+##
+##  gtag('config', 'UA-48316355-1');
+## </script>
+

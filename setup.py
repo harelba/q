@@ -2,11 +2,13 @@
 
 from setuptools import setup
 
+from bin.__version__ import q_version
+
 setup(
     name='q',
     url='https://github.com/harelba/q',
     license='LICENSE',
-    version='2.0.9',
+    version=q_version,
     author='Harel Ben-Attia',
     description="Run SQL directly on CSV or TSV files",
     author_email='harelba@gmail.com',

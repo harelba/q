@@ -28,8 +28,6 @@ A development branch for exposing q's capabilities as a <strong>Python module</s
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 
-Harel Ben-Attia, harelba@gmail.com, [@harelba](https://twitter.com/harelba) on Twitter
-
 Linkedin: [Harel Ben Attia](https://www.linkedin.com/in/harelba/)
 
 Twitter [@harelba](https://twitter.com/harelba)

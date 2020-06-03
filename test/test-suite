@@ -514,8 +514,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 2)
         self.assertTrue(six.b('no such column: c3') in e[0])
-        self.assertEqual(
-            e[1], six.b('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
+        self.assertTrue(
+            e[1].startswith(six.b('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names')))
 
         self.cleanup(tmpfile)
 

@@ -14,6 +14,16 @@
 # - PYENV_CACHE_PATH
 #     Directory where full Python builds are cached (i.e., for Travis)
 
+if ["x$TRAVIS_OS" == "osx" ]
+then
+  echo "workaround - fetching proper certificates for caching in osx"
+  curl -Ls https://entrust.com/root-certificates/entrust_l1k.cer -o ~/entrust_l1k.crt || exit 1
+  curl -LS https://curl.haxx.se/ca/cacert.pem -o ~/cacert.pem || exit 1
+  cat ~/entrust_l1k.crt >> ~/cacert.pem || exit 1
+  echo "cacert=\"$HOME/cacert.pem\"" > ~/.curlrc || exit 1
+  echo "ca_certificate=$HOME/cacert.pem" > ~/.wgetrc || exit 1
+fi
+
 # PYENV_ROOT is exported because pyenv uses it
 export PYENV_ROOT="${PYENV_ROOT:-$HOME/.travis-pyenv}"
 export PYTHON_CONFIGURE_OPTS="--enable-shared"

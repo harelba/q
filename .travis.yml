@@ -44,7 +44,6 @@ _steps_provider:
 
 jobs:
   include:
-
     - stage: integration
       name: py27-macos
       os: osx

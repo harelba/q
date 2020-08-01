@@ -12,3 +12,5 @@ packages
 .idea/
 dist/windows/
 generated-site/
+_benchmark_data*
+*.benchmark-results

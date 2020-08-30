@@ -30,8 +30,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-q_version = "2.0.6"
+from .__version__ import q_version
 
 __all__ = [ 'QTextAsData' ]
 
@@ -476,16 +475,18 @@ class TableColumnInferer(object):
         self.rows = []
         self.skip_header = skip_header
         self.header_row = None
+        self.header_row_filename = None
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
         self.disable_column_type_detection = disable_column_type_detection
 
-    def analyze(self, col_vals):
+    def analyze(self, filename, col_vals):
         if self.inferred:
             raise Exception("Already inferred columns")
 
         if self.skip_header and self.header_row is None:
             self.header_row = col_vals
+            self.header_row_filename = filename
         else:
             self.rows.append(col_vals)
 
@@ -905,17 +906,36 @@ class TableCreator(object):
             mfs = MaterializedFileState(filename,f,self.encoding,dialect,is_stdin)
             self.materialized_file_dict[filename] = mfs
 
+    def _should_skip_extra_headers(self, filenumber, filename, mfs, col_vals):
+        if not self.skip_header:
+            return False
+
+        if filenumber == 0:
+            return False
+
+        header_already_exists = self.column_inferer.header_row is not None
+
+        is_extra_header = self.skip_header and mfs.lines_read == 1 and header_already_exists
+
+        if is_extra_header:
+            if tuple(self.column_inferer.header_row) != tuple(col_vals):
+                raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(",".join(col_vals),mfs.filename,",".join(self.column_inferer.header_row),self.column_inferer.header_row_filename,self.filenames_str))
+
+        return is_extra_header
+
     def _populate(self,dialect,stop_after_analysis=False):
         total_data_lines_read = 0
 
         # For each match
-        for filename in self.materialized_file_list:
+        for filenumber,filename in enumerate(self.materialized_file_list):
             mfs = self.materialized_file_dict[filename]
 
             try:
                 try:
                     for col_vals in mfs.read_file_using_csv():
-                        self._insert_row(col_vals)
+                        if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
+                            continue
+                        self._insert_row(filename, col_vals)
                         if stop_after_analysis and self.column_inferer.inferred:
                             return
                     if mfs.lines_read == 0 and self.skip_header:
@@ -937,7 +957,7 @@ class TableCreator(object):
 
             if not self.table_created:
                 self.column_inferer.force_analysis()
-                self._do_create_table()
+                self._do_create_table(filename)
 
 
         if total_data_lines_read == 0:
@@ -960,20 +980,20 @@ class TableCreator(object):
             self.state = TableCreatorState.FULLY_READ
             return
 
-    def _flush_pre_creation_rows(self):
+    def _flush_pre_creation_rows(self, filename):
         for i, col_vals in enumerate(self.pre_creation_rows):
             if self.skip_header and i == 0:
                 # skip header line
                 continue
-            self._insert_row(col_vals)
+            self._insert_row(filename, col_vals)
         self._flush_inserts()
         self.pre_creation_rows = []
 
-    def _insert_row(self, col_vals):
+    def _insert_row(self, filename, col_vals):
         # If table has not been created yet
         if not self.table_created:
             # Try to create it along with another "example" line of data
-            self.try_to_create_table(col_vals)
+            self.try_to_create_table(filename, col_vals)
 
         # If the table is still not created, then we don't have enough data, just
         # store the data and return
@@ -1069,19 +1089,19 @@ class TableCreator(object):
         # print self.db.execute_and_fetch(self.db.generate_end_transaction())
         self.buffered_inserts = []
 
-    def try_to_create_table(self, col_vals):
+    def try_to_create_table(self, filename, col_vals):
         if self.table_created:
             raise Exception('Table is already created')
 
         # Add that line to the column inferer
-        result = self.column_inferer.analyze(col_vals)
+        result = self.column_inferer.analyze(filename, col_vals)
         # If inferer succeeded,
         if result:
-            self._do_create_table()
+            self._do_create_table(filename)
         else:
             pass  # We don't have enough information for creating the table yet
 
-    def _do_create_table(self):
+    def _do_create_table(self,filename):
         # Then generate a temp table name
         self.table_name = self.db.generate_temp_table_name()
         # Get the column definition dict from the inferer
@@ -1101,7 +1121,7 @@ class TableCreator(object):
         self.db.execute_and_fetch(create_table_stmt)
         # Mark the table as created
         self.table_created = True
-        self._flush_pre_creation_rows()
+        self._flush_pre_creation_rows(filename)
 
     def drop_table(self):
         if self.table_created:
@@ -1122,7 +1142,8 @@ def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
 
 def print_credentials():
     print("q version %s" % q_version, file=sys.stderr)
-    print("Copyright (C) 2012-2017 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
+    print("Python: %s" % " // ".join([str(x).strip() for x in sys.version.split("\n")]), file=sys.stderr)
+    print("Copyright (C) 2012-2019 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
     print("http://harelba.github.io/q/", file=sys.stderr)
     print(file=sys.stderr)
 
@@ -1403,7 +1424,7 @@ class QTextAsData(object):
             msg = str(e)
             error = QError(e,"query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
-                warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names'))
+                warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names. Another issue might be that the file contains a BOM. Files that are encoded with UTF8 and contain a BOM can be read by specifying `-e utf-9-sig` in the command line. Support for non-UTF8 encoding will be provided in the future.'))
         except ColumnCountMismatchException as e:
             error = QError(e,e.msg,2)
         except (UnicodeDecodeError, UnicodeError) as e:

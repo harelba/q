@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block analytics %}
+<!-- Global site tag (gtag.js) - Google Analytics -->
+{% set analytics = config.google_analytics %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ analytics[0] }}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+gtag('config', '{{ analytics[0] }}');
+gtag('send','pageview');
+
+/* Register handler to log search on blur */
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.forms.search) {
+      var query = document.forms.search.query
+      query.addEventListener("blur", function() {
+        if (this.value) {
+          var path = document.location.pathname;
+          ga("send", "pageview", path + "?q=" + this.value)
+        }
+      })
+    }
+  });
+</script>
+{% endblock %}

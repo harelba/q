@@ -10,7 +10,7 @@ q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/). It c
 ## Installation.
 Extremely simple. 
 
-Instructions for all OSs are [here](http://harelba.github.io/q/install.html). 
+Instructions for all OSs are [here](http://harelba.github.io/q/#installation). 
 
 ## Examples
 
@@ -20,18 +20,19 @@ q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ps -ef | q -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 ```
 
-Go [here](http://harelba.github.io/q/examples.html) for more examples.
+Go [here](http://harelba.github.io/q/#examples) for more examples.
 
 ## Python API
 A development branch for exposing q's capabilities as a <strong>Python module</strong> can be viewed <a href="https://github.com/harelba/q/tree/generic-injected-streams/PYTHON-API.markdown">here</a>, along with examples of the alpha version of the API.<br/>Existing functionality as a command-line tool will not be affected by this. Your input will be most appreciated.
 
-## Change log
-Click [here](http://harelba.github.io/q/changelog.html) to see the change log.
-
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 
-Harel Ben-Attia, harelba@gmail.com, [@harelba](https://twitter.com/harelba) on Twitter
+Linkedin: [Harel Ben Attia](https://www.linkedin.com/in/harelba/)
+
+Twitter [@harelba](https://twitter.com/harelba)
+
+Email [harelba@gmail.com](mailto:harelba@gmail.com)
 
 q on twitter: #qtextasdata
 

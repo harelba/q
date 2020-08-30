@@ -13,3 +13,4 @@ packages
 dist/windows/
 _benchmark_data*
 *.benchmark-results
+generated-site/

@@ -10,11 +10,13 @@ if [[ "$TRAVIS_OS_NAME" == "osx" || "$TRAVIS_OS_NAME" == "linux" ]]
 then
 	echo "Packing $TRAVIS_OS_NAME installer - packing binary"
 	pyci pack --repo harelba/q --sha $VERSION binary
+	pyci pack binary
 	echo "Packing $TRAVIS_OS_NAME installer - uploading"
 	pyci github upload-asset --asset q-$(uname -m)-$(uname -s) --release $VERSION
 else
 	echo "Packing windows installer - packing binary"
 	pyci pack --repo harelba/q --sha $VERSION binary
+	pyci pack binary
 	echo "Packing windows installer - listing files"
 	find `pwd` -ls | grep -v \.git/
 	echo "Packing windows installer - packing nsis"

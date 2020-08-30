@@ -26,6 +26,7 @@ import six
 from six.moves import range
 
 
+
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from q import QTextAsData,QOutput,QOutputPrinter,QInputParams
 import itertools
@@ -2408,7 +2409,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
 
-
+        
 class BenchmarkAttemptResults(object):
     def __init__(self, attempt, lines, columns, duration,return_code):
         self.attempt = attempt
@@ -2563,6 +2564,7 @@ class BenchmarkTests(AbstractQTestCase):
             return 'octosql -c {} -o table "select count(*) from bmdata a"'.format(config_fn)
         self._perform_test_performance_matrix('octosql',generate_octosql_cmd)
 
+        
 def suite():
     tl = unittest.TestLoader()
     basic_stuff = tl.loadTestsFromTestCase(BasicTests)

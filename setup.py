@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-from bin.__version__ import q_version
+q_version = '2.0.14'
 
 setup(
     name='q',

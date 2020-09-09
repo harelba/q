@@ -30,7 +30,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from __version__ import q_version
+
+q_version = '2.0.14'
 
 __all__ = [ 'QTextAsData' ]
 

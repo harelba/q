@@ -85,6 +85,11 @@ def regexp(regular_expression, data):
     else:
         return False
 
+def md5(data,encoding='utf-8'):
+    m = hashlib.md5()
+    m.update(six.text_type(data).encode(encoding))
+    return m.hexdigest()
+
 class Sqlite3DBResults(object):
     def __init__(self,query_column_names,results):
         self.query_column_names = query_column_names
@@ -166,6 +171,8 @@ class Sqlite3DB(object):
     def add_user_functions(self):
         self.conn.create_function("regexp", 2, regexp)
         self.conn.create_function("sha1", 1, sha1)
+        self.conn.create_function("md5", 2, md5)
+        self.conn.create_function("md5", 1, md5)
         self.conn.create_aggregate("percentile",2,StrictPercentile)
 
     def is_numeric_type(self, column_type):
@@ -1738,6 +1745,8 @@ def run_standalone():
                       help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
     input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
                       help="Field delimiter. If none specified, then space is used as the delimiter.")
+    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=False, action="store_true",
+                      help="Same as -d '|'. Added for convenience and readability")
     input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
                       help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
     input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
@@ -1769,6 +1778,8 @@ def run_standalone():
     output_data_option_group = OptionGroup(parser,"Output Options")
     output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
                       help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output", default=False, action="store_true",
+                      help="Same as -D '|'. Added for convenience and readability.")
     output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
                       help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
     output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
@@ -1853,6 +1864,13 @@ def run_standalone():
 
     if options.tab_delimited_output:
         options.output_delimiter = '\t'
+
+    # If the user flagged for a pipe-delimited file then set the delimiter to pipe
+    if options.pipe_delimited:
+        options.delimiter = '|'
+
+    if options.pipe_delimited_output:
+        options.output_delimiter = '|'
 
     if options.delimiter is None:
         options.delimiter = ' '

@@ -37,6 +37,9 @@ EXAMPLES = os.path.abspath(os.path.join(os.pardir, 'examples'))
 
 Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q.py')
 
+if not os.path.exists(Q_EXECUTABLE):
+    raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
+
 DEBUG = False
 if len(sys.argv) > 2 and sys.argv[2] == '-v':
     DEBUG = True
@@ -334,6 +337,21 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_pipe_delimition_parameter(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("|")))
+        cmd = Q_EXECUTABLE + ' -p "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+
+        self.cleanup(tmpfile)
+
     def test_tab_delimition_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("\t")))
@@ -346,6 +364,21 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
         self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
         self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+
+        self.cleanup(tmpfile)
+
+    def test_pipe_delimition_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("|")))
+        cmd = Q_EXECUTABLE + ' -p -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
 
         self.cleanup(tmpfile)
 
@@ -379,6 +412,21 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_output_delimiter_pipe_parameter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -P "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+
+        self.cleanup(tmpfile)
+
     def test_output_delimiter_tab_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
         cmd = Q_EXECUTABLE + ' -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
@@ -391,6 +439,21 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
         self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
         self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_pipe_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -P -D ":" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
 
         self.cleanup(tmpfile)
 
@@ -1436,6 +1499,21 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
 
+class UserFunctionTests(AbstractQTestCase):
+    def test_md5_function(self):
+        cmd = 'seq 1 4 | %s -c 1 -d , "select c1,md5(c1,\'utf-8\') from -"' % Q_EXECUTABLE
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),0)
+
+        self.assertEqual(tuple(o[0].split(six.b(','),1)),(six.b('1'),six.b('c4ca4238a0b923820dcc509a6f75849b')))
+        self.assertEqual(tuple(o[1].split(six.b(','),1)),(six.b('2'),six.b('c81e728d9d4c2f636f067f89cc14862c')))
+        self.assertEqual(tuple(o[2].split(six.b(','),1)),(six.b('3'),six.b('eccbc87e4b5ce2fe28308fd9f2a7baf3')))
+        self.assertEqual(tuple(o[3].split(six.b(','),1)),(six.b('4'),six.b('a87ff679a2f3e71d9181a67b7542122c')))
+
+
 class MultiHeaderTests(AbstractQTestCase):
     def test_output_header_when_multiple_input_headers_exist(self):
         TMPFILE_COUNT = 5
@@ -2415,7 +2493,9 @@ def suite():
     formatting = tl.loadTestsFromTestCase(FormattingTests)
     basic_module_stuff = tl.loadTestsFromTestCase(BasicModuleTests)
     save_db_to_disk_tests = tl.loadTestsFromTestCase(SaveDbToDiskTests)
-    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests])
+    user_functions_tests = tl.loadTestsFromTestCase(UserFunctionTests)
+    multi_header_tests = tl.loadTestsFromTestCase(MultiHeaderTests)
+    return unittest.TestSuite([basic_module_stuff, basic_stuff, parsing_mode, sql, formatting,save_db_to_disk_tests,multi_header_tests,user_functions_tests])
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

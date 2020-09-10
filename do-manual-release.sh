@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION=$(bin/__version__.py)
+VERSION=2.0.16
 
 echo "Packing binary for $TRAVIS_OS_NAME"
 

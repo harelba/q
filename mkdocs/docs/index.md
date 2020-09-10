@@ -32,12 +32,12 @@ Look at some examples [here](#examples), or just download the tool using the lin
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.9/q)|Download the executable from the link on the left, make it executable, and use it.|`brew install q` currently downloads the older version `1.7.1`. I'll update it to install the new version soon||
-|[RPM Package](https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.9-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter man q.|
-|[DEB Package](https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.9-2_amd64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`.|
-|[Windows Installer](https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.9.exe)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.|
-|[tar.gz](https://github.com/harelba/q/archive/2.0.9.tar.gz)|Full source file tree for latest stable version||
-|[zip](https://github.com/harelba/q/archive/2.0.9.zip)|Full source file tree for the latest stable version||
+|[OSX](https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.16/q)|run `brew install q`|man page is not available for this release yet. Use `q --help` for now||
+|[RPM Package](https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.16-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter man q.|
+|[DEB Package](https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.16-2_amd64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`.|
+|[Windows Installer](https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.16.exe)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.|
+|[tar.gz](https://github.com/harelba/q/archive/2.0.16.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+|[zip](https://github.com/harelba/q/archive/2.0.16.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
 
 **Older versions can be downloaded [here](https://github.com/harelba/packages-for-q). Please let me know if you plan on using an older version, and why - I know of no reason to use any of them.**
 

@@ -130,6 +130,8 @@ combined_quoted_data = six.b('''regular_double_quoted double_double_quoted escap
 
 sample_quoted_data2 = six.b('"quoted data" 23\nunquoted-data 54')
 
+sample_quoted_data2_with_newline = six.b('"quoted data with\na new line inside it":23\nunquoted-data:54')
+
 one_column_data = six.b('''data without commas 1
 data without commas 2
 ''')
@@ -1116,7 +1118,7 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmp_data_file)
 
-    def test_minimal_output_quoting_mode__with_need_to_quote_in_output(self):
+    def test_minimal_output_quoting_mode__with_need_to_quote_in_output_due_to_delimiter(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data2)
 
         # output delimiter is set to space, so the output will contain it
@@ -1129,6 +1131,24 @@ class BasicTests(AbstractQTestCase):
 
         self.assertEqual(o[0],six.b('"quoted data" 23'))
         self.assertEqual(o[1],six.b('unquoted-data 54'))
+
+        self.cleanup(tmp_data_file)
+
+    def test_minimal_output_quoting_mode__with_need_to_quote_in_output_due_to_newline(self):
+        tmp_data_file = self.create_file_with_data(sample_quoted_data2_with_newline)
+
+        # Delimiter is set to colon (:), so it will not be inside the data values (this will make sure that the newline is the one causing the quoting)
+        cmd = Q_EXECUTABLE + " -d ':' -w all -W minimal \"select c1,c2,replace(c1,'with' || x'0a' || 'a new line inside it','NEWLINE-REMOVED') from %s\"" % tmp_data_file.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),3)
+
+        self.assertEqual(o[0],six.b('"quoted data with'))
+        # Notice that the third column here is not quoted, because we replaced the newline with something else
+        self.assertEqual(o[1],six.b('a new line inside it":23:quoted data NEWLINE-REMOVED'))
+        self.assertEqual(o[2],six.b('unquoted-data:54:unquoted-data'))
 
         self.cleanup(tmp_data_file)
 
@@ -2000,6 +2020,7 @@ class FormattingTests(AbstractQTestCase):
         self.assertEqual(actual_output,expected_output)
 
         self.cleanup(tmp_data_file)
+
 
 
 class SqlTests(AbstractQTestCase):

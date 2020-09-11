@@ -1508,7 +1508,7 @@ def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
     t = type(v)
-    if (t == str or t == unicode) and ((output_delimiter in v) or (six.u('"') in v)):
+    if (t == str or t == unicode) and ((output_delimiter in v) or (six.u('\n' in v)) or (six.u('"') in v)):
         return six.u('"{}"').format(escape_double_quotes_if_needed(v))
     return v
 

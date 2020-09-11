@@ -4,6 +4,12 @@ set -e
 
 VERSION=2.0.16
 
+if [[ "$TRAVIS_BRANCH" != "master" ]]
+then
+	echo "Not releasing - not on master branch (${TRAVIS_BRANCH})"
+  exit 0
+fi
+
 echo "Packing binary for $TRAVIS_OS_NAME"
 
 if [[ "$TRAVIS_OS_NAME" == "osx" || "$TRAVIS_OS_NAME" == "linux" ]]

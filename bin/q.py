@@ -1508,7 +1508,7 @@ def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
     t = type(v)
-    if (t == str or t == unicode) and ((output_delimiter in v) or (six.u('\n' in v)) or (six.u('"') in v)):
+    if (t == str or t == unicode) and ((output_delimiter in v) or ('\n' in v) or ('"' in v)):
         return six.u('"{}"').format(escape_double_quotes_if_needed(v))
     return v
 
@@ -1860,23 +1860,54 @@ def run_standalone():
 
     # If the user flagged for a tab-delimited file then set the delimiter to tab
     if options.tab_delimited:
+        if options.delimiter is not None and options.delimiter != '\t':
+            print("Warning: -t parameter overrides -d parameter (%s)" % options.delimiter,file=sys.stderr)
         options.delimiter = '\t'
-
-    if options.tab_delimited_output:
-        options.output_delimiter = '\t'
 
     # If the user flagged for a pipe-delimited file then set the delimiter to pipe
     if options.pipe_delimited:
+        if options.delimiter is not None and options.delimiter != '|':
+            print("Warning: -p parameter overrides -d parameter (%s)" % options.delimiter,file=sys.stderr)
         options.delimiter = '|'
-
-    if options.pipe_delimited_output:
-        options.output_delimiter = '|'
 
     if options.delimiter is None:
         options.delimiter = ' '
     elif len(options.delimiter) != 1:
         print("Delimiter must be one character only", file=sys.stderr)
         sys.exit(5)
+
+    if options.tab_delimited_output:
+        if options.output_delimiter is not None and options.output_delimiter != '\t':
+            print("Warning: -T parameter overrides -D parameter (%s)" % options.output_delimiter,file=sys.stderr)
+        options.output_delimiter = '\t'
+
+    if options.pipe_delimited_output:
+        if options.output_delimiter is not None and options.output_delimiter != '|':
+            print("Warning: -P parameter overrides -D parameter (%s)" % options.output_delimiter,file=sys.stderr)
+        options.output_delimiter = '|'
+
+    if options.output_delimiter:
+        # If output delimiter is specified, then we use it
+        options.output_delimiter = options.output_delimiter
+    else:
+        # Otherwise,
+        if options.delimiter:
+            # if an input delimiter is specified, then we use it as the output as
+            # well
+            options.output_delimiter = options.delimiter
+        else:
+            # if no input delimiter is specified, then we use space as the default
+            # (since no input delimiter means any whitespace)
+            options.output_delimiter = " "
+
+    try:
+        max_column_length_limit = int(options.max_column_length_limit)
+        if max_column_length_limit < 1:
+            raise Exception()
+    except:
+        print("Max column length limit must be a positive integer (%s)" % max_column_length_limit, file=sys.stderr)
+        sys.exit(31)
+
 
     if options.input_quoting_mode not in list(QTextAsData.input_quoting_modes.keys()):
         print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(sorted(QTextAsData.input_quoting_modes.keys())),options.input_quoting_mode), file=sys.stderr)
@@ -1898,28 +1929,6 @@ def run_standalone():
         except LookupError:
             print("Encoding %s could not be found" % options.encoding, file=sys.stderr)
             sys.exit(10)
-
-    if options.output_delimiter:
-        # If output delimiter is specified, then we use it
-        output_delimiter = options.output_delimiter
-    else:
-        # Otherwise,
-        if options.delimiter:
-            # if an input delimiter is specified, then we use it as the output as
-            # well
-            options.output_delimiter = options.delimiter
-        else:
-            # if no input delimiter is specified, then we use space as the default
-            # (since no input delimiter means any whitespace)
-            options.output_delimiter = " "
-
-    try:
-        max_column_length_limit = int(options.max_column_length_limit)
-        if max_column_length_limit < 1:
-            raise Exception()
-    except:
-        print("Max column length limit must be a positive integer (%s)" % max_column_length_limit, file=sys.stderr)
-        sys.exit(31)
 
     if options.save_db_to_disk_filename is not None:
         if options.analyze_only:

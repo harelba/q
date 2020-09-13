@@ -1568,7 +1568,7 @@ class UserFunctionTests(AbstractQTestCase):
         self.assertEqual(len(o),1)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0],'1479.7015464838,1569.4604964764')
+        self.assertEqual(o[0],six.b('1479.7015464838,1569.4604964764'))
 
         self.cleanup(tmpfile)
 

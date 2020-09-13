@@ -31,6 +31,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import OrderedDict
+
 q_version = '2.0.16'
 
 __all__ = [ 'QTextAsData' ]
@@ -72,11 +74,26 @@ def get_stdout_encoding(encoding_override=None):
 
 SHOW_SQL = False
 
-def sha1(data):
-    if not isinstance(data,str) and not isinstance(data,unicode):
-        return hashlib.sha1(str(data)).hexdigest()
-    return hashlib.sha1(data).hexdigest()
+sha_algorithms = {
+    1 : hashlib.sha1,
+    224: hashlib.sha224,
+    256: hashlib.sha256,
+    386: hashlib.sha384,
+    512: hashlib.sha512
+}
 
+def sha(data,algorithm,encoding):
+    try:
+        f = sha_algorithms[algorithm]
+        return f(six.text_type(data).encode(encoding)).hexdigest()
+    except Exception as e:
+        print(e)
+
+# For backward compatibility
+def sha1(data,encoding):
+    return sha(data,1,encoding)
+
+# TODO Add caching of compiled regexps - Will be added after benchmarking capability is baked in
 def regexp(regular_expression, data):
     if data is not None:
         if not isinstance(data, str) and not isinstance(data, unicode):
@@ -85,15 +102,16 @@ def regexp(regular_expression, data):
     else:
         return False
 
-def md5(data,encoding='utf-8'):
+def md5(data,encoding):
     m = hashlib.md5()
     m.update(six.text_type(data).encode(encoding))
     return m.hexdigest()
 
-class Sqlite3DBResults(object):
-    def __init__(self,query_column_names,results):
-        self.query_column_names = query_column_names
-        self.results = results
+def sqrt(data):
+    return math.sqrt(data)
+
+def power(data,p):
+    return data**p
 
 def percentile(l, p):
     # TODO Alpha implementation, need to provide multiple interpolation methods, and add tests
@@ -106,6 +124,7 @@ def percentile(l, p):
         return l[int(k)]
     return (c-k) * l[int(f)] + (k-f) * l[int(c)]
 
+# TODO Streaming Percentile to prevent memory consumption blowup for large datasets
 class StrictPercentile(object):
     def __init__(self):
         self.values = []
@@ -120,6 +139,130 @@ class StrictPercentile(object):
             return None
         else:
             return percentile(sorted(self.values),self.p)
+
+class StdevPopulation(object):
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 0
+
+    def step(self, value):
+        try:
+            # Ignore nulls
+            if value is None:
+                return
+            val = float(value) # if fails, skips this iteration, which also ignores nulls
+            tM = self.M
+            self.k += 1
+            self.M += ((val - tM) / self.k)
+            self.S += ((val - tM) * (val - self.M))
+        except ValueError:
+            # TODO propagate udf errors to console
+            raise Exception("Data is not numeric when calculating stddev (%s)" % value)
+
+    def finalize(self):
+        if self.k <= 1: # avoid division by zero
+            return None
+        else:
+            return math.sqrt(self.S / (self.k))
+
+class StdevSample(object):
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 0
+
+    def step(self, value):
+        try:
+            # Ignore nulls
+            if value is None:
+                return
+            val = float(value) # if fails, skips this iteration, which also ignores nulls
+            tM = self.M
+            self.k += 1
+            self.M += ((val - tM) / self.k)
+            self.S += ((val - tM) * (val - self.M))
+        except ValueError:
+            # TODO propagate udf errors to console
+            raise Exception("Data is not numeric when calculating stddev (%s)" % value)
+
+    def finalize(self):
+        if self.k <= 1: # avoid division by zero
+            return None
+        else:
+            return math.sqrt(self.S / (self.k-1))
+
+class FunctionType(object):
+    REGULAR = 1
+    AGG = 2
+
+class UserFunctionDef(object):
+    def __init__(self,func_type,name,usage,description,func_or_obj,param_count):
+        self.func_type = func_type
+        self.name = name
+        self.usage = usage
+        self.description = description
+        self.func_or_obj = func_or_obj
+        self.param_count = param_count
+
+user_functions = [
+    UserFunctionDef(FunctionType.REGULAR,
+                    "regexp","regexp(<regular_expression>,<expr>) = <1|0>",
+                    "Find regexp in string expression. Returns 1 if found or 0 if not",
+                    regexp,
+                    2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "sha","sha(<expr>,<encoding>,<algorithm>) = <hex-string-of-sha>",
+                    "Calculate sha of some expression. Algorithm can be one of 1,224,256,384,512. For now encoding must be manually provided. Will use the input encoding automatically in the future.",
+                    sha,
+                    3),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "sha1","sha1(<expr>,<encoding>) = <hex-string-of-sha>",
+                    "Calculate sha1 of some expression. For now encoding must be manually provided. Will be taken automatically from the input encoding in the future.",
+                    sha1,
+                    2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "md5","md5(<expr>,<encoding>) = <hex-string-of-md5>",
+                    "Calculate md5 of expression. Returns a hex-string of the result. Currently requires to manually provide the encoding of the data. Will be taken automatically from the input encoding in the future.",
+                    md5,
+                    2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "sqrt","sqrt(<expr>) = <square-root>",
+                    "Calculate the square root of the expression",
+                    sqrt,
+                    1),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "power","power(<expr1>,<expr2>) = <expr1-to-the-power-of-expr2>",
+                    "Raise expr1 to the power of expr2",
+                    power,
+                    2),
+    UserFunctionDef(FunctionType.AGG,
+                    "percentile","percentile(<expr>,<percentile-in-the-range-0-to-1>) = <percentile-value>",
+                    "Calculate the strict percentile of a set of a values.",
+                    StrictPercentile,
+                    2),
+    UserFunctionDef(FunctionType.AGG,
+                    "stddev_pop","stddev_pop(<expr>) = <stddev-value>",
+                    "Calculate the population standard deviation of a set of values",
+                    StdevPopulation,
+                    1),
+    UserFunctionDef(FunctionType.AGG,
+                    "stddev_sample","stddev_sample(<expr>) = <stddev-value>",
+                    "Calculate the sample standard deviation of a set of values",
+                    StdevSample,
+                    1)
+]
+
+def print_user_functions():
+    for udf in user_functions:
+        print("Function: %s" % udf.name)
+        print("     Usage: %s" % udf.usage)
+        print("     Description: %s" % udf.description)
+
+class Sqlite3DBResults(object):
+    def __init__(self,query_column_names,results):
+        self.query_column_names = query_column_names
+        self.results = results
 
 class Sqlite3DB(object):
 
@@ -169,11 +312,13 @@ class Sqlite3DB(object):
             raise ValueError('Unknown store-db-to-disk method %s' % method)
 
     def add_user_functions(self):
-        self.conn.create_function("regexp", 2, regexp)
-        self.conn.create_function("sha1", 1, sha1)
-        self.conn.create_function("md5", 2, md5)
-        self.conn.create_function("md5", 1, md5)
-        self.conn.create_aggregate("percentile",2,StrictPercentile)
+        for udf in user_functions:
+            if type(udf.func_or_obj) == type(object):
+                self.conn.create_aggregate(udf.name,udf.param_count,udf.func_or_obj)
+            elif type(udf.func_or_obj) == type(md5):
+                self.conn.create_function(udf.name,udf.param_count,udf.func_or_obj)
+            else:
+                raise Exception("Invalid user function definition %s" % str(udf))
 
     def is_numeric_type(self, column_type):
         return column_type in self.numeric_column_types
@@ -1791,6 +1936,8 @@ def run_standalone():
                       help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
     output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
                       help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
+    output_data_option_group.add_option("-L","--list-user-functions",dest="list_user_functions",default=False,action="store_true",
+                      help="List all user functions")
     parser.add_option_group(output_data_option_group)
     #-----------------------------------------------
     query_option_group = OptionGroup(parser,"Query Related Options")
@@ -1808,6 +1955,11 @@ def run_standalone():
         sys.exit(0)
 
 ###
+
+    if options.list_user_functions:
+        print_user_functions()
+        sys.exit(0)
+
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
         print("Must provide at least one query in the command line, or through a file with the -q parameter", file=sys.stderr)

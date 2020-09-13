@@ -89,7 +89,7 @@ Usage:
 
         Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 
-        Basic usage is q "<sql-like query>" where table names are just regular file names (Use - to read from standard input)
+        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
             When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
 
         Column types are detected automatically. Use -A in order to see the column name/type analysis.
@@ -133,6 +133,8 @@ Options:
     -d DELIMITER, --delimiter=DELIMITER
                         Field delimiter. If none specified, then space is used
                         as the delimiter.
+    -p, --pipe-delimited
+                        Same as -d '|'. Added for convenience and readability
     -t, --tab-delimited
                         Same as -d <tab>. Just a shorthand for handling
                         standard tab delimited file You can use $'\t' if you
@@ -186,6 +188,8 @@ Options:
                         Field delimiter for output. If none specified, then
                         the -d delimiter is used if present, or space if no
                         delimiter is specified
+    -P, --pipe-delimited-output
+                        Same as -D '|'. Added for convenience and readability.
     -T, --tab-delimited-output
                         Same as -D <tab>. Just a shorthand for outputting tab
                         delimited output. You can use -D $'\t' if you want.
@@ -210,6 +214,8 @@ Options:
                         nonnumeric and none. Note the slightly misleading
                         parameter name, and see the matching -w parameter for
                         input quoting.
+    -L, --list-user-functions
+                        List all user functions
 
   Query Related Options:
     -q QUERY_FILENAME, --query-filename=QUERY_FILENAME

@@ -91,9 +91,7 @@ def sha(data,algorithm,encoding):
 
 # For backward compatibility only (doesn't handle encoding well enough)
 def sha1(data):
-    if not isinstance(data,str) and not isinstance(data,unicode):
-        return hashlib.sha1(str(data)).hexdigest()
-    return hashlib.sha1(data).hexdigest()
+    return hashlib.sha1(six.text_type(data).encode('utf-8')).hexdigest()
 
 # TODO Add caching of compiled regexps - Will be added after benchmarking capability is baked in
 def regexp(regular_expression, data):

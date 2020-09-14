@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION=2.0.16
+VERSION=2.0.17
 
 if [[ "$TRAVIS_BRANCH" != "master" ]]
 then

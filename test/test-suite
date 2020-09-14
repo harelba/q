@@ -1601,7 +1601,7 @@ class UserFunctionTests(AbstractQTestCase):
         self.assertEqual(o[4],six.b('55.9016994375'))
 
     def test_sha1_function(self):
-        cmd = 'seq 1 4 | %s -c 1 -d , "select c1,sha1(c1,\'utf-8\') from -"' % Q_EXECUTABLE
+        cmd = 'seq 1 4 | %s -c 1 -d , "select c1,sha1(c1) from -"' % Q_EXECUTABLE
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)

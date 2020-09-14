@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2012-2019 Harel Ben-Attia
+#   Copyright (C) 2012-2020 Harel Ben-Attia
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 
-q_version = '2.0.16'
+q_version = '2.0.17'
 
 __all__ = [ 'QTextAsData' ]
 
@@ -89,9 +89,11 @@ def sha(data,algorithm,encoding):
     except Exception as e:
         print(e)
 
-# For backward compatibility
-def sha1(data,encoding):
-    return sha(data,1,encoding)
+# For backward compatibility only (doesn't handle encoding well enough)
+def sha1(data):
+    if not isinstance(data,str) and not isinstance(data,unicode):
+        return hashlib.sha1(str(data)).hexdigest()
+    return hashlib.sha1(data).hexdigest()
 
 # TODO Add caching of compiled regexps - Will be added after benchmarking capability is baked in
 def regexp(regular_expression, data):
@@ -217,10 +219,10 @@ user_functions = [
                     sha,
                     3),
     UserFunctionDef(FunctionType.REGULAR,
-                    "sha1","sha1(<expr>,<encoding>) = <hex-string-of-sha>",
-                    "Calculate sha1 of some expression. For now encoding must be manually provided. Will be taken automatically from the input encoding in the future.",
+                    "sha1","sha1(<expr>) = <hex-string-of-sha>",
+                    "Exists for backward compatibility only, since it doesn't handle encoding properly. Calculates sha1 of some expression",
                     sha1,
-                    2),
+                    1),
     UserFunctionDef(FunctionType.REGULAR,
                     "md5","md5(<expr>,<encoding>) = <hex-string-of-md5>",
                     "Calculate md5 of expression. Returns a hex-string of the result. Currently requires to manually provide the encoding of the data. Will be taken automatically from the input encoding in the future.",
@@ -1296,7 +1298,7 @@ def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
 def print_credentials():
     print("q version %s" % q_version, file=sys.stderr)
     print("Python: %s" % " // ".join([str(x).strip() for x in sys.version.split("\n")]), file=sys.stderr)
-    print("Copyright (C) 2012-2019 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
+    print("Copyright (C) 2012-2020 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
     print("http://harelba.github.io/q/", file=sys.stderr)
     print(file=sys.stderr)
 

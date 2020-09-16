@@ -2697,10 +2697,8 @@ class BenchmarkTests(AbstractQTestCase):
             raise Exception("Q_BENCHMARK_RESULTS_FOLDER must be provided as an environment variable")
 
         self._create_benchmark_file_if_needed()
-        # for columns in [1, 5, 10, 20, 50, 100]:
-        #     for lines in [1, 10, 100, 1000, 10000, 100000, 1000000]:
-        for columns in [1]:
-            for lines in [1,10]:
+        for columns in [1, 5, 10, 20, 50, 100]:
+            for lines in [1, 10, 100, 1000, 10000, 100000, 1000000]:
                 attempt_results = []
                 for attempt in range(10):
                     filename = self._prepare_test_file(lines, columns)

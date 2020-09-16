@@ -38,8 +38,6 @@ export Q_BENCHMARK_RESULTS_FOLDER="./benchmark-results/${EFFECTIVE_Q_EXECUTABLE}
 echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
 mkdir -p $Q_BENCHMARK_RESULTS_FOLDER
 
-exit 2
-
 source benchmark_config.sh
 
 for ver in $BENCHMARK_PYTHON_VERSIONS

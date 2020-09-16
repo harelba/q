@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -e
+
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+source benchmark_config.sh
+
+if [ ! -f ./benchmark_data.tar.gz ];
+then
+	echo benchmark data not found. downloading it
+  curl "https://s3.amazonaws.com/harelba-q-public/benchmark_data.tar.gz" -o ./benchmark_data.tar.gz
+else
+  echo no need to download benchmark data
+fi
+
+if [ ! -d ./_benchmark_data ];
+then
+	echo extracting benchmark data
+  tar xvfz benchmark_data.tar.gz
+  echo benchmark data is ready
+else
+  echo no need to extract benchmark data
+fi
+
+exit 1
+
+for ver in $BENCHMARK_PYTHON_VERSIONS
+do
+  echo installing $ver 
+  pyenv install -s $ver
+
+  venv_name=q-benchmark-$ver
+  echo create venv $venv_name
+  pyenv virtualenv -f $ver $venv_name
+  echo activate venv $venv_name
+  pyenv activate $venv_name
+  pyenv version
+  echo installing requirements $venv_name
+  pip install -r ../requirements.txt
+  echo deactivating $venv_name
+  pyenv deactivate    
+done
+
+

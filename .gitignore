@@ -12,3 +12,6 @@ packages
 .idea/
 dist/windows/
 generated-site/
+benchmark_data.tar.gz
+_benchmark_data/
+q.egg-info/

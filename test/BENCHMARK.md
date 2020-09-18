@@ -1,9 +1,19 @@
 
 
-*Please don't use or publish this benchmark data yet, it's still alpha, i'm checking the validity of the results, and python 3 q version has not been merged yet.*
+NOTE: *Please don't use or publish this benchmark data yet. See below for details*
 
-**NOTE**
-This just a preliminary benchmark, and the results I got are somewhat surprising. I would love to validate these results by having other people run the benchmark as well and send me emails with their results. If you're interested, follow the "Running the benchmark" part. After the benchmark is finished, send me the final results file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
+# Overview
+This just a preliminary benchmark, originally created for validating performance optimizations and suggests from users, and analyzing q's move to python3. After writing it, I thought it might be interesting to test its speed against textql and octosql as well.
+
+The results I'm getting are somewhat surprising, to the point of me questioning them a bit, so it would be great to validate the further before finalizing the benchmark results.0
+
+The most surprising results are as follows:
+* python3 vs python2 - A huge improvement (for large files, execution times with python 3 are around 40% of the times for python 2)
+* python3 vs textql (written in golang) - Seems that textql becomes slower than the python3 q version as the data sizes grows (both rows and columns)
+
+I would love to validate these results by having other people run the benchmark as well and send me emails with their results. 
+
+If you're interested, follow the instructions and run the benchmark on your machine. After the benchmark is finished, send me the final results file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
@@ -13,7 +23,7 @@ This is an initial version of the benchmark, along with some results. The follow
 
 The specific python versions which are being tested are specified in `benchmark-config.sh`.
 
-This is by no means a scientific benchmark, and it only focuses on the data loading time. Also, it does not try to provide any usability comparison between q and textql. Actually, I've created this benchmark in order to compare q over python 2 and 3, and only then decided it would be interesting to compare the results to textql and octosql.
+This is by no means a scientific benchmark, and it only focuses on the data loading time which is the only significant factor for comparison (e.g. the query itself is a very simple count query). Also, it does not try to provide any usability comparison between q and textql/octosql, an interesting topic on its own.
 
 ## Methodology
 The idea was to compare the time sensitivity of row and column count. 

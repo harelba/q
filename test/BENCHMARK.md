@@ -5,15 +5,18 @@ NOTE: *Please don't use or publish this benchmark data yet. See below for detail
 # Overview
 This just a preliminary benchmark, originally created for validating performance optimizations and suggestions from users, and analyzing q's move to python3. After writing it, I thought it might be interesting to test its speed against textql and octosql as well.
 
-The results I'm getting are somewhat surprising, to the point of me questioning them a bit, so it would be great to validate the further before finalizing the benchmark results.0
+The results I'm getting are somewhat surprising, to the point of me questioning them a bit, so it would be great to validate the further before finalizing the benchmark results.
 
 The most surprising results are as follows:
 * python3 vs python2 - A huge improvement (for large files, execution times with python 3 are around 40% of the times for python 2)
 * python3 vs textql (written in golang) - Seems that textql becomes slower than the python3 q version as the data sizes grows (both rows and columns)
+* octosql results are much slower than the other tools - Might be just a configuration issue, I've contacted octosql developers to pitch in.
 
-I would love to validate these results by having other people run the benchmark as well and send me emails with their results. 
+I would love to validate these results by having other people run the benchmark as well and send me their results. 
 
 If you're interested, follow the instructions and run the benchmark on your machine. After the benchmark is finished, send me the final results file, along with some details about your hardware, and i'll add it to the spreadsheet. <harelba@gmail.com>
+
+I've tried to make running the benchmark as seamless as possible, but there obviously might be errors/issues. Please contact me if you encounter any issue, or just open a ticket.
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
@@ -37,7 +40,7 @@ The benchmark executes simple `select count(*) from <file>` queries for each com
 The graphs below only compare the means of the results, the standard deviations are written into the google sheet itself, and can be viewed there if needed.
 
 ## Hardware
-OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
+OSX Catalina on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
 
 ## Running the benchmark
 Please note that the initial run generates large files, so you'd need more than 3GB of free space available. All the generated files reside in the `_benchmark_data/` folder.
@@ -58,17 +61,14 @@ Run `./run-benchmark <benchmark-id>`.
 
 Benchmark output files will be written to `./benchmark-results/<q-executable>/<benchmark-id>/`.
 
-`benchmark-id` is the id you wanna give the benchmark.
-`q-executable` is the name of the q executable being used for the benchmark. If none has been provided through Q_EXECUTABLE, then the value will be the last commit hash. Note that there is no checking of whether the working tree is clean.
+* `benchmark-id` is the id you wanna give the benchmark.
+* `q-executable` is the name of the q executable being used for the benchmark. If none has been provided through Q_EXECUTABLE, then the value will be the last commit hash. Note that there is no checking of whether the working tree is clean. 
 
 The summary of benchmark will be written to `./benchmark-results/<benchmark-id>/summary.benchmark-results``
 
 By default, the benchmark will use the source python files inside the project. If you wanna run it on one of the standalone binary executable, the set Q_EXECUTABLE to the full path of the q binary.
 
-## Updating the benchmark markdown document file
-The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 
-
-add a new tab to the google sheet, and paste the content of `summary.benchmark-results` to the new sheet.
+For anyone helping with running the benchmark, don't use this parameter for now, just test against a clean checkout of the code using `./run-benchmark <benchmark-id>`.
 
 ## Results
 (Results are automatically updated from the baseline tab in the google spreadsheet).
@@ -95,4 +95,14 @@ Based on a the largest file size of 1,000,000 rows.
 
 ### 100 Column Table
 ![100 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=2101488258&format=image)
+
+
+## Benchmark Development info
+### Running against the standalone binary
+* `./run-benchmark` can accept a second parameter with the q executable. If it gets this parameter, it will use this path for running q. This provides a way to test the standalone q binaries in the new packaging format. When this parameter does not exist, the benchmark is executed directly from the source code.
+
+### Updating the benchmark markdown document file
+The results should reside in the following [google sheet](https://docs.google.com/spreadsheets/d/1Ljr8YIJwUQ5F4wr6ATga5Aajpu1CvQp1pe52KGrLkbY/edit?usp=sharing). 
+
+add a new tab to the google sheet, and paste the content of `summary.benchmark-results` to the new sheet.
 

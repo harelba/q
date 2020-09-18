@@ -2779,11 +2779,12 @@ dataSources:
     config:
       path: "{}"
       headerRow: false
+      batchSize: 10000
 """.format(data_filename)[1:]
             f = open(config_fn,'w')
             f.write(j)
             f.close()
-            return 'octosql -c {} -o live-csv "select count(*) from bmdata a"'.format(config_fn)
+            return 'octosql -c {} -o batch-csv "select count(*) from bmdata a"'.format(config_fn)
 
         name = 'octosql_%s' % self._get_octosql_version()
         self._perform_test_performance_matrix(name,generate_octosql_cmd)

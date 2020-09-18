@@ -7,10 +7,11 @@ This just a preliminary benchmark, and the results I got are somewhat surprising
 
 # Benchmark
 This is an initial version of the benchmark, along with some results. The following is compared:
-* q running on python 2.7.16
-* q running on python 3.8.1
+* q running on multiple python versions
 * textql 2.0.3
 * octosql v0.3.0
+
+The specific python versions which are being tested are specified in `benchmark-config.sh`.
 
 This is by no means a scientific benchmark, and it only focuses on the data loading time. Also, it does not try to provide any usability comparison between q and textql. Actually, I've created this benchmark in order to compare q over python 2 and 3, and only then decided it would be interesting to compare the results to textql and octosql.
 
@@ -29,9 +30,9 @@ The graphs below only compare the means of the results, the standard deviations 
 OSX Sierra on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
 
 ## Running the benchmark
-Please note that the initial run generates big files, so you'd need more than 3GB of free space available. All the generated files reside in the `_benchmark_data/` folder.
+Please note that the initial run generates large files, so you'd need more than 3GB of free space available. All the generated files reside in the `_benchmark_data/` folder.
 
-Part of the preparation flow will download the benchmark as needed.
+Part of the preparation flow will download the benchmark data as needed.
 
 ### Preparations
 * Prerequisites:
@@ -61,6 +62,11 @@ add a new tab to the google sheet, and paste the content of `summary.benchmark-r
 
 ## Results
 (Results are automatically updated from the baseline tab in the google spreadsheet).
+
+### Sensitivity to column count 
+Based on a the largest file size of 1,000,000 rows.
+
+![Sensitivity to column count](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1585602598&format=image)
 
 ### 1 Column Table
 ![1 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1119350798&format=image)

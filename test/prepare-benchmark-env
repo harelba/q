@@ -5,7 +5,7 @@ set -e
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
 
-source benchmark_config.sh
+source benchmark-config.sh
 
 if [ ! -f ./benchmark_data.tar.gz ];
 then
@@ -24,9 +24,7 @@ else
   echo no need to extract benchmark data
 fi
 
-exit 1
-
-for ver in $BENCHMARK_PYTHON_VERSIONS
+for ver in "${BENCHMARK_PYTHON_VERSIONS[@]}"
 do
   echo installing $ver 
   pyenv install -s $ver

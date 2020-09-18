@@ -3,7 +3,7 @@
 NOTE: *Please don't use or publish this benchmark data yet. See below for details*
 
 # Overview
-This just a preliminary benchmark, originally created for validating performance optimizations and suggests from users, and analyzing q's move to python3. After writing it, I thought it might be interesting to test its speed against textql and octosql as well.
+This just a preliminary benchmark, originally created for validating performance optimizations and suggestions from users, and analyzing q's move to python3. After writing it, I thought it might be interesting to test its speed against textql and octosql as well.
 
 The results I'm getting are somewhat surprising, to the point of me questioning them a bit, so it would be great to validate the further before finalizing the benchmark results.0
 

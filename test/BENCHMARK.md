@@ -81,11 +81,10 @@ Detailed results below.
 Summary:
 * All python 3 versions (3.6/3.7/3.8) provide similar results across all scales.
 * python 3.x provides significantly better results than python2. Improvement grows as the file size grows (20% improvement for small files, up to ~70% improvement for the largest file)
-* textql provides faster results than q (py3) up to around 40MB of data. As the size grows further, it becomes slower than q, up to 80% (74 seconds vs 41 seconds) for the largest file
-* The larger the file, textql becomes slower than q with python 3.x (up to 80% more time than q for the largest file)
-* octosql is significantly slower, even for small files with a low number of rows and columns
+* textql seems to provide faster results than q (py3) for smaller files, up to around 30MB of data. As the size grows further, it becomes slower than q, up to 80% (74 seconds vs 41 seconds) for the largest file
+* The larger the files, textql becomes slower than q-py3 (up to 80% more time than q for the largest file)
+* octosql is significantly slower than both q and textql, even for small files with a low number of rows and columns
 
-Results for 1M rows and different column counts (in seconds):
 ### Data for 1M rows
 
 #### Run time durations for 1M rows and different column counts:

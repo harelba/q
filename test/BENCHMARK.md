@@ -34,6 +34,10 @@ The idea was to compare the time sensitivity of row and column count.
 * Column counts: 1,5,10,20,50,100
 * Iterations for each combination: 10
 
+File sizes:
+* 1M rows by 100 columns - 976MB (~1GB) - Largest file
+* 1M rows by 50 columns - 477MB
+
 The benchmark executes simple `select count(*) from <file>` queries for each combination, calculating the mean and stddev of each set of iterations. The stddev is used in order to measure the validity of the results.
 
 The graphs below only compare the means of the results, the standard deviations are written into the google sheet itself, and can be viewed there if needed.
@@ -72,12 +76,55 @@ For anyone helping with running the benchmark, don't use this parameter for now,
 ## Results
 (Results are automatically updated from the baseline tab in the google spreadsheet).
 
+Detailed results below.
+
+Summary:
+* All python 3 versions (3.6/3.7/3.8) provide similar results across all scales.
+* python 3.x provides significantly better results than python2. Improvement grows as the file size grows (20% improvement for small files, up to ~70% improvement for the largest file)
+* textql provides faster results than q (py3) up to around 40MB of data. As the size grows further, it becomes slower than q, up to 80% (74 seconds vs 41 seconds) for the largest file
+* The larger the file, textql becomes slower than q with python 3.x (up to 80% more time than q for the largest file)
+* octosql is significantly slower, even for small files with a low number of rows and columns
+
+Results for 1M rows and different column counts (in seconds):
+### Data for 1M rows
+
+#### Run time durations for 1M rows and different column counts:
+|   rows  	| columns 	| File Size 	| python 2.7 	| python 3.6 	| python 3.7 	| python 3.8 	| textql 	| octosql 	|
+|:-------:	|:-------:	|:---------:	|:----------:	|:----------:	|:----------:	|:----------:	|:------:	|:-------:	|
+| 1000000 	|    1    	|    17M    	|    5.15    	|    4.24    	|    4.08    	|    3.98    	|  2.90  	|  49.95  	|
+| 1000000 	|    5    	|    37M    	|    10.68   	|    5.37    	|    5.26    	|    5.14    	|  5.88  	|  54.69  	|
+| 1000000 	|    10   	|    89M    	|    17.56   	|    7.25    	|    7.15    	|    7.01    	|  9.69  	|  65.32  	|
+| 1000000 	|    20   	|    192M   	|    30.28   	|    10.96   	|    10.78   	|    10.64   	|  17.34 	|  83.94  	|
+| 1000000 	|    50   	|    477M   	|    71.56   	|    21.98   	|    21.59   	|    21.70   	|  38.57 	|  158.26 	|
+| 1000000 	|   100   	|    986M   	|   131.86   	|    41.71   	|    40.82   	|    41.02   	|  74.62 	|  289.58 	|
+
+#### Comparison between python 3.x and python 2 run times for the largest file (1M rows, 100 columns):
+| q-py2 run time 	| q-py3.6 vs q-py2 run time 	| q-py3.7 vs q-py2 run time 	| q-py3.8 vs q-py2 run time 	|
+|:-------------:	|:------------------------:	|:------------------------:	|:------------------------:	|
+|    100.00%    	|          82.34%          	|          79.34%          	|          77.36%          	|
+|    100.00%    	|          50.25%          	|          49.22%          	|          48.08%          	|
+|    100.00%    	|          41.30%          	|          40.69%          	|          39.93%          	|
+|    100.00%    	|          36.18%          	|          35.59%          	|          35.14%          	|
+|    100.00%    	|          30.71%          	|          30.17%          	|          30.32%          	|
+|    100.00%    	|          31.63%          	|          30.96%          	|          31.11%          	|
+
+#### textql and octosql comparison against q-py3 run time
+| avg q-py3 run time 	| textql vs q-py3 run time 	| octosql vs q-py3 run time 	|
+|:-----------------:	|:-----------------------:	|:------------------------:	|
+|      100.00%      	|          70.67%         	|         1217.76%         	|
+|      100.00%      	|         111.86%         	|         1040.70%         	|
+|      100.00%      	|         135.80%         	|          915.28%         	|
+|      100.00%      	|         160.67%         	|          777.92%         	|
+|      100.00%      	|         177.26%         	|          727.40%         	|
+|      100.00%      	|         181.19%         	|          703.15%         	|
+
+
 ### Sensitivity to column count 
 Based on a the largest file size of 1,000,000 rows.
 
 ![Sensitivity to column count](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1585602598&format=image)
 
-### Version comparison per column count
+### Sensitivity to line count (per column count)
 
 #### 1 Column Table
 ![1 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=1119350798&format=image)

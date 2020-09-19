@@ -42,6 +42,8 @@ The benchmark executes simple `select count(*) from <file>` queries for each com
 
 The graphs below only compare the means of the results, the standard deviations are written into the google sheet itself, and can be viewed there if needed.
 
+Instructions on how to run the benchmark are at the bottom section of this document, after the results section.
+
 ## Hardware
 OSX Catalina on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
 

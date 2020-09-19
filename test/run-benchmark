@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Usage: ./run-benchmark.sh <benchmark-id> <q-executable>
+set -e
+
+get_abs_filename() {
+  # $1 : relative filename
+  echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+if [ "x$1" == "x" ];
+then
+	echo Benchmark id must be provided as a parameter
+  exit 1
+fi
+Q_BENCHMARK_ID=$1
+
+if [ "x$2" == "x" ];
+then
+  EFFECTIVE_Q_EXECUTABLE="source-files-$(git rev-parse HEAD)"
+else
+  ABS_Q_EXECUTABLE="$(get_abs_filename $2)"
+  export Q_EXECUTABLE=$ABS_Q_EXECUTABLE
+	if [ ! -f $ABS_Q_EXECUTABLE ]
+	then
+		echo "q executable must exist ($ABS_Q_EXECUTABLE)"
+		exit 1
+	fi
+  EFFECTIVE_Q_EXECUTABLE="${ABS_Q_EXECUTABLE//\//__}"
+fi
+
+echo "Q executable to use is $EFFECTIVE_Q_EXECUTABLE"
+
+# Must be provided to the benchmark code so it knows where to write the results to
+export Q_BENCHMARK_RESULTS_FOLDER="./benchmark-results/${EFFECTIVE_Q_EXECUTABLE}/${Q_BENCHMARK_ID}/"
+echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
+mkdir -p $Q_BENCHMARK_RESULTS_FOLDER
+
+source benchmark-config.sh
+
+ALL_FILES=()
+
+for ver in "${BENCHMARK_PYTHON_VERSIONS[@]}"
+do
+venv_name=q-benchmark-$ver
+echo activating $venv_name
+pyenv activate $venv_name
+echo "==== testing inside $venv_name ==="
+./test-all BenchmarkTests.test_q_matrix -v
+RESULT_FILE="${Q_BENCHMARK_RESULTS_FOLDER}/$venv_name.benchmark-results"
+echo "==== Done. Results are in $RESULT_FILE"
+ALL_FILES[${#ALL_FILES[@]}]="$RESULT_FILE"
+echo "Deactivating"
+pyenv deactivate
+done
+
+echo "==== testing textql ==="
+./test-all BenchmarkTests.test_textql_matrix -v
+RESULT_FILE="textql*.benchmark-results"
+ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+echo "Done. Results are in textql.benchmark-results"
+
+echo "==== testing octosql ==="
+./test-all BenchmarkTests.test_octosql_matrix -v
+RESULT_FILE="octosql*.benchmark-results"
+ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+echo "Done. Results are in octosql.benchmark-results"
+
+summary_file="$Q_BENCHMARK_RESULTS_FOLDER/summary.benchmark-results"
+
+rm -vf $summary_file
+
+paste ${ALL_FILES[*]} > $summary_file
+echo "Done. final results file is $summary_file"

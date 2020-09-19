@@ -45,34 +45,6 @@ The graphs below only compare the means of the results, the standard deviations 
 ## Hardware
 OSX Catalina on a 15" Macbook Pro from Mid 2015, with 16GB of RAM, and an internal Flash Drive of 256GB.
 
-## Running the benchmark
-Please note that the initial run generates large files, so you'd need more than 3GB of free space available. All the generated files reside in the `_benchmark_data/` folder.
-
-Part of the preparation flow will download the benchmark data as needed.
-
-### Preparations
-* Prerequisites:
-  * pyenv installed
-  * pyenv-virtualenv installed
-  * [`textql`](https://github.com/dinedal/textql#install)
-  * [`octosql`](https://github.com/cube2222/octosql#installation)
-
-Run `./prepare-benchmark-env`
-
-### Execution
-Run `./run-benchmark <benchmark-id>`.
-
-Benchmark output files will be written to `./benchmark-results/<q-executable>/<benchmark-id>/`.
-
-* `benchmark-id` is the id you wanna give the benchmark.
-* `q-executable` is the name of the q executable being used for the benchmark. If none has been provided through Q_EXECUTABLE, then the value will be the last commit hash. Note that there is no checking of whether the working tree is clean. 
-
-The summary of benchmark will be written to `./benchmark-results/<benchmark-id>/summary.benchmark-results``
-
-By default, the benchmark will use the source python files inside the project. If you wanna run it on one of the standalone binary executable, the set Q_EXECUTABLE to the full path of the q binary.
-
-For anyone helping with running the benchmark, don't use this parameter for now, just test against a clean checkout of the code using `./run-benchmark <benchmark-id>`.
-
 ## Results
 (Results are automatically updated from the baseline tab in the google spreadsheet).
 
@@ -145,6 +117,34 @@ Based on a the largest file size of 1,000,000 rows.
 
 #### 100 Column Table
 ![100 column table](https://docs.google.com/spreadsheets/d/e/2PACX-1vQy9Zm4I322Tdf5uoiFFJx6Oi3Z4AMq7He3fUUtsEQVQIdTGfWgjxFD6k8PAy9wBjvFkqaG26oBgNTP/pubchart?oid=2101488258&format=image)
+
+## Running the benchmark
+Please note that the initial run generates large files, so you'd need more than 3GB of free space available. All the generated files reside in the `_benchmark_data/` folder.
+
+Part of the preparation flow will download the benchmark data as needed.
+
+### Preparations
+* Prerequisites:
+  * pyenv installed
+  * pyenv-virtualenv installed
+  * [`textql`](https://github.com/dinedal/textql#install)
+  * [`octosql`](https://github.com/cube2222/octosql#installation)
+
+Run `./prepare-benchmark-env`
+
+### Execution
+Run `./run-benchmark <benchmark-id>`.
+
+Benchmark output files will be written to `./benchmark-results/<q-executable>/<benchmark-id>/`.
+
+* `benchmark-id` is the id you wanna give the benchmark.
+* `q-executable` is the name of the q executable being used for the benchmark. If none has been provided through Q_EXECUTABLE, then the value will be the last commit hash. Note that there is no checking of whether the working tree is clean. 
+
+The summary of benchmark will be written to `./benchmark-results/<benchmark-id>/summary.benchmark-results``
+
+By default, the benchmark will use the source python files inside the project. If you wanna run it on one of the standalone binary executable, the set Q_EXECUTABLE to the full path of the q binary.
+
+For anyone helping with running the benchmark, don't use this parameter for now, just test against a clean checkout of the code using `./run-benchmark <benchmark-id>`.
 
 ## Benchmark Development info
 ### Running against the standalone binary

@@ -100,7 +100,7 @@ Summary:
 #### Comparison between python 3.x and python 2 run times (1M rows):
 (>100% is slower than q-py2, <100% is faster than q-py2)
 
-|  lines  	| columns 	| file size 	| q-py2 runtime 	| q-py3.6 vs q-py2 runtime 	| q-py3.7 vs q-py2 runtime 	| q-py3.8 vs q-py2 runtime 	|
+|   rows    | columns 	| file size 	| q-py2 runtime 	| q-py3.6 vs q-py2 runtime 	| q-py3.7 vs q-py2 runtime 	| q-py3.8 vs q-py2 runtime 	|
 |:-------:	|:-------:	|:---------:	|:-------------:	|:------------------------:	|:------------------------:	|:------------------------:	|
 | 1000000 	|    1    	|    17M    	|    100.00%    	|          82.34%          	|          79.34%          	|          77.36%          	|
 | 1000000 	|    5    	|    37M    	|    100.00%    	|          50.25%          	|          49.22%          	|          48.08%          	|
@@ -112,7 +112,7 @@ Summary:
 #### textql and octosql comparison against q-py3 run time (1M rows):
 (>100% is slower than q-py3, <100% is faster than q-py3)
 
-|  lines  	| columns 	| file size 	| avg q-py3 runtime 	| textql vs q-py3 runtime 	| octosql vs q-py3 runtime 	|
+|   rows  	| columns 	| file size 	| avg q-py3 runtime 	| textql vs q-py3 runtime 	| octosql vs q-py3 runtime 	|
 |:-------:	|:-------:	|:---------:	|:-----------------:	|:-----------------------:	|:------------------------:	|
 | 1000000 	|    1    	|    17M    	|      100.00%      	|          70.67%         	|         1217.76%         	|
 | 1000000 	|    5    	|    37M    	|      100.00%      	|         111.86%         	|         1040.70%         	|

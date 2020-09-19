@@ -28,9 +28,21 @@ rm -rvf ${base_folder}/packages
 mkdir -p ${base_folder}/packages
 
 sleep 1
+
+gh release download $BASED_ON_TAG -p '*' -D ./packages/
+
+chmod +x ./packages/*
+
 docker exec -it ${cid1} /bin/bash -i -c "/q/dist/create-rpm ${VERSION} ${BASED_ON_TAG}"
 
 docker cp ${cid1}:/q/dist/rpm_build_area/RPMS/x86_64/q-text-as-data-${VERSION}-1.el6.x86_64.rpm ${base_folder}/packages/q-text-as-data-${VERSION}-1.x86_64.rpm
 
 docker exec -it ${cid2} /bin/bash -i -c "cd /q/packages && alien ./q-text-as-data-${VERSION}-1.x86_64.rpm"
+
+find ./packages/ -ls
+
+
+#gh release upload q-text-as-data-${VERSION}-1.x86_64.rpm
+
+
 

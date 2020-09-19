@@ -41,8 +41,3 @@ docker exec -it ${cid2} /bin/bash -i -c "cd /q/packages && alien ./q-text-as-dat
 
 find ./packages/ -ls
 
-
-#gh release upload q-text-as-data-${VERSION}-1.x86_64.rpm
-
-
-

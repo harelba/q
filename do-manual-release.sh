@@ -4,9 +4,17 @@ set -e
 
 VERSION=2.0.18
 
+echo "TRAVIS_BRANCH is $TRAVIS_BRANCH . TRAVIS_PULL_REQUEST_BRANCH is $TRAVIS_PULL_REQUEST_BRANCH"
+
 if [[ "$TRAVIS_BRANCH" != "master" ]]
 then
 	echo "Not releasing - not on master branch (${TRAVIS_BRANCH})"
+  exit 0
+fi
+
+if [[ "$TRAVIS_PULL_REQUEST_BRANCH" != "" ]]
+then
+	echo "Not releasing - push check in PR"
   exit 0
 fi
 

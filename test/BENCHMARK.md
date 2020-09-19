@@ -10,7 +10,6 @@ The results I'm getting are somewhat surprising, to the point of me questioning 
 The most surprising results are as follows:
 * python3 vs python2 - A huge improvement (for large files, execution times with python 3 are around 40% of the times for python 2)
 * python3 vs textql (written in golang) - Seems that textql becomes slower than the python3 q version as the data sizes grows (both rows and columns)
-* octosql results are much slower than the other tools - Might be just a configuration issue, I've contacted octosql developers to pitch in.
 
 I would love to validate these results by having other people run the benchmark as well and send me their results. 
 

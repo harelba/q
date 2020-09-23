@@ -739,32 +739,32 @@ gtag('send','pageview');
 </thead>
 <tbody>
 <tr>
-<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/single-binary/Darwin/2.0.16/q">OSX</a></td>
+<td align="left"><a href="https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin">OSX</a></td>
 <td align="left">run <code>brew install q</code></td>
 <td align="left">man page is not available for this release yet. Use <code>q --help</code> for now</td>
 </tr>
 <tr>
-<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/rpms/q-text-as-data-2.0.16-1.x86_64.rpm">RPM Package</a></td>
+<td align="left"><a href="https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm">RPM Package</a></td>
 <td align="left">run <code>rpm -ivh &lt;package-filename&gt;</code> or <code>rpm -U &lt;package-filename&gt;</code> if you already have an older version of q.</td>
 <td align="left">A man page is available for this release. Just enter man q.</td>
 </tr>
 <tr>
-<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/deb/q-text-as-data_2.0.16-2_amd64.deb">DEB Package</a></td>
+<td align="left"><a href="https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb">DEB Package</a></td>
 <td align="left">Run <code>sudo dpkg -i &lt;package-filename&gt;</code></td>
 <td align="left">A man page is available for this release. Just enter <code>man q</code>.</td>
 </tr>
 <tr>
-<td align="left"><a href="https://github.com/harelba/packages-for-q/raw/master/windows/setup-q-2.0.16.exe">Windows Installer</a></td>
+<td align="left"><a href="https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe">Windows Installer</a></td>
 <td align="left">Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.</td>
 <td align="left">Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.</td>
 </tr>
 <tr>
-<td align="left"><a href="https://github.com/harelba/q/archive/2.0.16.tar.gz">tar.gz</a></td>
+<td align="left"><a href="https://github.com/harelba/q/archive/2.0.19.tar.gz">tar.gz</a></td>
 <td align="left">Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies</td>
 <td align="left"></td>
 </tr>
 <tr>
-<td align="left"><a href="https://github.com/harelba/q/archive/2.0.16.zip">zip</a></td>
+<td align="left"><a href="https://github.com/harelba/q/archive/2.0.19.zip">zip</a></td>
 <td align="left">Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies</td>
 <td align="left"></td>
 </tr>
@@ -800,7 +800,7 @@ gtag('send','pageview');
 
         Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
 
-        Basic usage is q &quot;&lt;sql-like query&gt;&quot; where table names are just regular file names (Use - to read from standard input)
+        Basic usage is q &quot;&lt;sql like query&gt;&quot; where table names are just regular file names (Use - to read from standard input)
             When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
 
         Column types are detected automatically. Use -A in order to see the column name/type analysis.
@@ -844,6 +844,8 @@ Options:
     -d DELIMITER, --delimiter=DELIMITER
                         Field delimiter. If none specified, then space is used
                         as the delimiter.
+    -p, --pipe-delimited
+                        Same as -d '|'. Added for convenience and readability
     -t, --tab-delimited
                         Same as -d &lt;tab&gt;. Just a shorthand for handling
                         standard tab delimited file You can use $'\t' if you
@@ -897,6 +899,8 @@ Options:
                         Field delimiter for output. If none specified, then
                         the -d delimiter is used if present, or space if no
                         delimiter is specified
+    -P, --pipe-delimited-output
+                        Same as -D '|'. Added for convenience and readability.
     -T, --tab-delimited-output
                         Same as -D &lt;tab&gt;. Just a shorthand for outputting tab
                         delimited output. You can use -D $'\t' if you want.
@@ -921,6 +925,8 @@ Options:
                         nonnumeric and none. Note the slightly misleading
                         parameter name, and see the matching -w parameter for
                         input quoting.
+    -L, --list-user-functions
+                        List all user functions
 
   Query Related Options:
     -q QUERY_FILENAME, --query-filename=QUERY_FILENAME

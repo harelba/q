@@ -458,6 +458,13 @@ gtag('send','pageview');
 </li>
       
         <li class="md-nav__item">
+  <a href="#benchmark" class="md-nav__link">
+    Benchmark
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#future" class="md-nav__link">
     Future
   </a>
@@ -682,6 +689,13 @@ gtag('send','pageview');
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmark" class="md-nav__link">
+    Benchmark
+  </a>
   
 </li>
       
@@ -1074,6 +1088,9 @@ ppp dip.2@otherdomain.com
 <p>One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).</p>
 <h3 id="philosophy">Philosophy<a class="headerlink" href="#philosophy" title="Permanent link">&para;</a></h3>
 <p>This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read this amazing <a href="http://catb.org/~esr/writings/taoup/">book</a> and specifically <a href="http://catb.org/~esr/writings/taoup/html/ch01s06.html">this part</a>. If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.</p>
+<h2 id="benchmark">Benchmark<a class="headerlink" href="#benchmark" title="Permanent link">&para;</a></h2>
+<p>I've created a preliminary benchmark which compares q on python2, q on python3, textql and octosql. Current results are in <a href="https://github.com/harelba/q/blob/master/test/BENCHMARK.md">here</a>.</p>
+<p>I'd appreciate any comments on the benchmark itself and on the results, and more importantly, running the benchmark itself on your machine to validate the results. If anyone is interested, instructions are available on the same benchmark results page.</p>
 <h2 id="future">Future<a class="headerlink" href="#future" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Expose python as a python module - Mostly implemented. Requires some internal API changes with regard to handling stdin before exposing it.</li>

@@ -22,8 +22,10 @@ ps -ef | q -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LI
 
 Go [here](http://harelba.github.io/q/#examples) for more examples.
 
-## Python API
-A development branch for exposing q's capabilities as a <strong>Python module</strong> can be viewed <a href="https://github.com/harelba/q/tree/generic-injected-streams/PYTHON-API.markdown">here</a>, along with examples of the alpha version of the API.<br/>Existing functionality as a command-line tool will not be affected by this. Your input will be most appreciated.
+## Benchmark
+I have created a preliminary benchmark comparing q's speed between python2, python3, and comparing both to textql and octosql. 
+
+Your input about the validity of the benchmark and about the results would be greatly appreciated. More details are [here](test/BENCHMARK.md).
 
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.

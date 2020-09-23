@@ -18,6 +18,20 @@ then
   exit 0
 fi
 
+# ensure release exists
+curl -v -L -f https://api.github.com/repos/harelba/q/releases/tags/$VERSION || (echo "Release $VERSION not found in github. " && exit 1)
+
+# skip releasing if release already has some asset. Not using jq on purpose, to prevent the need for dependencies
+ASSET_COUNT=$(curl -f -L https://api.github.com/repos/harelba/q/releases/tags/$VERSION | grep /releases/assets/ | grep url | wc -l | awk '{print $1}')
+
+if [[ "$ASSET_COUNT" != "0" ]]
+then
+  echo "Assets already exists in the release. No need to release version $VERSION again."
+  exit 0
+fi
+
+echo "Gonna release version $VERSION"
+
 echo "Packing binary for $TRAVIS_OS_NAME"
 
 if [[ "$TRAVIS_OS_NAME" == "osx" || "$TRAVIS_OS_NAME" == "linux" ]]

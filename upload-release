@@ -16,7 +16,7 @@ VERSION="$1"
 BASED_ON_TAG="$2"
 
 echo uploading
-gh release upload 2.0.18 ./packages/*.{rpm,deb}
+gh release upload $VERSION ./packages/*.{rpm,deb}
 
 echo done
 

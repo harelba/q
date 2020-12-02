@@ -13,7 +13,7 @@ setup(
     description="Run SQL directly on CSV or TSV files",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.11.0'
+        'six>=1.11.0'
     ],
     packages=[
         'bin'

@@ -276,6 +276,8 @@ class Sqlite3DB(object):
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
+        
+
     def done(self):
         self.conn.commit()
 
@@ -299,7 +301,7 @@ class Sqlite3DB(object):
         new_db = sqlite3.connect(sqlite_db_filename)
         sqlitebck.copy(self.conn,new_db)
         c = new_db.cursor()
-        for source_filename_str,tn in table_names_mapping.iteritems():
+        for source_filename_str,tn in six.iteritems(table_names_mapping):
             c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
         new_db.close()
 
@@ -328,6 +330,8 @@ class Sqlite3DB(object):
             if self.show_sql:
                 print(sql, " params: " + str(params))
             self.cursor.executemany(sql, params)
+            _ = self.cursor.fetchall()
+            # TODO RLRL transaction commits
         finally:
             pass  # cursor.close()
 
@@ -390,6 +394,7 @@ class Sqlite3DB(object):
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
 
     def generate_temp_table_name(self):
+        # WTF - From my own past mutable-self
         self.last_temp_table_id += 1
         tn = "temp_table_%s" % self.last_temp_table_id
         return tn
@@ -599,7 +604,9 @@ class Sql(object):
         return self.qtable_name_effective_table_names
 
     def execute_and_fetch(self, db):
-        db_results_obj = db.execute_and_fetch(self.get_effective_sql())
+        x = self.get_effective_sql()
+        print(x)
+        db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
 
@@ -619,6 +626,12 @@ class LineSplitter(object):
             line = line[:-1]
         return self.split_regexp.split(line, max_split=self.expected_column_count)
 
+    def generate_content_signature(self):
+        return OrderedDict({
+            "delimiter": self.delimiter,
+            "expected_column_count": self.expected_column_count
+        })
+
 
 class TableColumnInferer(object):
 
@@ -632,6 +645,18 @@ class TableColumnInferer(object):
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
         self.disable_column_type_detection = disable_column_type_detection
+
+    def generate_content_signature(self):
+        return OrderedDict({
+            "inferred": self.inferred,
+            "mode": self.mode,
+            "rows": "\n".join([",".join(x) for x in sorted(self.rows)]),
+            "skip_header": self.skip_header,
+            "header_row": self.header_row,
+            "expected_column_count": self.expected_column_count,
+            "input_delimiter": self.input_delimiter,
+            "disable_column_type_detection": self.disable_column_type_detection
+        })
 
     def analyze(self, filename, col_vals):
         if self.inferred:
@@ -647,6 +672,7 @@ class TableColumnInferer(object):
             return False
 
         self.do_analysis()
+        self.inferred = True
         return True
 
     def force_analysis(self):
@@ -957,11 +983,15 @@ class MaterializedFileState(object):
         if self.f != sys.stdin:
             self.f.close()
 
+import hashlib
+
 class TableCreator(object):
 
-    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False, encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,disable_column_type_detection=False,
-        stdin_file=None,stdin_filename='-'):
+    def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
+                 encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
+                 disable_column_type_detection=False,stdin_file=None,stdin_filename='-'):
         self.db = db
+
         self.filenames_str = filenames_str
         self.skip_header = skip_header
         self.gzipped = gzipped
@@ -994,6 +1024,39 @@ class TableCreator(object):
         self.materialized_file_dict = {}
 
         self.state = TableCreatorState.NEW
+
+        self.disk_db = None
+        self.disk_db_filename = self._generate_disk_db_filename()
+        self.disk_db_name = self._generate_disk_db_name()
+        self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
+        self.disk_db_content_signature = None
+
+
+    def generate_content_signature(self):
+        m = OrderedDict({
+            "filenames_str": self.filenames_str,
+            "line_splitter": self.line_splitter.generate_content_signature(),
+            "skip_header": self.skip_header,
+            "gzipped": self.gzipped,
+            "with_universal_newlines": self.with_universal_newlines,
+            "encoding": self.encoding,
+            "mode": self.mode,
+            "expected_column_count": self.expected_column_count,
+            "input_delimiter": self.input_delimiter,
+            "inferer": self.column_inferer.generate_content_signature()
+            # TODO RLRL Disable stdin to qsqlite
+            # TODO RLRL Make inferer provide its own stuff
+        })
+
+        return m
+
+    def _generate_disk_db_filename(self):
+        fn = '%s.qsqlite' % (os.path.abspath(self.filenames_str).replace("+","__"))
+        return fn
+
+    def _generate_disk_db_name(self):
+        return 'ddb_' + hashlib.sha1(six.b(self.filenames_str)).hexdigest()
+
 
     def materialize_file_list(self):
         materialized_file_list = []
@@ -1089,6 +1152,8 @@ class TableCreator(object):
                         if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
                             continue
                         self._insert_row(filename, col_vals)
+                        if self.column_inferer.inferred and self.disk_db_file_exists:
+                            return
                         if stop_after_analysis and self.column_inferer.inferred:
                             return
                     if mfs.lines_read == 0 and self.skip_header:
@@ -1129,7 +1194,14 @@ class TableCreator(object):
                 return
 
         if self.state == TableCreatorState.ANALYZED:
-            self._populate(dialect,stop_after_analysis=False)
+            if self.disk_db_file_exists:
+                tmp_c = self.db.conn.execute('COMMIT')
+                _ = tmp_c.fetchall()
+                self.load_data_from_disk_db()
+            else:
+                self._populate(dialect,stop_after_analysis=False)
+                tmp_c = self.db.conn.execute('COMMIT')
+                _ = tmp_c.fetchall()
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -1256,7 +1328,13 @@ class TableCreator(object):
 
     def _do_create_table(self,filename):
         # Then generate a temp table name
-        self.table_name = self.db.generate_temp_table_name()
+        tbl_name = self.db.generate_temp_table_name()
+        if self.disk_db_file_exists:
+            db_name = self.disk_db_name + '.'
+        else:
+            db_name = ''
+        self.table_name = tbl_name
+        self.table_name_for_querying = "%s%s" % (db_name,tbl_name)
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
 
@@ -1279,6 +1357,23 @@ class TableCreator(object):
     def drop_table(self):
         if self.table_created:
             self.db.drop_table(self.table_name)
+
+    def store_data_as_disk_db(self):
+        import sqlitebck
+        if self.state != TableCreatorState.FULLY_READ:
+            raise Exception("SSS")
+        disk_db_conn = sqlite3.connect(self.disk_db_filename)
+        sqlitebck.copy(self.db.conn,disk_db_conn)
+        disk_db_conn.close()
+
+    def load_data_from_disk_db(self):
+        start = time.time()
+        if self.state != TableCreatorState.ANALYZED:
+            raise Exception("xxx")
+        tmp_c = self.db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
+                                                                     self.disk_db_name))
+        _ = tmp_c.fetchall()
+        print("Loaded in %4.3f" % (time.time() - start))
 
 
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
@@ -1313,10 +1408,11 @@ class QError(object):
         self.traceback = traceback.format_exc()
 
 class QDataLoad(object):
-    def __init__(self,filename,start_time,end_time):
+    def __init__(self,filename,start_time,end_time,cached_data):
         self.filename = filename
         self.start_time = start_time
         self.end_time = end_time
+        self.cached_data = cached_data
 
     def duration(self):
         return self.end_time - self.start_time
@@ -1486,7 +1582,11 @@ class QTextAsData(object):
 
         self.table_creators[filename] = table_creator
 
-        return QDataLoad(filename,start_time,time.time())
+        if not stop_after_analysis and not table_creator.disk_db_file_exists:
+            cached_data = table_creator.store_data_as_disk_db()
+        else:
+            cached_data = None
+        return QDataLoad(filename,start_time,time.time(), cached_data)
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
@@ -1512,7 +1612,7 @@ class QTextAsData(object):
 
     def materialize_sql_object(self,sql_object):
         for filename in sql_object.qtable_names:
-            sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name)
+            sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name_for_querying)
 
     def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []
@@ -1554,7 +1654,7 @@ class QTextAsData(object):
                 # TODO Propagate dump results using a different output class instead of an empty one
 
                 return QOutput()
-
+            
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.db)
 

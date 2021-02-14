@@ -276,7 +276,19 @@ class Sqlite3DB(object):
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
-        
+        self.create_metaq_table()
+
+    def create_metaq_table(self):
+        with self.conn as cursor:
+            r = cursor.execute('CREATE TABLE metaq (temp_table_name text, content_signature text, creation_time text)')
+            _ = r.fetchall()
+
+    def add_to_metaq(self,temp_table_name,content_signature,creation_time):
+        import json
+        with self.conn as cursor:
+            r = cursor.execute('INSERT INTO metaq (temp_table_name,content_signature,creation_time) VALUES (?,?,?)',
+                               (temp_table_name,json.dumps(content_signature),creation_time))
+            _ = r.fetchall()
 
     def done(self):
         self.conn.commit()
@@ -1011,6 +1023,7 @@ class TableCreator(object):
         # Filled only after table population since we're inferring the table
         # creation data
         self.table_name = None
+        self.table_name_for_querying = None
 
         self.pre_creation_rows = []
         self.buffered_inserts = []
@@ -1202,6 +1215,9 @@ class TableCreator(object):
                 self._populate(dialect,stop_after_analysis=False)
                 tmp_c = self.db.conn.execute('COMMIT')
                 _ = tmp_c.fetchall()
+                import datetime
+                now = datetime.datetime.utcnow().isoformat()
+                self.db.add_to_metaq(self.table_name,self.generate_content_signature(),now)
             self.state = TableCreatorState.FULLY_READ
             return
 

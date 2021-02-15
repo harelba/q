@@ -1081,8 +1081,6 @@ class TableCreator(object):
             "expected_column_count": self.expected_column_count,
             "input_delimiter": self.input_delimiter,
             "inferer": self.column_inferer.generate_content_signature()
-            # TODO RLRL Disable stdin to qsqlite
-            # TODO RLRL Make inferer provide its own stuff
         })
 
         return m
@@ -1633,19 +1631,28 @@ class QTextAsData(object):
         if filename in self.table_creators.keys() and filename != stdin_filename:
             return None
 
+        # Skip caching for stdin input
+        if filename == stdin_filename:
+            effective_read_caching = False
+            effective_write_caching = False
+        else:
+            effective_read_caching = input_params.read_caching
+            effective_write_caching = input_params.write_caching
+
         # Create the matching database table and populate it
         table_creator = TableCreator(
             self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
-            stdin_file = stdin_file,stdin_filename = stdin_filename,read_caching=input_params.read_caching,write_caching=input_params.write_caching)
+            stdin_file = stdin_file,stdin_filename = stdin_filename,
+            read_caching=effective_read_caching,write_caching=effective_write_caching)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
         self.table_creators[filename] = table_creator
 
         if not stop_after_analysis and not table_creator.disk_db_file_exists:
-            if input_params.write_caching:
+            if effective_write_caching:
                 cached_data = table_creator.store_data_as_disk_db()
             else:
                 cached_data = None

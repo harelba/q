@@ -706,7 +706,6 @@ class TableColumnInferer(object):
             return False
 
         self.do_analysis()
-        self.inferred = True
         return True
 
     def force_analysis(self):
@@ -770,8 +769,8 @@ class TableColumnInferer(object):
             print("Warning: column count is one - did you provide the correct delimiter?", file=sys.stderr)
 
         self.infer_column_types()
-
         self.infer_column_names()
+        self.inferred = True
 
     def validate_column_names(self, value_list):
         column_name_errors = []
@@ -1023,7 +1022,8 @@ class TableCreator(object):
 
     def __init__(self, db, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
-                 disable_column_type_detection=False,stdin_file=None,stdin_filename='-'):
+                 disable_column_type_detection=False,stdin_file=None,stdin_filename='-',
+                 read_caching=False,write_caching=False):
         self.db = db
 
         self.filenames_str = filenames_str
@@ -1060,6 +1060,8 @@ class TableCreator(object):
 
         self.state = TableCreatorState.NEW
 
+        self.read_caching = read_caching
+        self.write_caching = write_caching
         self.disk_db = None
         self.disk_db_filename = self._generate_disk_db_filename()
         self.disk_db_name = self._generate_disk_db_name()
@@ -1187,7 +1189,7 @@ class TableCreator(object):
                         if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
                             continue
                         self._insert_row(filename, col_vals)
-                        if self.column_inferer.inferred and self.disk_db_file_exists:
+                        if self.column_inferer.inferred and self.disk_db_file_exists and self.read_caching:
                             return
                         if stop_after_analysis and self.column_inferer.inferred:
                             return
@@ -1229,17 +1231,18 @@ class TableCreator(object):
                 return
 
         if self.state == TableCreatorState.ANALYZED:
-            if self.disk_db_file_exists:
+            if self.disk_db_file_exists and self.read_caching:
                 tmp_c = self.db.conn.execute('COMMIT')
                 _ = tmp_c.fetchall()
                 self.load_data_from_disk_db()
             else:
                 self._populate(dialect,stop_after_analysis=False)
-                tmp_c = self.db.conn.execute('COMMIT')
-                _ = tmp_c.fetchall()
-                import datetime
-                now = datetime.datetime.utcnow().isoformat()
-                self.db.add_to_metaq(self.filenames_str,self.table_name,self.generate_content_signature(),now)
+                if self.write_caching:
+                    tmp_c = self.db.conn.execute('COMMIT')
+                    _ = tmp_c.fetchall()
+                    import datetime
+                    now = datetime.datetime.utcnow().isoformat()
+                    self.db.add_to_metaq(self.filenames_str,self.table_name,self.generate_content_signature(),now)
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -1367,7 +1370,7 @@ class TableCreator(object):
     def _do_create_table(self,filename):
         # Then generate a temp table name
         tbl_name = self.db.generate_temp_table_name()
-        if self.disk_db_file_exists:
+        if self.disk_db_file_exists and self.read_caching:
             db_name = self.disk_db_name + '.'
         else:
             db_name = ''
@@ -1545,7 +1548,9 @@ class QInputParams(object):
             disable_double_double_quoting=False,disable_escaped_double_quoting=False,
             disable_column_type_detection=False,
             input_quoting_mode='minimal',stdin_file=None,stdin_filename='-',
-            max_column_length_limit=131072):
+            max_column_length_limit=131072,
+            read_caching=False,
+            write_caching=False):
         self.skip_header = skip_header
         self.delimiter = delimiter
         self.input_encoding = input_encoding
@@ -1559,6 +1564,8 @@ class QInputParams(object):
         self.input_quoting_mode = input_quoting_mode
         self.disable_column_type_detection = disable_column_type_detection
         self.max_column_length_limit = max_column_length_limit
+        self.read_caching = read_caching
+        self.write_caching = write_caching
 
     def merged_with(self,input_params):
         params = QInputParams(**self.__dict__)
@@ -1631,14 +1638,17 @@ class QTextAsData(object):
             self.db, filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
-            stdin_file = stdin_file,stdin_filename = stdin_filename)
+            stdin_file = stdin_file,stdin_filename = stdin_filename,read_caching=input_params.read_caching,write_caching=input_params.write_caching)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
         self.table_creators[filename] = table_creator
 
         if not stop_after_analysis and not table_creator.disk_db_file_exists:
-            cached_data = table_creator.store_data_as_disk_db()
+            if input_params.write_caching:
+                cached_data = table_creator.store_data_as_disk_db()
+            else:
+                cached_data = None
         else:
             cached_data = None
         return QDataLoad(filename,start_time,time.time(), cached_data)
@@ -2044,6 +2054,8 @@ def run_standalone():
                       help="Save database to an sqlite database file")
     parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default='standard',
                       help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
+    parser.add_option("-C", "--caching-mode", dest="caching_mode", default="none",
+                      help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsqlite")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
@@ -2257,6 +2269,13 @@ def run_standalone():
             print("save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method, file=sys.stderr)
             sys.exit(78)
 
+    if options.caching_mode not in ['none','read','readwrite']:
+        print("caching mode must be none,read or readwrite")
+        sys.exit(85)
+
+    read_caching = options.caching_mode in ['read','readwrite']
+    write_caching = options.caching_mode in ['readwrite']
+
     default_input_params = QInputParams(skip_header=options.skip_header,
         delimiter=options.delimiter,
         input_encoding=options.encoding,
@@ -2269,7 +2288,9 @@ def run_standalone():
         disable_escaped_double_quoting=options.disable_escaped_double_quoting,
         input_quoting_mode=options.input_quoting_mode,
         disable_column_type_detection=options.disable_column_type_detection,
-        max_column_length_limit=max_column_length_limit)
+        max_column_length_limit=max_column_length_limit,
+        read_caching=read_caching,
+        write_caching=write_caching)
     q_engine = QTextAsData(default_input_params=default_input_params)
 
     output_params = QOutputParams(

@@ -56,6 +56,7 @@ import uuid
 import math
 import six
 import io
+import json
 
 if six.PY3:
     long = int
@@ -280,15 +281,26 @@ class Sqlite3DB(object):
 
     def create_metaq_table(self):
         with self.conn as cursor:
-            r = cursor.execute('CREATE TABLE metaq (temp_table_name text, content_signature text, creation_time text)')
+            r = cursor.execute('CREATE TABLE metaq (filenames_str text, temp_table_name, content_signature text, creation_time text)')
             _ = r.fetchall()
 
-    def add_to_metaq(self,temp_table_name,content_signature,creation_time):
+    def add_to_metaq(self,filenames_str,temp_table_name,content_signature,creation_time):
         import json
         with self.conn as cursor:
-            r = cursor.execute('INSERT INTO metaq (temp_table_name,content_signature,creation_time) VALUES (?,?,?)',
-                               (temp_table_name,json.dumps(content_signature),creation_time))
+            r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
+                               (filenames_str,temp_table_name,json.dumps(content_signature),creation_time))
             _ = r.fetchall()
+
+    def get_from_metaq(self,filenames_str,disk_db_name=None):
+        with self.conn as cursor:
+            if disk_db_name is not None:
+                db_name = disk_db_name + '.'
+            else:
+                db_name = ''
+            q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM %smetaq where filenames_str = ?' % db_name
+            r = cursor.execute(q,(filenames_str,))
+
+            return dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],r.fetchone()))
 
     def done(self):
         self.conn.commit()
@@ -522,6 +534,17 @@ class FluffyModeColumnCountMismatchException(Exception):
         self.expected_col_count = expected_col_count
         self.actual_col_count = actual_col_count
 
+class ContentSignatureDiffersException(Exception):
+
+    def __init__(self,key,source_value,signature_value):
+        self.key = key
+        self.source_value = source_value
+        self.signature_value = signature_value
+
+class ContentSignatureDataDiffersException(Exception):
+
+    def __init__(self,msg):
+        self.msg = msg
 
 # Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
 #
@@ -617,7 +640,6 @@ class Sql(object):
 
     def execute_and_fetch(self, db):
         x = self.get_effective_sql()
-        print(x)
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
@@ -662,7 +684,7 @@ class TableColumnInferer(object):
         return OrderedDict({
             "inferred": self.inferred,
             "mode": self.mode,
-            "rows": "\n".join([",".join(x) for x in sorted(self.rows)]),
+            "rows": "\n".join([",".join(x) for x in self.rows]),
             "skip_header": self.skip_header,
             "header_row": self.header_row,
             "expected_column_count": self.expected_column_count,
@@ -1217,7 +1239,7 @@ class TableCreator(object):
                 _ = tmp_c.fetchall()
                 import datetime
                 now = datetime.datetime.utcnow().isoformat()
-                self.db.add_to_metaq(self.table_name,self.generate_content_signature(),now)
+                self.db.add_to_metaq(self.filenames_str,self.table_name,self.generate_content_signature(),now)
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -1377,7 +1399,7 @@ class TableCreator(object):
     def store_data_as_disk_db(self):
         import sqlitebck
         if self.state != TableCreatorState.FULLY_READ:
-            raise Exception("SSS")
+            raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
         disk_db_conn = sqlite3.connect(self.disk_db_filename)
         sqlitebck.copy(self.db.conn,disk_db_conn)
         disk_db_conn.close()
@@ -1385,11 +1407,28 @@ class TableCreator(object):
     def load_data_from_disk_db(self):
         start = time.time()
         if self.state != TableCreatorState.ANALYZED:
-            raise Exception("xxx")
+            raise Exception("Bug - loading data from disk db is supposed to happen right after analysis")
         tmp_c = self.db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
                                                                      self.disk_db_name))
         _ = tmp_c.fetchall()
-        print("Loaded in %4.3f" % (time.time() - start))
+        r = self.db.get_from_metaq(self.filenames_str,self.disk_db_name)
+        self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
+
+    def validate_content_signature(self,source_signature,content_signature,scope=None):
+        if scope is None:
+            scope = []
+        for k in source_signature:
+            if type(source_signature[k]) == OrderedDict:
+                r = self.validate_content_signature(source_signature[k],content_signature[k],scope + [k])
+                if r:
+                    return True
+            else:
+                if source_signature[k] != content_signature[k]:
+                    if k == 'rows':
+                        raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
+                    else:
+                        raise ContentSignatureDiffersException(".".join(scope + [k]),source_signature[k],content_signature[k])
+
 
 
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
@@ -1714,6 +1753,11 @@ class QTextAsData(object):
             error = QError(e,e.msg,31)
         except MissingSqliteBckModuleException as e:
             error = QError(e,e.msg,79)
+        except ContentSignatureDiffersException as e:
+            error = QError(e,"Content Signatures differ at %s (source value '%s' disk signature value '%s')" %
+                           (e.key,e.source_value,e.signature_value),80)
+        except ContentSignatureDataDiffersException as e:
+            error = QError(e,e.msg,81)
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:

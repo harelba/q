@@ -32,6 +32,7 @@ from __future__ import division
 from __future__ import print_function
 
 from collections import OrderedDict
+from sqlite3.dbapi2 import OperationalError
 
 q_version = '2.0.19'
 
@@ -292,15 +293,21 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def get_from_metaq(self,filenames_str,disk_db_name=None):
+        print("geting from metaq %s (disk db %s)" % (filenames_str,disk_db_name))
         with self.conn as cursor:
             if disk_db_name is not None:
                 db_name = disk_db_name + '.'
             else:
                 db_name = ''
             q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM %smetaq where filenames_str = ?' % db_name
+            print(q)
             r = cursor.execute(q,(filenames_str,))
 
-            return dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],r.fetchone()))
+            results = r.fetchone()
+            if results is None:
+                raise Exception("metaq cannot file the table for %s" % filenames_str)
+            d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results))
+            return d
 
     def done(self):
         self.conn.commit()
@@ -562,7 +569,7 @@ class Sql(object):
         self.sql_parts = sql.split()
 
         # Set of qtable names
-        self.qtable_names = set()
+        self.qtable_names = []
         # Dict from qtable names to their positions in sql_parts. Value here is a *list* of positions,
         # since it is possible that the same qtable_name (file) is referenced in multiple positions
         # and we don't want the database table to be recreated for each
@@ -599,7 +606,7 @@ class Sql(object):
                     qtable_name = qtable_name[:qtable_name.index(')')]
                     self.sql_parts[idx + 1] = qtable_name
 
-                self.qtable_names.add(qtable_name)
+                self.qtable_names += [qtable_name]
 
                 if qtable_name not in self.qtable_name_positions.keys():
                     self.qtable_name_positions[qtable_name] = []
@@ -640,6 +647,7 @@ class Sql(object):
 
     def execute_and_fetch(self, db):
         x = self.get_effective_sql()
+        print(x)
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
@@ -1083,6 +1091,8 @@ class TableCreator(object):
             "inferer": self.column_inferer.generate_content_signature()
         })
 
+        # TODO RLRL - allow changing default caching through a side-file
+        # TODO RLRL - Solve multi table caching
         return m
 
     def _generate_disk_db_filename(self):
@@ -1098,6 +1108,7 @@ class TableCreator(object):
 
         # Get the list of filenames
         filenames = self.filenames_str.split("+")
+        print("Split: %s" % str(filenames))
 
         # for each filename (or pattern)
         for fileglob in filenames:
@@ -1233,6 +1244,11 @@ class TableCreator(object):
                 tmp_c = self.db.conn.execute('COMMIT')
                 _ = tmp_c.fetchall()
                 self.load_data_from_disk_db()
+                print("Fixing up table name for querying %s" % self.disk_db_name)
+                d = self.db.get_from_metaq(os.path.abspath(self.filenames_str),disk_db_name=self.disk_db_name)
+                table_name_in_disk_db = d['temp_table_name']
+                self.table_name_for_querying = '%s.%s' % (self.disk_db_name,table_name_in_disk_db)
+                print("new table name for querying: %s" % self.table_name_for_querying)
             else:
                 self._populate(dialect,stop_after_analysis=False)
                 if self.write_caching:
@@ -1240,7 +1256,9 @@ class TableCreator(object):
                     _ = tmp_c.fetchall()
                     import datetime
                     now = datetime.datetime.utcnow().isoformat()
-                    self.db.add_to_metaq(self.filenames_str,self.table_name,self.generate_content_signature(),now)
+                    # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
+                    # TODO RLRL - Move abspath to a separate member
+                    self.db.add_to_metaq(os.path.abspath(self.filenames_str),self.table_name,self.generate_content_signature(),now)
             self.state = TableCreatorState.FULLY_READ
             return
 
@@ -1374,6 +1392,7 @@ class TableCreator(object):
             db_name = ''
         self.table_name = tbl_name
         self.table_name_for_querying = "%s%s" % (db_name,tbl_name)
+        print("Creating table: filename %s table name %s for querying %s" % (filename,self.table_name,self.table_name_for_querying))
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
 
@@ -1412,7 +1431,18 @@ class TableCreator(object):
         tmp_c = self.db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
                                                                      self.disk_db_name))
         _ = tmp_c.fetchall()
-        r = self.db.get_from_metaq(self.filenames_str,self.disk_db_name)
+        # while True:
+        #     try:
+        #         print("Checking db attached")
+        #         cc = self.db.conn.execute('select 1 from %s.metaq' % self.disk_db_name)
+        #         _ = cc.fetchall()
+        #         print("Done checking")
+        #         break
+        #     except OperationalError as e:
+        #         print("Not yet")
+        #         time.sleep(0.01)
+
+        r = self.db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name)
         self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
@@ -1616,6 +1646,7 @@ class QTextAsData(object):
 
     def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
         start_time = time.time()
+        print("Loading %s" % filename)
 
         q_dialect = self.determine_proper_dialect(input_params)
         dialect_id = self.get_dialect_id(filename)
@@ -1729,6 +1760,8 @@ class QTextAsData(object):
             
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.db)
+
+            # TODO RLRL - consolidate save_db_to_disk feature into qsqlite
 
             return QOutput(
                 data = db_results_obj.results,

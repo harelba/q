@@ -292,7 +292,7 @@ class Sqlite3DB(object):
                                (filenames_str,temp_table_name,json.dumps(content_signature),creation_time))
             _ = r.fetchall()
 
-    def get_from_metaq(self,filenames_str,disk_db_name=None):
+    def get_from_metaq(self,filenames_str,disk_db_name=None,disk_db_filename=None):
         print("geting from metaq %s (disk db %s)" % (filenames_str,disk_db_name))
         with self.conn as cursor:
             if disk_db_name is not None:
@@ -305,7 +305,7 @@ class Sqlite3DB(object):
 
             results = r.fetchone()
             if results is None:
-                raise Exception("metaq cannot file the table for %s" % filenames_str)
+                raise InvalidQSqliteFileException("Invalid qsqlite file %s - Cannot find table %s" % (disk_db_filename,filenames_str))
             d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results))
             return d
 
@@ -317,7 +317,7 @@ class Sqlite3DB(object):
         c = new_db.cursor()
         for s in self.conn.iterdump():
             c.execute(s)
-            results = c.fetchall()
+            _ = c.fetchall()
         for source_filename_str,tn in six.iteritems(table_names_mapping):
             c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
         new_db.close()
@@ -548,7 +548,14 @@ class ContentSignatureDiffersException(Exception):
         self.source_value = source_value
         self.signature_value = signature_value
 
+
 class ContentSignatureDataDiffersException(Exception):
+
+    def __init__(self,msg):
+        self.msg = msg
+
+
+class InvalidQSqliteFileException(Exception):
 
     def __init__(self,msg):
         self.msg = msg
@@ -1079,7 +1086,7 @@ class TableCreator(object):
 
     def generate_content_signature(self):
         m = OrderedDict({
-            "filenames_str": self.filenames_str,
+            "filenames_str": os.path.abspath(self.filenames_str),
             "line_splitter": self.line_splitter.generate_content_signature(),
             "skip_header": self.skip_header,
             "gzipped": self.gzipped,
@@ -1245,7 +1252,7 @@ class TableCreator(object):
                 _ = tmp_c.fetchall()
                 self.load_data_from_disk_db()
                 print("Fixing up table name for querying %s" % self.disk_db_name)
-                d = self.db.get_from_metaq(os.path.abspath(self.filenames_str),disk_db_name=self.disk_db_name)
+                d = self.db.get_from_metaq(os.path.abspath(self.filenames_str),disk_db_name=self.disk_db_name,disk_db_filename=self.disk_db_filename)
                 table_name_in_disk_db = d['temp_table_name']
                 self.table_name_for_querying = '%s.%s' % (self.disk_db_name,table_name_in_disk_db)
                 print("new table name for querying: %s" % self.table_name_for_querying)
@@ -1442,7 +1449,7 @@ class TableCreator(object):
         #         print("Not yet")
         #         time.sleep(0.01)
 
-        r = self.db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name)
+        r = self.db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name,self.disk_db_filename)
         self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):

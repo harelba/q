@@ -285,7 +285,7 @@ class Sqlite3DB(object):
             r = cursor.execute('CREATE TABLE metaq (filenames_str text, temp_table_name, content_signature text, creation_time text)')
             _ = r.fetchall()
 
-    def add_to_metaq(self,filenames_str,temp_table_name,content_signature,creation_time):
+    def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
         import json
         with self.conn as cursor:
             r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
@@ -1265,7 +1265,7 @@ class TableCreator(object):
                     now = datetime.datetime.utcnow().isoformat()
                     # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
                     # TODO RLRL - Move abspath to a separate member
-                    self.db.add_to_metaq(os.path.abspath(self.filenames_str),self.table_name,self.generate_content_signature(),now)
+                    self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name, self.generate_content_signature(), now)
             self.state = TableCreatorState.FULLY_READ
             return
 

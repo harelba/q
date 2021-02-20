@@ -290,6 +290,7 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
+        print("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
         import json
         with self.conn as cursor:
             r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
@@ -1068,7 +1069,6 @@ class TableCreator(object):
         # Filled only after table population since we're inferring the table
         # creation data
         self.table_name = None
-        self.table_name_for_querying = None
 
         self.pre_creation_rows = []
         self.buffered_inserts = []
@@ -1274,22 +1274,22 @@ class TableCreator(object):
                 self._populate(dialect,stop_after_analysis=False)
                 self.state = TableCreatorState.FULLY_READ
                 # RLRL TODO - Ensure write happens only when db file didn't already exist
-                if self.write_caching and not self.disk_db_file_exists:
+                if not self.disk_db_file_exists:
                     import datetime
                     now = datetime.datetime.utcnow().isoformat()
                     # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
                     # TODO RLRL - Move abspath to a separate member
                     self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name, self.generate_content_signature(), now)
-                    self.store_data_as_disk_db()
-
-            print("Fixing up table name for querying %s" % self.disk_db_name)
-            d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
-            table_name_in_disk_db = d['temp_table_name']
-            # TODO RLRL - Move to be an external concern of table creator
-            self.table_name_for_querying = '%s.%s' % (self.disk_db_name,table_name_in_disk_db)
-            print("new table name for querying: %s" % self.table_name_for_querying)
+                    if self.write_caching:
+                        self.store_data_as_disk_db()
 
             return
+
+    def get_table_name_for_querying(self):
+        print("Getting table name for querying %s" % self.disk_db_name)
+        d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
+        table_name_in_disk_db = d['temp_table_name']
+        return table_name_in_disk_db
 
     def _flush_pre_creation_rows(self, filename):
         for i, col_vals in enumerate(self.pre_creation_rows):
@@ -1415,12 +1415,7 @@ class TableCreator(object):
     def _do_create_table(self,filename):
         # Then generate a temp table name
         tbl_name = self.db.generate_temp_table_name()
-        if self.disk_db_file_exists and self.read_caching:
-            db_name = self.disk_db_name + '.'
-        else:
-            db_name = ''
         self.table_name = tbl_name
-        self.table_name_for_querying = "%s%s" % (db_name,tbl_name)
         #print("Creating table: filename %s table name %s for querying %s" % (filename,self.table_name,self.table_name_for_querying))
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
@@ -1743,7 +1738,10 @@ class QTextAsData(object):
 
     def materialize_sql_object(self,sql_object):
         for filename in sql_object.qtable_names:
-            sql_object.set_effective_table_name(filename,self.table_creators[filename].table_name_for_querying)
+            tc = self.table_creators[filename]
+            table_name_in_disk_db = tc.get_table_name_for_querying()
+            effective_table_name = '%s.%s' % (tc.disk_db_name,table_name_in_disk_db)
+            sql_object.set_effective_table_name(filename,effective_table_name)
 
     def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []

@@ -297,14 +297,10 @@ class Sqlite3DB(object):
                                (filenames_str,temp_table_name,json.dumps(content_signature),creation_time))
             _ = r.fetchall()
 
-    def get_from_metaq(self,filenames_str,disk_db_name=None,disk_db_filename=None):
+    def get_from_metaq(self,filenames_str):
         #print("geting from metaq %s (disk db %s)" % (filenames_str,disk_db_name))
         with self.conn as cursor:
-            if disk_db_name is not None:
-                db_name = disk_db_name + '.'
-            else:
-                db_name = ''
-            q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM %smetaq where filenames_str = ?' % db_name
+            q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM metaq where filenames_str = ?'
             #print("Query from metaq %s" % q)
             r = cursor.execute(q,(filenames_str,))
 
@@ -1104,6 +1100,7 @@ class TableCreator(object):
 
     def generate_content_signature(self):
         m = OrderedDict({
+            "_signature_version": "v1",
             "filenames_str": os.path.abspath(self.filenames_str),
             "line_splitter": self.line_splitter.generate_content_signature(),
             "skip_header": self.skip_header,
@@ -1113,7 +1110,8 @@ class TableCreator(object):
             "mode": self.mode,
             "expected_column_count": self.expected_column_count,
             "input_delimiter": self.input_delimiter,
-            "inferer": self.column_inferer.generate_content_signature()
+            "inferer": self.column_inferer.generate_content_signature(),
+            "original_file_size": os.stat(os.path.abspath(self.filenames_str)).st_size
         })
 
         # TODO RLRL - allow changing default caching through a side-file
@@ -1458,16 +1456,13 @@ class TableCreator(object):
         self.db.done()
         self.db.conn.close()
         self.db = Sqlite3DB('file:%s?immutable=1' % self.disk_db_filename,create_metaq=False)
-        # tmp_c = self.query_level_db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
-        #                                                              self.disk_db_name))
-        # _ = tmp_c.fetchall()
-        #
-        # r = self.query_level_db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name,self.disk_db_filename)
-        # self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
-        #
-        # print("--- Read db from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
-        #                                                                              self.disk_db_filename,
-        #                                                                              self.query_level_db.conn.execute('select filenames_str,temp_table_name from %s.metaq' % self.disk_db_name).fetchall()))
+
+        r = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
+        self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
+
+        print("--- db has been from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
+                                                                                     self.disk_db_filename,
+                                                                                     self.db.conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
         if scope is None:
@@ -1478,6 +1473,8 @@ class TableCreator(object):
                 if r:
                     return True
             else:
+                if k not in content_signature:
+                    raise ContentSignatureDataDiffersException("Content Signatures differ. %s is missing from content signature" % k)
                 if source_signature[k] != content_signature[k]:
                     if k == 'rows':
                         raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))

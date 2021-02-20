@@ -268,10 +268,11 @@ class Sqlite3DBResults(object):
 
 class Sqlite3DB(object):
 
-    def __init__(self, db_id, show_sql=SHOW_SQL):
-        self.db_id = db_id
+    def __init__(self, sqlite_db_url, create_metaq, show_sql=SHOW_SQL):
         self.show_sql = show_sql
-        self.sqlite_db_url = 'file:%s?mode=memory&cache=shared' % db_id
+        self.create_metaq = create_metaq
+
+        self.sqlite_db_url = sqlite_db_url
         self.conn = sqlite3.connect(self.sqlite_db_url,uri=True)
         self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
@@ -280,7 +281,8 @@ class Sqlite3DB(object):
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
-        self.create_metaq_table()
+        if create_metaq:
+            self.create_metaq_table()
 
     def create_metaq_table(self):
         with self.conn as cursor:
@@ -1038,16 +1040,15 @@ import hashlib
 
 class TableCreator(object):
 
-    def __init__(self, query_level_db,filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
+    def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,stdin_file=None,stdin_filename='-',
                  read_caching=False,write_caching=False):
-        self.query_level_db = query_level_db
         self.filenames_str = filenames_str
 
         # TODO RLRL - "disk_db should actually become the "db", as we're splitting everything to run through attached dbs
         #             whether in memory or disk based
-        self.db = Sqlite3DB(self._generate_disk_db_name())
+        self.db = Sqlite3DB('file:mem-%s?mode=memory&cache=shared' % self._generate_disk_db_name(),create_metaq=True)
 
         self.skip_header = skip_header
         self.gzipped = gzipped
@@ -1090,8 +1091,13 @@ class TableCreator(object):
         self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
         self.disk_db_content_signature = None
 
-    def attach_to(self,query_level_db):
-        q = "attach '%s' as %s" % (self.db.sqlite_db_url,self._generate_disk_db_name())
+    def attach_to(self,query_level_db,disk_url=None):
+        if disk_url is None:
+            effective_url = self.db.sqlite_db_url
+        else:
+            effective_url = disk_url
+
+        q = "attach '%s' as %s" % (effective_url,self._generate_disk_db_name())
         print("Attach query: %s" % q)
         c = query_level_db.execute(q)
         c.fetchall()
@@ -1263,25 +1269,25 @@ class TableCreator(object):
                 tmp_c = self.db.conn.execute('COMMIT')
                 _ = tmp_c.fetchall()
                 self.load_data_from_disk_db()
-                print("Fixing up table name for querying %s" % self.disk_db_name)
-                d = self.query_level_db.get_from_metaq(os.path.abspath(self.filenames_str),disk_db_name=self.disk_db_name,disk_db_filename=self.disk_db_filename)
-                table_name_in_disk_db = d['temp_table_name']
-                self.table_name_for_querying = '%s.%s' % (self.disk_db_name,table_name_in_disk_db)
-                print("new table name for querying: %s" % self.table_name_for_querying)
                 self.state = TableCreatorState.FULLY_READ
             else:
                 self._populate(dialect,stop_after_analysis=False)
                 self.state = TableCreatorState.FULLY_READ
-                if self.write_caching:
-                    # TBD RLRL - Probably not needed anymore
-                    # tmp_c = self.db.conn.execute('COMMIT')
-                    # _ = tmp_c.fetchall()
+                # RLRL TODO - Ensure write happens only when db file didn't already exist
+                if self.write_caching and not self.disk_db_file_exists:
                     import datetime
                     now = datetime.datetime.utcnow().isoformat()
                     # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
                     # TODO RLRL - Move abspath to a separate member
                     self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name, self.generate_content_signature(), now)
                     self.store_data_as_disk_db()
+
+            print("Fixing up table name for querying %s" % self.disk_db_name)
+            d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
+            table_name_in_disk_db = d['temp_table_name']
+            # TODO RLRL - Move to be an external concern of table creator
+            self.table_name_for_querying = '%s.%s' % (self.disk_db_name,table_name_in_disk_db)
+            print("new table name for querying: %s" % self.table_name_for_querying)
 
             return
 
@@ -1453,16 +1459,20 @@ class TableCreator(object):
         start = time.time()
         if self.state != TableCreatorState.ANALYZED:
             raise Exception("Bug - loading data from disk db is supposed to happen right after analysis")
-        tmp_c = self.query_level_db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
-                                                                     self.disk_db_name))
-        _ = tmp_c.fetchall()
 
-        r = self.query_level_db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name,self.disk_db_filename)
-        self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
-
-        print("--- Read db from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
-                                                                                     self.disk_db_filename,
-                                                                                     self.query_level_db.conn.execute('select filenames_str,temp_table_name from %s.metaq' % self.disk_db_name).fetchall()))
+        self.db.done()
+        self.db.conn.close()
+        self.db = Sqlite3DB('file:%s?immutable=1' % self.disk_db_filename,create_metaq=False)
+        # tmp_c = self.query_level_db.conn.execute("ATTACH DATABASE '%s' as %s" % (self.disk_db_filename,
+        #                                                              self.disk_db_name))
+        # _ = tmp_c.fetchall()
+        #
+        # r = self.query_level_db.get_from_metaq(os.path.abspath(self.filenames_str),self.disk_db_name,self.disk_db_filename)
+        # self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
+        #
+        # print("--- Read db from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
+        #                                                                              self.disk_db_filename,
+        #                                                                              self.query_level_db.conn.execute('select filenames_str,temp_table_name from %s.metaq' % self.disk_db_name).fetchall()))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
         if scope is None:
@@ -1632,13 +1642,18 @@ class QTextAsData(object):
         self.table_creators = {}
 
         # Create DB object
-        self.query_level_db = Sqlite3DB('query_level_db')
+        self.query_level_db = Sqlite3DB('file:query-level-db?mode=memory&cache=shared',create_metaq=True)
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
                         # nonnumeric is not supported for input quoting modes, since we determine the data types
                         # ourselves instead of letting the csv module try to identify the types
                         'none' : csv.QUOTE_NONE }
+
+    def close_all(self):
+        for tc in self.table_creators:
+            print("Closing %s" % tc)
+            self.table_creators[tc].db.conn.close()
 
     def determine_proper_dialect(self,input_params):
 
@@ -1690,7 +1705,6 @@ class QTextAsData(object):
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
-            self.query_level_db,
             filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
@@ -1699,7 +1713,7 @@ class QTextAsData(object):
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
-        #table_creator.attach_to(self.query_level_db.conn)
+        table_creator.attach_to(self.query_level_db.conn)
 
         self.table_creators[filename] = table_creator
 
@@ -2364,6 +2378,8 @@ def run_standalone():
         else:
             q_output = q_engine.execute(query_str,stdin_file=sys.stdin,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
+
+        q_engine.close_all()
 
         if q_output.status == 'error':
             sys.exit(q_output.error.errorcode)

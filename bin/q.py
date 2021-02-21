@@ -290,7 +290,8 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
-        print("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
+        #print("adding to metaq table")
+        #print("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
         import json
         with self.conn as cursor:
             r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
@@ -306,7 +307,7 @@ class Sqlite3DB(object):
 
             results = r.fetchone()
             if results is None:
-                raise InvalidQSqliteFileException("Invalid qsqlite file %s - Cannot find table %s" % (disk_db_filename,filenames_str))
+                raise InvalidQSqliteFileException("Invalid qsqlite file - Cannot find table %s" % (filenames_str))
             d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results))
             return d
 
@@ -545,7 +546,8 @@ class FluffyModeColumnCountMismatchException(Exception):
 
 class ContentSignatureDiffersException(Exception):
 
-    def __init__(self,key,source_value,signature_value):
+    def __init__(self,filenames_str,key,source_value,signature_value):
+        self.filenames_str = filenames_str
         self.key = key
         self.source_value = source_value
         self.signature_value = signature_value
@@ -629,8 +631,10 @@ class Sql(object):
         if qtable_name not in self.qtable_names:
             raise Exception("Unknown qtable %s" % qtable_name)
         if qtable_name in self.qtable_name_effective_table_names.keys():
-            raise Exception(
-                "Already set effective table name for qtable %s" % qtable_name)
+            if self.qtable_name_effective_table_names[qtable_name] != effective_table_name:
+                raise Exception(
+                    "Already set effective table name for qtable %s. Trying to change the effective table name from %s to %s" %
+                    (qtable_name,self.qtable_name_effective_table_names[qtable_name],effective_table_name))
 
         self.qtable_name_effective_table_names[
             qtable_name] = effective_table_name
@@ -656,7 +660,7 @@ class Sql(object):
 
     def execute_and_fetch(self, db):
         x = self.get_effective_sql()
-        print("Final query: %s" % x)
+        #print("Final query: %s" % x)
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
@@ -1094,14 +1098,21 @@ class TableCreator(object):
             effective_url = disk_url
 
         q = "attach '%s' as %s" % (effective_url,self._generate_disk_db_name())
-        print("Attach query: %s" % q)
+        #print("Attach query: %s" % q)
         c = query_level_db.execute(q)
         c.fetchall()
 
     def generate_content_signature(self):
+        if self.filenames_str != self.stdin_filename:
+            fns = os.path.abspath(self.filenames_str)
+            size = os.stat(os.path.abspath(self.filenames_str)).st_size
+        else:
+            fns = self.filenames_str
+            size = 0
+
         m = OrderedDict({
             "_signature_version": "v1",
-            "filenames_str": os.path.abspath(self.filenames_str),
+            "filenames_str": fns,
             "line_splitter": self.line_splitter.generate_content_signature(),
             "skip_header": self.skip_header,
             "gzipped": self.gzipped,
@@ -1111,7 +1122,7 @@ class TableCreator(object):
             "expected_column_count": self.expected_column_count,
             "input_delimiter": self.input_delimiter,
             "inferer": self.column_inferer.generate_content_signature(),
-            "original_file_size": os.stat(os.path.abspath(self.filenames_str)).st_size
+            "original_file_size": size
         })
 
         # TODO RLRL - allow changing default caching through a side-file
@@ -1244,7 +1255,7 @@ class TableCreator(object):
             if not self.table_created:
                 self.column_inferer.force_analysis()
                 self._do_create_table(filename)
-            self.db.conn.execute('COMMIT').fetchall()
+            #self.db.conn.execute('COMMIT').fetchall()
 
 
         if total_data_lines_read == 0:
@@ -1259,6 +1270,13 @@ class TableCreator(object):
             self._populate(dialect,stop_after_analysis=True)
             self.state = TableCreatorState.ANALYZED
 
+            import datetime
+            now = datetime.datetime.utcnow().isoformat()
+            # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
+            # TODO RLRL - Move abspath to a separate member
+            self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name,
+                                       self.generate_content_signature(), now)
+
             if stop_after_analysis:
                 return
 
@@ -1271,20 +1289,14 @@ class TableCreator(object):
             else:
                 self._populate(dialect,stop_after_analysis=False)
                 self.state = TableCreatorState.FULLY_READ
-                # RLRL TODO - Ensure write happens only when db file didn't already exist
-                if not self.disk_db_file_exists:
-                    import datetime
-                    now = datetime.datetime.utcnow().isoformat()
-                    # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
-                    # TODO RLRL - Move abspath to a separate member
-                    self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name, self.generate_content_signature(), now)
-                    if self.write_caching:
-                        self.store_data_as_disk_db()
+                if self.write_caching:
+                    self.store_data_as_disk_db()
 
             return
 
     def get_table_name_for_querying(self):
-        print("Getting table name for querying %s" % self.disk_db_name)
+        #print("Getting table name for querying %s" % self.disk_db_name)
+        #print("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
         d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
         table_name_in_disk_db = d['temp_table_name']
         return table_name_in_disk_db
@@ -1455,8 +1467,11 @@ class TableCreator(object):
 
         self.db.done()
         self.db.conn.close()
-        self.db = Sqlite3DB('file:%s?immutable=1' % self.disk_db_filename,create_metaq=False)
 
+        x = 'file:%s?immutable=1' % self.disk_db_filename
+        self.db = Sqlite3DB(x,create_metaq=False)
+
+        print("Getting content signature for %s" % x)
         r = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
         self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
 
@@ -1479,7 +1494,7 @@ class TableCreator(object):
                     if k == 'rows':
                         raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
                     else:
-                        raise ContentSignatureDiffersException(".".join(scope + [k]),source_signature[k],content_signature[k])
+                        raise ContentSignatureDiffersException(self.filenames_str,".".join(scope + [k]),source_signature[k],content_signature[k])
 
 
 
@@ -1644,8 +1659,10 @@ class QTextAsData(object):
 
     def close_all(self):
         for tc in self.table_creators:
-            print("Closing %s" % tc)
+            #print("Closing %s" % tc)
             self.table_creators[tc].db.conn.close()
+            #XXX
+        self.query_level_db.conn.close()
 
     def determine_proper_dialect(self,input_params):
 
@@ -1671,7 +1688,7 @@ class QTextAsData(object):
 
     def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
         start_time = time.time()
-        print("Loading %s" % filename)
+        #print("Loading %s" % filename)
 
         q_dialect = self.determine_proper_dialect(input_params)
         dialect_id = self.get_dialect_id(filename)
@@ -1781,7 +1798,7 @@ class QTextAsData(object):
 
                 return QOutput()
 
-            print("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
+            #print("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.query_level_db)
 
@@ -1828,8 +1845,8 @@ class QTextAsData(object):
         except MissingSqliteBckModuleException as e:
             error = QError(e,e.msg,79)
         except ContentSignatureDiffersException as e:
-            error = QError(e,"Content Signatures differ at %s (source value '%s' disk signature value '%s')" %
-                           (e.key,e.source_value,e.signature_value),80)
+            error = QError(e,"Content Signatures for table %s differ at %s (source value '%s' disk signature value '%s')" %
+                           (e.filenames_str,e.key,e.source_value,e.signature_value),80)
         except ContentSignatureDataDiffersException as e:
             error = QError(e,e.msg,81)
         except KeyboardInterrupt as e:
@@ -1842,10 +1859,10 @@ class QTextAsData(object):
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
 
     def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',save_db_to_disk_filename=None,save_db_to_disk_method=None):
-        return self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
+        r = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
+        return r
 
     def unload(self):
-
         for filename,table_creator in six.iteritems(self.table_creators):
             try:
                 table_creator.drop_table()
@@ -1853,6 +1870,8 @@ class QTextAsData(object):
                 # Support no-table select queries
                 pass
         self.table_creators = {}
+
+
 
     def _create_materialized_files(self,table_creator):
         d = table_creator.materialized_file_dict
@@ -2374,12 +2393,11 @@ def run_standalone():
             q_output = q_engine.execute(query_str,stdin_file=sys.stdin,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
-        q_engine.close_all()
-
         if q_output.status == 'error':
             sys.exit(q_output.error.errorcode)
 
     q_engine.unload()
+    q_engine.close_all()
 
     sys.exit(0)
 

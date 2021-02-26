@@ -286,7 +286,7 @@ class Sqlite3DB(object):
 
     def create_metaq_table(self):
         with self.conn as cursor:
-            r = cursor.execute('CREATE TABLE metaq (filenames_str text, temp_table_name, content_signature text, creation_time text)')
+            r = cursor.execute('CREATE TABLE if not exists metaq (filenames_str text, temp_table_name, content_signature text, creation_time text)')
             _ = r.fetchall()
 
     def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
@@ -299,7 +299,7 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def get_from_metaq(self,filenames_str):
-        #print("geting from metaq %s (disk db %s)" % (filenames_str,disk_db_name))
+        #print("getting from metaq %s" % filenames_str)
         with self.conn as cursor:
             q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM metaq where filenames_str = ?'
             #print("Query from metaq %s" % q)
@@ -1104,8 +1104,9 @@ class TableCreator(object):
 
     def generate_content_signature(self):
         if self.filenames_str != self.stdin_filename:
-            fns = os.path.abspath(self.filenames_str)
-            size = os.stat(os.path.abspath(self.filenames_str)).st_size
+            parts = self.filenames_str.split("+")
+            fns = os.path.abspath(parts[0])
+            size = [os.stat(x).st_size for x in parts]
         else:
             fns = self.filenames_str
             size = 0
@@ -1701,6 +1702,7 @@ class QTextAsData(object):
 
         # reuse already loaded data, except for stdin file data (stdin file data will always
         # be reloaded and overwritten)
+        #print("YY",filename,self.table_creators,stdin_filename,"x",filename in self.table_creators.keys(),filename != stdin_filename)
         if filename in self.table_creators.keys() and filename != stdin_filename:
             return None
 
@@ -1740,6 +1742,7 @@ class QTextAsData(object):
                 sf.close()
 
     def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
+        #print("Data load")
         data_loads = []
 
         # Get each "table name" which is actually the file name
@@ -1786,12 +1789,13 @@ class QTextAsData(object):
 
             self.materialize_sql_object(sql_object)
 
+            # TODO RLRL - Breaking change - save to db needs another approach?
             if save_db_to_disk_filename is not None:
-                self.db.done()
+                self.query_level_db.done()
                 dump_start_time = time.time()
                 print("Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time), file=sys.stderr)
                 print("Saving data to db file %s" % save_db_to_disk_filename, file=sys.stderr)
-                self.db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
+                self.query_level_db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
                 print("Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time), file=sys.stderr)
                 print("Query to run on the database: %s;" % sql_object.get_effective_sql(True), file=sys.stderr)
                 # TODO Propagate dump results using a different output class instead of an empty one

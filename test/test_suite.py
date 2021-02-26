@@ -28,7 +28,7 @@ import codecs
 import itertools
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from q import QTextAsData,QOutput,QOutputPrinter,QInputParams
+from bin.q import QTextAsData,QOutput,QOutputPrinter,QInputParams
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
@@ -176,6 +176,7 @@ class AbstractQTestCase(unittest.TestCase):
         return '%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix)
 
 
+@unittest.skip("save to db is deprecated")
 class SaveDbToDiskTests(AbstractQTestCase):
 
     def test_store_to_disk(self):
@@ -2288,6 +2289,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,tmpfile.name)
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_loaded_data_reuse(self):
@@ -2313,6 +2315,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
         self.assertEqual(len(r2.warnings),0)
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_stdin_injection(self):
@@ -2329,6 +2332,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,'-')
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_named_stdin_injection(self):
@@ -2345,6 +2349,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,'my_stdin_data')
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_stdin_injection_isolation(self):
@@ -2373,6 +2378,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.metadata.data_loads),1)
         self.assertEqual(r2.metadata.data_loads[0].filename,'-')
 
+        q.close_all()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2411,6 +2417,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r3.metadata.data_loads),0)
 
+        q.close_all()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2432,10 +2439,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r.metadata.data_loads),0)
 
+        q.close_all()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
-    def test_different_input_params_for_different_files(self):
+    def test_different_input_params_for_different_files_2(self):
         tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
         tmpfile2 = self.create_file_with_data(six.b("7\t8\t9\n10\t11\t12"))
 
@@ -2453,6 +2461,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r.metadata.data_loads),0)
 
+        q.close_all()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2482,6 +2491,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.metadata.data_loads),1)
         self.assertEqual(r2.metadata.data_loads[0].filename,tmpfile.name)
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_input_params_merge(self):
@@ -2504,6 +2514,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         q_output = q.analyze("bad syntax")
 
+        q.close_all()
         self.assertTrue(q_output.status == 'error')
         self.assertTrue(q_output.error.msg.startswith('query error'))
 
@@ -2536,6 +2547,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_analyze_response(self):
@@ -2567,6 +2579,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
 
+        q.close_all()
         self.cleanup(tmpfile)
 
     def test_load_data_from_string(self):
@@ -2600,6 +2613,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
 
+        q.close_all()
+
 
 class BenchmarkAttemptResults(object):
     def __init__(self, attempt, lines, columns, duration,return_code):
@@ -2625,6 +2640,7 @@ class BenchmarkResults(object):
         return "{}".format(self.__dict__)
     __repr__ = __str__
 
+@unittest.skip("benchmarks")
 class BenchmarkTests(AbstractQTestCase):
 
     BENCHMARK_DIR = './_benchmark_data'

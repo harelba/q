@@ -305,10 +305,15 @@ class Sqlite3DB(object):
             #print("Query from metaq %s" % q)
             r = cursor.execute(q,(filenames_str,))
 
-            results = r.fetchone()
+
+            results = r.fetchall()
             if results is None:
                 raise InvalidQSqliteFileException("Invalid qsqlite file - Cannot find table %s" % (filenames_str))
-            d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results))
+
+            if len(results) > 1:
+                raise Exception("Bug - Exactly one result should have been provided: %s" % str(results))
+
+            d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results[0]))
             return d
 
     def done(self):
@@ -1044,12 +1049,16 @@ class TableCreator(object):
     def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,stdin_file=None,stdin_filename='-',
-                 read_caching=False,write_caching=False):
+                 read_caching=False,write_caching=False,adhoc_db_to_use=None):
         self.filenames_str = filenames_str
 
         # TODO RLRL - "disk_db should actually become the "db", as we're splitting everything to run through attached dbs
         #             whether in memory or disk based
-        self.db = Sqlite3DB('file:mem-%s?mode=memory&cache=shared' % self._generate_disk_db_name(),create_metaq=True)
+        if adhoc_db_to_use is not None:
+            self.db = adhoc_db_to_use
+        else:
+            self.db = Sqlite3DB('file:mem-%s?mode=memory&cache=shared' % self._generate_disk_db_name(),create_metaq=True)
+        self.adhoc_db_to_use = adhoc_db_to_use
 
         self.skip_header = skip_header
         self.gzipped = gzipped
@@ -1273,6 +1282,7 @@ class TableCreator(object):
 
             import datetime
             now = datetime.datetime.utcnow().isoformat()
+            # RLRLRL
             # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
             # TODO RLRL - Move abspath to a separate member
             self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name,
@@ -1298,6 +1308,8 @@ class TableCreator(object):
     def get_table_name_for_querying(self):
         #print("Getting table name for querying %s" % self.disk_db_name)
         #print("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
+        # TODO RLRL - adhoc db is ok, but the filenames_str needs more work in order to allow stdin injection isolation
+        # TODO and is incorrect in its nature
         d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
         table_name_in_disk_db = d['temp_table_name']
         return table_name_in_disk_db
@@ -1651,6 +1663,9 @@ class QTextAsData(object):
 
         # Create DB object
         self.query_level_db = Sqlite3DB('file:query-level-db?mode=memory&cache=shared',create_metaq=True)
+        self.adhoc_db_name = 'file:adhoc-db?mode=memory&cache=shared'
+        self.adhoc_db = Sqlite3DB(self.adhoc_db_name,create_metaq=True)
+        self.query_level_db.conn.execute("attach '%s' as adhoc_db" % self.adhoc_db_name)
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
@@ -1702,7 +1717,6 @@ class QTextAsData(object):
 
         # reuse already loaded data, except for stdin file data (stdin file data will always
         # be reloaded and overwritten)
-        #print("YY",filename,self.table_creators,stdin_filename,"x",filename in self.table_creators.keys(),filename != stdin_filename)
         if filename in self.table_creators.keys() and filename != stdin_filename:
             return None
 
@@ -1710,9 +1724,11 @@ class QTextAsData(object):
         if filename == stdin_filename:
             effective_read_caching = False
             effective_write_caching = False
+            adhoc_db_to_use = self.adhoc_db
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
+            adhoc_db_to_use = None
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
@@ -1720,11 +1736,12 @@ class QTextAsData(object):
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
             stdin_file = stdin_file,stdin_filename = stdin_filename,
-            read_caching=effective_read_caching,write_caching=effective_write_caching)
+            read_caching=effective_read_caching,write_caching=effective_write_caching,adhoc_db_to_use=adhoc_db_to_use)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
-        table_creator.attach_to(self.query_level_db.conn)
+        if adhoc_db_to_use is None:
+            table_creator.attach_to(self.query_level_db.conn)
 
         self.table_creators[filename] = table_creator
 
@@ -1757,7 +1774,10 @@ class QTextAsData(object):
         for filename in sql_object.qtable_names:
             tc = self.table_creators[filename]
             table_name_in_disk_db = tc.get_table_name_for_querying()
-            effective_table_name = '%s.%s' % (tc.disk_db_name,table_name_in_disk_db)
+            if tc.adhoc_db_to_use is not None:
+                effective_table_name = 'adhoc_db.%s' % (table_name_in_disk_db)
+            else:
+                effective_table_name = '%s.%s' % (tc.disk_db_name,table_name_in_disk_db)
             sql_object.set_effective_table_name(filename,effective_table_name)
 
     def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):

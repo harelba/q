@@ -7,8 +7,8 @@ function return_to_original_folder() {
 }
 trap return_to_original_folder EXIT
 
-pushd $(dirname $0)/
+pushd $(dirname $0)/..
 
-./test-suite "$@"
+test/test_suite.py "$@"
 
 set +e

@@ -34,9 +34,9 @@ from bin.q import QTextAsData,QOutput,QOutputPrinter,QInputParams
 # make sure that the output is correctly encoded
 SYSTEM_ENCODING = locale.getpreferredencoding()
 
-EXAMPLES = os.path.abspath(os.path.join(os.pardir, 'examples'))
+EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
-Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q.py')
+Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', './bin/q.py')
 
 if not os.path.exists(Q_EXECUTABLE):
     raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
@@ -2369,6 +2369,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         r2 = q.execute('select * from -',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'))
 
+        print(r2)
         self.assertTrue(r2.status == 'ok')
         self.assertEqual(len(r2.warnings),0)
         self.assertEqual(len(r2.data),2)

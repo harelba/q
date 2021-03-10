@@ -28,7 +28,7 @@ import codecs
 import itertools
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from bin.q import QTextAsData,QOutput,QOutputPrinter,QInputParams
+from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
@@ -41,8 +41,8 @@ Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', './bin/q.py')
 if not os.path.exists(Q_EXECUTABLE):
     raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
 
-DEBUG = False
-if len(sys.argv) > 2 and sys.argv[2] == '-v':
+DEBUG = ('-v' in sys.argv)
+if os.environ.get('Q_DEBUG'):
     DEBUG = True
 
 
@@ -255,6 +255,7 @@ class BasicTests(AbstractQTestCase):
     def test_attempt_to_unzip_stdin(self):
         tmpfile = self.create_file_with_data(
             six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
+        print(tmpfile.name)
 
         cmd = 'cat %s | ' % tmpfile.name + Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from -"'
 
@@ -2321,8 +2322,11 @@ class BasicModuleTests(AbstractQTestCase):
     def test_stdin_injection(self):
         tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
-        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select * from -',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'))
+        data_streams_dict = {
+            '-': DataStream('stdin','-',codecs.open(tmpfile.name,'rb',encoding='utf-8'))
+        }
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '),data_streams_dict=data_streams_dict)
+        r = q.execute('select * from -')
 
         self.assertTrue(r.status == 'ok')
         self.assertEqual(len(r.warnings),0)
@@ -2338,8 +2342,12 @@ class BasicModuleTests(AbstractQTestCase):
     def test_named_stdin_injection(self):
         tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
-        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r = q.execute('select a from my_stdin_data',stdin_file=codecs.open(tmpfile.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data')
+        data_streams_dict = {
+            'my_stdin_data': DataStream('my_stdin_data','my_stdin_data',codecs.open(tmpfile.name,'rb',encoding='utf-8'))
+        }
+
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '),data_streams_dict=data_streams_dict)
+        r = q.execute('select a from my_stdin_data')
 
         self.assertTrue(r.status == 'ok')
         self.assertEqual(len(r.warnings),0)
@@ -2352,12 +2360,18 @@ class BasicModuleTests(AbstractQTestCase):
         q.close_all()
         self.cleanup(tmpfile)
 
-    def test_stdin_injection_isolation(self):
+    # TODO RLRL - Maybe not needed
+    def test_data_stream_isolation(self):
         tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
         tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
 
-        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from -',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'))
+        data_streams_dict = {
+            'a-': DataStream('a-','a-',codecs.open(tmpfile1.name, 'rb', encoding='utf-8')),
+            'b-': DataStream('b-','b-',codecs.open(tmpfile2.name, 'rb', encoding='utf-8'))
+        }
+
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '),data_streams_dict=data_streams_dict)
+        r1 = q.execute('select * from a-')
 
         self.assertTrue(r1.status == 'ok')
         self.assertEqual(len(r1.warnings),0)
@@ -2365,9 +2379,9 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r1.metadata.data_loads),1)
-        self.assertEqual(r1.metadata.data_loads[0].filename,'-')
+        self.assertEqual(r1.metadata.data_loads[0].filename,'a-')
 
-        r2 = q.execute('select * from -',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'))
+        r2 = q.execute('select * from b-')
 
         print(r2)
         self.assertTrue(r2.status == 'ok')
@@ -2377,7 +2391,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
         self.assertEqual(len(r2.metadata.data_loads),1)
-        self.assertEqual(r2.metadata.data_loads[0].filename,'-')
+        self.assertEqual(r2.metadata.data_loads[0].filename,'b-')
 
         q.close_all()
         self.cleanup(tmpfile1)
@@ -2387,8 +2401,12 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
         tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
 
-        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
-        r1 = q.execute('select * from my_stdin_data1',stdin_file=codecs.open(tmpfile1.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data1')
+        data_streams_dict = {
+            'my_stdin_data1': DataStream('my_stdin_data1','my_stdin_data1',codecs.open(tmpfile1.name,'rb',encoding='utf-8')),
+            'my_stdin_data2': DataStream('my_stdin_data2','my_stdin_data2',codecs.open(tmpfile2.name,'rb',encoding='utf-8'))
+        }
+        q = QTextAsData(QInputParams(skip_header=True,delimiter=' '),data_streams_dict=data_streams_dict)
+        r1 = q.execute('select * from my_stdin_data1')
 
         self.assertTrue(r1.status == 'ok')
         self.assertEqual(len(r1.warnings),0)
@@ -2398,7 +2416,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r1.metadata.data_loads),1)
         self.assertEqual(r1.metadata.data_loads[0].filename,'my_stdin_data1')
 
-        r2 = q.execute('select * from my_stdin_data2',stdin_file=codecs.open(tmpfile2.name,'rb',encoding='utf-8'),stdin_filename='my_stdin_data2')
+        r2 = q.execute('select * from my_stdin_data2')
 
         self.assertTrue(r2.status == 'ok')
         self.assertEqual(len(r2.warnings),0)
@@ -2433,6 +2451,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
+        print("XX",r)
         self.assertTrue(r.status == 'ok')
         self.assertEqual(len(r.warnings),0)
         self.assertEqual(len(r.data),4)
@@ -2546,7 +2565,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.filenames_str,tmpfile.name)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
-        self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+        self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)
 
         q.close_all()
         self.cleanup(tmpfile)
@@ -2578,7 +2597,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.filenames_str,tmpfile.name)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
-        self.assertFalse(table_structure.materialized_files[tmpfile.name].is_stdin)
+        self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)
 
         q.close_all()
         self.cleanup(tmpfile)
@@ -2586,9 +2605,14 @@ class BasicModuleTests(AbstractQTestCase):
     def test_load_data_from_string(self):
         input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
 
-        q = QTextAsData()
+        # TODO RLRL - For some reason six.StringIO seems uniterable for csv.reader
 
-        q.load_data_from_string('my_data',input_str,QInputParams(skip_header=True,delimiter=','))
+        data_streams_dict = {
+            'my_data': DataStream('a','my_data',six.StringIO(input_str))
+        }
+        q = QTextAsData(data_streams_dict=data_streams_dict)
+
+        dl = q.load_data('my_data',QInputParams(skip_header=True,delimiter=','))
 
         q_output = q.execute('select column2,column3 from my_data')
 
@@ -2612,7 +2636,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.filenames_str,'my_data')
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
-        self.assertTrue(table_structure.materialized_files['my_data'].is_stdin)
+        self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
 
         q.close_all()
 

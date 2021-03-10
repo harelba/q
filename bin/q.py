@@ -63,7 +63,7 @@ if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = False
+DEBUG = True
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -494,7 +494,7 @@ class EncodedQueryException(Exception):
         return repr(self.msg)
 
 
-class CannotUnzipStdInException(Exception):
+class CannotUnzipDataStreamException(Exception):
 
     def __init__(self):
         pass
@@ -942,7 +942,7 @@ class TableColumnInferer(object):
         return self.column_types
 
 
-def py3_encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
+def py3_encoded_csv_reader(encoding, f, dialect, **kwargs):
     try:
         csv_reader = csv.reader(f, dialect, **kwargs)
 
@@ -962,7 +962,7 @@ def py3_encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
             raise
 
 
-def py2_encoded_csv_reader(encoding, f, dialect, is_stdin, **kwargs):
+def py2_encoded_csv_reader(encoding, f, dialect, **kwargs):
     try:
         csv_reader = csv.reader(f, dialect, **kwargs)
         if encoding is not None and encoding != 'none':
@@ -1002,13 +1002,13 @@ class TableCreatorState(object):
     FULLY_READ = 'FULLY_READ'
 
 class MaterializedFileState(object):
-    def __init__(self,filename,f,encoding,dialect,is_stdin):
+    def __init__(self,filename,f,encoding,dialect,data_stream=None):
         self.filename = filename
         self.lines_read = 0
         self.f = f
         self.encoding = encoding
         self.dialect = dialect
-        self.is_stdin = is_stdin
+        self.data_stream = data_stream
         self.skipped_bom = False
 
     def read_file_using_csv(self):
@@ -1026,7 +1026,7 @@ class MaterializedFileState(object):
                     raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
             except Exception as e:
                 raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
-        csv_reader = encoded_csv_reader(self.encoding, self.f, is_stdin=self.is_stdin,dialect=self.dialect)
+        csv_reader = encoded_csv_reader(self.encoding, self.f, dialect=self.dialect)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -1048,7 +1048,7 @@ class TableCreator(object):
 
     def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
-                 disable_column_type_detection=False,stdin_file=None,stdin_filename='-',
+                 disable_column_type_detection=False,data_stream=None,
                  read_caching=False,write_caching=False,adhoc_db_to_use=None):
         self.filenames_str = filenames_str
 
@@ -1068,8 +1068,7 @@ class TableCreator(object):
         self.mode = mode
         self.expected_column_count = expected_column_count
         self.input_delimiter = input_delimiter
-        self.stdin_file = stdin_file
-        self.stdin_filename = stdin_filename
+        self.data_stream = data_stream
         self.with_universal_newlines = with_universal_newlines
 
         self.column_inferer = TableColumnInferer(
@@ -1112,7 +1111,8 @@ class TableCreator(object):
         c.fetchall()
 
     def generate_content_signature(self):
-        if self.filenames_str != self.stdin_filename:
+        # TODO RLRL - Push metaq access to the upper layer instead of inside TableCreator
+        if self.data_stream is None:
             parts = self.filenames_str.split("+")
             fns = os.path.abspath(parts[0])
             size = [os.stat(x).st_size for x in parts]
@@ -1155,9 +1155,9 @@ class TableCreator(object):
 
         # for each filename (or pattern)
         for fileglob in filenames:
-            # Allow either stdin or a glob match
-            if fileglob == self.stdin_filename:
-                materialized_file_list.append(self.stdin_filename)
+            # Allow either a stream or a glob match
+            if self.data_stream is not None:
+                materialized_file_list.append(self.data_stream.filename)
             else:
                 materialized_file_list += glob.glob(fileglob)
 
@@ -1174,13 +1174,11 @@ class TableCreator(object):
     def open_file(self,filename):
         # TODO Support universal newlines for gzipped and stdin data as well
 
-        # Check if it's standard input or a file
-        if filename == self.stdin_filename:
-            if self.stdin_file is None:
-                raise UnprovidedStdInException()
-            f = self.stdin_file
+        # Check if it's a data stream
+        if self.data_stream is not None:
+            f = self.data_stream.stream
             if self.gzipped:
-                raise CannotUnzipStdInException()
+                raise CannotUnzipDataStreamException()
         else:
             if self.gzipped or filename.endswith('.gz'):
                 f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(filename,'rb')),encoding=self.encoding)
@@ -1206,9 +1204,7 @@ class TableCreator(object):
 
             f = self.open_file(filename)
 
-            is_stdin = filename == self.stdin_filename
-
-            mfs = MaterializedFileState(filename,f,self.encoding,dialect,is_stdin)
+            mfs = MaterializedFileState(filename,f,self.encoding,dialect,self.data_stream)
             self.materialized_file_dict[filename] = mfs
 
     def _should_skip_extra_headers(self, filenumber, filename, mfs, col_vals):
@@ -1556,12 +1552,12 @@ class QDataLoad(object):
     __repr__ = __str__
 
 class QMaterializedFile(object):
-    def __init__(self,filename,is_stdin):
+    def __init__(self,filename,data_stream):
         self.filename = filename
-        self.is_stdin = is_stdin
+        self.data_stream = data_stream
 
     def __str__(self):
-        return "QMaterializedFile<filename=%s,is_stdin=%s>" % (self.filename,self.is_stdin)
+        return "QMaterializedFile<filename=%s,data_stream=%s>" % (self.filename,self.data_stream)
     __repr__ = __str__
 
 class QTableStructure(object):
@@ -1655,17 +1651,47 @@ class QInputParams(object):
     def __repr__(self):
         return "QInputParams(...)"
 
+class DataStream(object):
+    def __init__(self,stream_id,filename,stream):
+        self.stream_id = stream_id
+        self.filename = filename
+        self.stream = stream
+
+class DataStreams(object):
+    def __init__(self, data_streams_dict):
+        if data_streams_dict is not None:
+            self.validate(data_streams_dict)
+            self.data_streams_dict = data_streams_dict
+        else:
+            self.data_streams_dict = {}
+
+    def validate(self,d):
+        for k in d:
+            v = d[k]
+            if type(k) != str or type(v) != DataStream:
+                raise Exception('Bug - Invalid dict: %s' % str(d))
+
+    def get_for_filename(self, filename):
+        x = self.data_streams_dict.get(filename)
+        return x
+
 class QTextAsData(object):
-    def __init__(self,default_input_params=QInputParams()):
+    def __init__(self,default_input_params=QInputParams(),data_streams_dict=None):
         self.default_input_params = default_input_params
 
         self.table_creators = {}
+
+        if data_streams_dict is not None:
+            self.data_streams = DataStreams(data_streams_dict)
+        else:
+            self.data_streams = DataStreams({})
 
         # Create DB object
         self.query_level_db = Sqlite3DB('file:query-level-db?mode=memory&cache=shared',create_metaq=True)
         self.adhoc_db_name = 'file:adhoc-db?mode=memory&cache=shared'
         self.adhoc_db = Sqlite3DB(self.adhoc_db_name,create_metaq=True)
         self.query_level_db.conn.execute("attach '%s' as adhoc_db" % self.adhoc_db_name)
+
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
@@ -1702,7 +1728,8 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _load_data(self,filename,input_params=QInputParams(),stdin_file=None,stdin_filename='-',stop_after_analysis=False):
+    def _load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
+
         start_time = time.time()
         #print("Loading %s" % filename)
 
@@ -1715,27 +1742,28 @@ class QTextAsData(object):
         # Create a line splitter
         line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
 
-        # reuse already loaded data, except for stdin file data (stdin file data will always
-        # be reloaded and overwritten)
-        if filename in self.table_creators.keys() and filename != stdin_filename:
+        # reuse already loaded data, except for data streams
+        if filename in self.table_creators.keys() and not self.data_streams.get_for_filename(filename):
             return None
 
-        # Skip caching for stdin input
-        if filename == stdin_filename:
+        # Skip caching for streams input
+        if self.data_streams.get_for_filename(filename):
             effective_read_caching = False
             effective_write_caching = False
             adhoc_db_to_use = self.adhoc_db
+            data_stream = self.data_streams.get_for_filename(filename)
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
             adhoc_db_to_use = None
+            data_stream = None
 
         # Create the matching database table and populate it
         table_creator = TableCreator(
             filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
-            stdin_file = stdin_file,stdin_filename = stdin_filename,
+            data_stream=data_stream,
             read_caching=effective_read_caching,write_caching=effective_write_caching,adhoc_db_to_use=adhoc_db_to_use)
 
         table_creator.populate(dialect_id,stop_after_analysis)
@@ -1748,23 +1776,15 @@ class QTextAsData(object):
         return QDataLoad(filename,start_time,time.time())
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
+        return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
-    def load_data_from_string(self,filename,str_data,input_params=QInputParams(),stop_after_analysis=False):
-        sf = six.StringIO(str_data)
-        try:
-            self._load_data(filename,input_params,stdin_file=sf,stdin_filename=filename,stop_after_analysis=stop_after_analysis)
-        finally:
-            if sf is not None:
-                sf.close()
-
-    def _ensure_data_is_loaded(self,sql_object,input_params,stdin_file,stdin_filename='-',stop_after_analysis=False):
+    def _ensure_data_is_loaded(self,sql_object,input_params,data_streams=None,stop_after_analysis=False):
         #print("Data load")
         data_loads = []
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            data_load = self._load_data(filename,input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_load = self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
 
@@ -1780,7 +1800,7 @@ class QTextAsData(object):
                 effective_table_name = '%s.%s' % (tc.disk_db_name,table_name_in_disk_db)
             sql_object.set_effective_table_name(filename,effective_table_name)
 
-    def _execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
+    def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []
         error = None
         data_loads = []
@@ -1803,7 +1823,7 @@ class QTextAsData(object):
 
         try:
             load_start_time = time.time()
-            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,stdin_file=stdin_file,stdin_filename=stdin_filename,stop_after_analysis=stop_after_analysis)
+            data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
 
@@ -1854,7 +1874,7 @@ class QTextAsData(object):
             error = QError(e,"Cannot decode data. Try to change the encoding by setting it using the -e parameter. Error:%s" % e,3)
         except BadHeaderException as e:
             error = QError(e,"Bad header row: %s" % e.msg,35)
-        except CannotUnzipStdInException as e:
+        except CannotUnzipDataStreamException as e:
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
         except UniversalNewlinesExistException as e:
             error = QError(e,"Data contains universal newlines. Run q with -U to use universal newlines. Please note that q still doesn't support universal newlines for .gz files or for stdin. Route the data through a regular file to use -U.",103)
@@ -1876,14 +1896,15 @@ class QTextAsData(object):
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:
+            global DEBUG
             if DEBUG:
                 print(traceback.format_exc())
             error = QError(e,repr(e),199)
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
 
-    def execute(self,query_str,input_params=None,stdin_file=None,stdin_filename='-',save_db_to_disk_filename=None,save_db_to_disk_method=None):
-        r = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
+    def execute(self,query_str,input_params=None,save_db_to_disk_filename=None,save_db_to_disk_method=None):
+        r = self._execute(query_str,input_params,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
         return r
 
     def unload(self):
@@ -1901,7 +1922,7 @@ class QTextAsData(object):
         d = table_creator.materialized_file_dict
         m = {}
         for filename,mfs in six.iteritems(d):
-            m[filename] = QMaterializedFile(filename,mfs.is_stdin)
+            m[filename] = QMaterializedFile(filename,mfs.data_stream)
         return m
 
     def _create_table_structures_list(self):
@@ -1914,8 +1935,8 @@ class QTextAsData(object):
             table_structures.append(table_structure)
         return table_structures
 
-    def analyze(self,query_str,input_params=None,stdin_file=None,stdin_filename='-'):
-        q_output = self._execute(query_str,input_params,stdin_file,stdin_filename,stop_after_analysis=True)
+    def analyze(self,query_str,input_params=None,data_streams=None):
+        q_output = self._execute(query_str,input_params,data_streams=data_streams,stop_after_analysis=True)
 
         return q_output
 
@@ -2398,7 +2419,12 @@ def run_standalone():
         max_column_length_limit=max_column_length_limit,
         read_caching=read_caching,
         write_caching=write_caching)
-    q_engine = QTextAsData(default_input_params=default_input_params)
+
+    data_streams_dict = {
+        '-': DataStream('stdin','-',sys.stdin)
+    }
+
+    q_engine = QTextAsData(default_input_params=default_input_params,data_streams_dict=data_streams_dict)
 
     output_params = QOutputParams(
         delimiter=options.output_delimiter,
@@ -2411,10 +2437,10 @@ def run_standalone():
 
     for query_str in query_strs:
         if options.analyze_only:
-            q_output = q_engine.analyze(query_str,stdin_file=sys.stdin)
+            q_output = q_engine.analyze(query_str)
             q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
         else:
-            q_output = q_engine.execute(query_str,stdin_file=sys.stdin,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
+            q_output = q_engine.execute(query_str,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
         if q_output.status == 'error':

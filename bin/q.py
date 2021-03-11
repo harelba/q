@@ -58,12 +58,18 @@ import math
 import six
 import io
 import json
+import inspect
 
 if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = True
+DEBUG = False
+
+def xprint(*args,**kwargs):
+    global DEBUG
+    if DEBUG:
+        print(*args,**kwargs)
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -290,8 +296,8 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
-        #print("adding to metaq table")
-        #print("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
+        xprint("adding to metaq table")
+        xprint("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
         import json
         with self.conn as cursor:
             r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
@@ -299,10 +305,10 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def get_from_metaq(self,filenames_str):
-        #print("getting from metaq %s" % filenames_str)
+        xprint("getting from metaq %s" % filenames_str)
         with self.conn as cursor:
             q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM metaq where filenames_str = ?'
-            #print("Query from metaq %s" % q)
+            xprint("Query from metaq %s" % q)
             r = cursor.execute(q,(filenames_str,))
 
 
@@ -665,7 +671,7 @@ class Sql(object):
 
     def execute_and_fetch(self, db):
         x = self.get_effective_sql()
-        #print("Final query: %s" % x)
+        xprint("Final query: %s" % x)
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
@@ -1015,6 +1021,7 @@ class MaterializedFileState(object):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
         # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
         # multiple people.
+        xprint("in read file using csv",inspect.getouterframes(inspect.currentframe(),3)[2].code_context[1].strip(),inspect.getouterframes(inspect.currentframe(),3)[2].lineno)
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
                 if six.PY2:
@@ -1050,6 +1057,7 @@ class TableCreator(object):
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,data_stream=None,
                  read_caching=False,write_caching=False,adhoc_db_to_use=None):
+        xprint("in table creator init ",inspect.getouterframes(inspect.currentframe(),2)[1])
         self.filenames_str = filenames_str
 
         # TODO RLRL - "disk_db should actually become the "db", as we're splitting everything to run through attached dbs
@@ -1106,7 +1114,7 @@ class TableCreator(object):
             effective_url = disk_url
 
         q = "attach '%s' as %s" % (effective_url,self._generate_disk_db_name())
-        #print("Attach query: %s" % q)
+        xprint("Attach query: %s" % q)
         c = query_level_db.execute(q)
         c.fetchall()
 
@@ -1268,6 +1276,7 @@ class TableCreator(object):
             raise EmptyDataException()
 
     def populate(self,dialect,stop_after_analysis=False):
+        xprint("in populate ",self.filenames_str)
         if self.state == TableCreatorState.NEW:
             self._pre_populate(dialect)
             self.state = TableCreatorState.INITIALIZED
@@ -1302,8 +1311,8 @@ class TableCreator(object):
             return
 
     def get_table_name_for_querying(self):
-        #print("Getting table name for querying %s" % self.disk_db_name)
-        #print("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
+        xprint("Getting table name for querying %s" % self.disk_db_name)
+        xprint("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
         # TODO RLRL - adhoc db is ok, but the filenames_str needs more work in order to allow stdin injection isolation
         # TODO and is incorrect in its nature
         d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
@@ -1435,7 +1444,6 @@ class TableCreator(object):
         # Then generate a temp table name
         tbl_name = self.db.generate_temp_table_name()
         self.table_name = tbl_name
-        #print("Creating table: filename %s table name %s for querying %s" % (filename,self.table_name,self.table_name_for_querying))
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
 
@@ -1480,11 +1488,11 @@ class TableCreator(object):
         x = 'file:%s?immutable=1' % self.disk_db_filename
         self.db = Sqlite3DB(x,create_metaq=False)
 
-        print("Getting content signature for %s" % x)
+        xprint("Getting content signature for %s" % x)
         r = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
         self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
 
-        print("--- db has been from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
+        xprint("--- db has been from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
                                                                                      self.disk_db_filename,
                                                                                      self.db.conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
 
@@ -1539,16 +1547,17 @@ class QError(object):
         self.traceback = traceback.format_exc()
 
 class QDataLoad(object):
-    def __init__(self,filename,start_time,end_time):
+    def __init__(self,filename,start_time,end_time,data_stream=None):
         self.filename = filename
         self.start_time = start_time
         self.end_time = end_time
+        self.data_stream = data_stream
 
     def duration(self):
         return self.end_time - self.start_time
 
     def __str__(self):
-        return "DataLoad<'%s' at %s (took %4.3f seconds)>" % (self.filename,self.start_time,self.duration())
+        return "DataLoad<'%s' at %s (took %4.3f seconds),data_stream=%s>" % (self.filename,self.start_time,self.duration(),self.data_stream)
     __repr__ = __str__
 
 class QMaterializedFile(object):
@@ -1652,6 +1661,7 @@ class QInputParams(object):
         return "QInputParams(...)"
 
 class DataStream(object):
+    # TODO RLRL - Is there a need for stream id?
     def __init__(self,stream_id,filename,stream):
         self.stream_id = stream_id
         self.filename = filename
@@ -1701,7 +1711,7 @@ class QTextAsData(object):
 
     def close_all(self):
         for tc in self.table_creators:
-            #print("Closing %s" % tc)
+            xprint("Closing %s" % tc)
             self.table_creators[tc].db.conn.close()
             #XXX
         self.query_level_db.conn.close()
@@ -1729,9 +1739,9 @@ class QTextAsData(object):
         return 'q_dialect_%s' % filename
 
     def _load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
+        xprint("loading data",inspect.getouterframes(inspect.currentframe(),2)[1])
 
         start_time = time.time()
-        #print("Loading %s" % filename)
 
         q_dialect = self.determine_proper_dialect(input_params)
         dialect_id = self.get_dialect_id(filename)
@@ -1743,7 +1753,8 @@ class QTextAsData(object):
         line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
 
         # reuse already loaded data, except for data streams
-        if filename in self.table_creators.keys() and not self.data_streams.get_for_filename(filename):
+        xprint("checking",self.table_creators.keys())
+        if filename in self.table_creators.keys():
             return None
 
         # Skip caching for streams input
@@ -1773,17 +1784,18 @@ class QTextAsData(object):
 
         self.table_creators[filename] = table_creator
 
-        return QDataLoad(filename,start_time,time.time())
+        return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
     def _ensure_data_is_loaded(self,sql_object,input_params,data_streams=None,stop_after_analysis=False):
-        #print("Data load")
+        xprint("Data load")
         data_loads = []
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
+            xprint("XXX",filename)
             data_load = self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
@@ -1823,6 +1835,7 @@ class QTextAsData(object):
 
         try:
             load_start_time = time.time()
+            xprint("going to ensure data is loaded")
             data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
@@ -1842,7 +1855,7 @@ class QTextAsData(object):
 
                 return QOutput()
 
-            #print("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
+            xprint("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.query_level_db)
 

@@ -255,7 +255,6 @@ class BasicTests(AbstractQTestCase):
     def test_attempt_to_unzip_stdin(self):
         tmpfile = self.create_file_with_data(
             six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
-        print(tmpfile.name)
 
         cmd = 'cat %s | ' % tmpfile.name + Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from -"'
 
@@ -2383,7 +2382,6 @@ class BasicModuleTests(AbstractQTestCase):
 
         r2 = q.execute('select * from b-')
 
-        print(r2)
         self.assertTrue(r2.status == 'ok')
         self.assertEqual(len(r2.warnings),0)
         self.assertEqual(len(r2.data),2)
@@ -2451,7 +2449,6 @@ class BasicModuleTests(AbstractQTestCase):
 
         r = q.execute('select aa.*,bb.* from %s aa join %s bb' % (tmpfile1.name,tmpfile2.name))
 
-        print("XX",r)
         self.assertTrue(r.status == 'ok')
         self.assertEqual(len(r.warnings),0)
         self.assertEqual(len(r.data),4)
@@ -2602,15 +2599,48 @@ class BasicModuleTests(AbstractQTestCase):
         q.close_all()
         self.cleanup(tmpfile)
 
-    def test_load_data_from_string(self):
+    def test_load_data_from_string_without_previous_data_load(self):
         input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
 
-        # TODO RLRL - For some reason six.StringIO seems uniterable for csv.reader
 
         data_streams_dict = {
             'my_data': DataStream('a','my_data',six.StringIO(input_str))
         }
-        q = QTextAsData(data_streams_dict=data_streams_dict)
+        q = QTextAsData(default_input_params=QInputParams(skip_header=True,delimiter=','),data_streams_dict=data_streams_dict)
+
+        q_output = q.execute('select column2,column3 from my_data')
+
+        self.assertTrue(q_output.status == 'ok')
+        self.assertTrue(q_output.error is None)
+        self.assertEqual(len(q_output.warnings),0)
+        self.assertTrue(len(q_output.data),1000)
+        self.assertEqual(len(set(q_output.data)),1)
+        self.assertEqual(list(set(q_output.data))[0],(2.5,'value3'))
+
+        metadata = q_output.metadata
+
+        self.assertTrue(metadata.output_column_name_list,['column2','column3'])
+        self.assertEqual(len(metadata.data_loads),1)
+        self.assertTrue(len(metadata.table_structures),1)
+
+        table_structure = metadata.table_structures[0]
+
+        self.assertEqual(table_structure.column_names,['column1','column2','column3'])
+        self.assertEqual(table_structure.column_types,['text','float','text'])
+        self.assertEqual(table_structure.filenames_str,'my_data')
+        self.assertTrue(len(table_structure.materialized_files.keys()),1)
+        self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
+        self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
+
+        q.close_all()
+
+    def test_load_data_from_string_with_previous_data_load(self):
+        input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
+
+        data_streams_dict = {
+            'my_data': DataStream('a','my_data',six.StringIO(input_str))
+        }
+        q = QTextAsData(default_input_params=QInputParams(skip_header=True,delimiter=','),data_streams_dict=data_streams_dict)
 
         dl = q.load_data('my_data',QInputParams(skip_header=True,delimiter=','))
 
@@ -2639,6 +2669,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
 
         q.close_all()
+
 
 
 class BenchmarkAttemptResults(object):

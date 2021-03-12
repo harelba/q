@@ -17,6 +17,8 @@ then
   exit 1
 fi
 Q_BENCHMARK_ID=$1
+shift
+PYTEST_OPTIONS="$@"
 
 if [ "x$2" == "x" ];
 then
@@ -34,6 +36,8 @@ fi
 
 echo "Q executable to use is $EFFECTIVE_Q_EXECUTABLE"
 
+mkdir -p ./benchmark-results
+
 # Must be provided to the benchmark code so it knows where to write the results to
 export Q_BENCHMARK_RESULTS_FOLDER="./benchmark-results/${EFFECTIVE_Q_EXECUTABLE}/${Q_BENCHMARK_ID}/"
 echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
@@ -49,7 +53,19 @@ venv_name=q-benchmark-$ver
 echo activating $venv_name
 pyenv activate $venv_name
 echo "==== testing inside $venv_name ==="
-./test-all BenchmarkTests.test_q_matrix -v
+if [[ -f $Q_BENCHMARK_RESULTS_FOLDER/${venv_name}.benchmark-results ]]
+then
+	echo "Results files for version $ver already exists skipping benchmark for this version"
+	continue
+fi
+
+if [[ ${ver:0:3} != "3.8" ]]
+then
+	pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+else
+	pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+fi
+
 RESULT_FILE="${Q_BENCHMARK_RESULTS_FOLDER}/$venv_name.benchmark-results"
 echo "==== Done. Results are in $RESULT_FILE"
 ALL_FILES[${#ALL_FILES[@]}]="$RESULT_FILE"
@@ -58,13 +74,13 @@ pyenv deactivate
 done
 
 echo "==== testing textql ==="
-./test-all BenchmarkTests.test_textql_matrix -v
+./run-tests.sh -k BenchmarkTests.test_textql_matrix -v
 RESULT_FILE="textql*.benchmark-results"
 ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
 echo "Done. Results are in textql.benchmark-results"
 
 echo "==== testing octosql ==="
-./test-all BenchmarkTests.test_octosql_matrix -v
+./run-tests.sh -k BenchmarkTests.test_octosql_matrix -v
 RESULT_FILE="octosql*.benchmark-results"
 ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
 echo "Done. Results are in octosql.benchmark-results"

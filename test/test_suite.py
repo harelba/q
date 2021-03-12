@@ -26,6 +26,8 @@ import six
 from six.moves import range
 import codecs
 import itertools
+from gzip import GzipFile
+import pytest
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream
@@ -41,7 +43,7 @@ Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', './bin/q.py')
 if not os.path.exists(Q_EXECUTABLE):
     raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
 
-DEBUG = ('-v' in sys.argv)
+DEBUG = '-v' in sys.argv
 if os.environ.get('Q_DEBUG'):
     DEBUG = True
 
@@ -2696,7 +2698,7 @@ class BenchmarkResults(object):
         return "{}".format(self.__dict__)
     __repr__ = __str__
 
-@unittest.skip("benchmarks")
+@pytest.mark.benchmark
 class BenchmarkTests(AbstractQTestCase):
 
     BENCHMARK_DIR = './_benchmark_data'

@@ -36,7 +36,7 @@ do
   pyenv activate $venv_name
   pyenv version
   echo installing requirements $venv_name
-  pip install -r ../requirements.txt
+  pip install -r ./requirements.txt
   echo deactivating $venv_name
   pyenv deactivate    
 done

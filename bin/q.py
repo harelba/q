@@ -64,7 +64,7 @@ if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = False
+DEBUG = '-V' in sys.argv
 
 def xprint(*args,**kwargs):
     global DEBUG
@@ -279,7 +279,10 @@ class Sqlite3DB(object):
         self.create_metaq = create_metaq
 
         self.sqlite_db_url = sqlite_db_url
-        self.conn = sqlite3.connect(self.sqlite_db_url,uri=True)
+        if six.PY2:
+            self.conn = sqlite3.connect(self.sqlite_db_url)
+        else:
+            self.conn = sqlite3.connect(self.sqlite_db_url, uri=True)
         self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
         self.type_names = {
@@ -1021,7 +1024,6 @@ class MaterializedFileState(object):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
         # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
         # multiple people.
-        xprint("in read file using csv",inspect.getouterframes(inspect.currentframe(),3)[2].code_context[1].strip(),inspect.getouterframes(inspect.currentframe(),3)[2].lineno)
         if self.encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
             try:
                 if six.PY2:
@@ -2126,36 +2128,61 @@ class QOutputPrinter(object):
         except IOError as e:
             pass
 
+def get_option_with_default(p, option_type, option, default):
+    if not p.has_option('options', option):
+        return default
+    if option_type == 'boolean':
+        return p.getboolean('options', option)
+    elif option_type == 'int':
+        return p.getint('options', option)
+    elif option_type == 'string':
+        return p.get('options', option)
+    elif option_type == 'escaped_string':
+        return p.get('options', option).decode('string-escape')
+    else:
+        raise Exception("Unknown option type")
+
 def run_standalone():
     p = configparser.ConfigParser()
     p.read([os.path.expanduser('~/.qrc'), '.qrc'])
 
-    def get_option_with_default(p, option_type, option, default):
-        if not p.has_option('options', option):
-            return default
-        if option_type == 'boolean':
-            return p.getboolean('options', option)
-        elif option_type == 'int':
-            return p.getint('options', option)
-        elif option_type == 'string':
-            return p.get('options', option)
-        elif option_type == 'escaped_string':
-            return p.get('options', option).decode('string-escape')
-        else:
-            raise Exception("Unknown option type")
+    default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
+    default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk', None)
+    default_save_db_to_disk_method = get_option_with_default(p, 'string', 'save_db_to_disk_method', 'fast')
+    default_caching_mode = get_option_with_default(p, 'string', 'caching_mode', 'none')
 
-    default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
-    default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
-    default_delimiter = get_option_with_default(
-        p, 'escaped_string', 'delimiter', None)
-    default_output_delimiter = get_option_with_default(
-        p, 'escaped_string', 'output_delimiter', None)
-    default_skip_header = get_option_with_default(p, 'int', 'skip_header', 0)
-    default_formatting = get_option_with_default(p, 'string', 'formatting', None)
+    default_skip_header = get_option_with_default(p, 'boolean', 'skip_header', False)
+    default_delimiter = get_option_with_default(p, 'escaped_string', 'delimiter', None)
+    default_pipe_delimited = get_option_with_default(p, 'boolean', 'pipe_delimited', False)
+    default_tab_delimited = get_option_with_default(p, 'boolean', 'tab_delimited', False)
     default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
-    default_output_encoding = get_option_with_default(p, 'string', 'encoding', None)
-    default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+    default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
+    default_analyze_only = get_option_with_default(p, 'boolean', 'analyze_only', False)
+    default_mode = get_option_with_default(p, 'string', 'mode', "relaxed")
+    default_column_count = get_option_with_default(p, 'string', 'column_count', None)
+    default_keep_leading_whitespace_in_values = get_option_with_default(p, 'boolean',
+                                                                        'keep_leading_whitespace_in_values', False)
+    default_disable_double_double_quoting = get_option_with_default(p, 'boolean', 'disable_double_double_quoting', True)
+    default_disable_escaped_double_quoting = get_option_with_default(p, 'boolean', 'disable_escaped_double_quoting',
+                                                                     True)
+    default_disable_column_type_detection = get_option_with_default(p, 'boolean', 'disable_column_type_detection',
+                                                                    False)
+    default_input_quoting_mode = get_option_with_default(p, 'string', 'input_quoting_mode', 'minimal')
+    default_max_column_length_limit = get_option_with_default(p, 'int', 'max_column_length_limit', 131072)
+    default_with_universal_newlines = get_option_with_default(p, 'boolean', 'with_universal_newlines', False)
+
+    default_output_delimiter = get_option_with_default(p, 'escaped_string', 'output_delimiter', None)
+    default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
+    default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
     default_output_header = get_option_with_default(p, 'string', 'output_header', False)
+    default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
+    default_formatting = get_option_with_default(p, 'string', 'formatting', None)
+    default_output_encoding = get_option_with_default(p, 'string', 'encoding', 'none')
+    default_output_quoting_mode = get_option_with_default(p, 'string', 'output_quoting_mode', 'minimal')
+    default_list_user_functions = get_option_with_default(p, 'boolean', 'list_user_functions', False)
+
+    default_query_filename = get_option_with_default(p, 'string', 'query_filename', None)
+    default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
 
     parser = OptionParser(usage="""
         q allows performing SQL-like statements on tabular text data.
@@ -2189,13 +2216,13 @@ def run_standalone():
     #-----------------------------------------------
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
-    parser.add_option("-V", "--verbose", dest="verbose", default=False, action="store_true",
+    parser.add_option("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",
                       help="Print debug info in case of problems")
-    parser.add_option("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=None,
+    parser.add_option("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=default_save_db_to_disk,
                       help="Save database to an sqlite database file")
-    parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default='standard',
+    parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default=default_save_db_to_disk_method,
                       help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
-    parser.add_option("-C", "--caching-mode", dest="caching_mode", default="none",
+    parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsqlite")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
@@ -2203,42 +2230,42 @@ def run_standalone():
                       help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
     input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
                       help="Field delimiter. If none specified, then space is used as the delimiter.")
-    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=False, action="store_true",
+    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=default_pipe_delimited, action="store_true",
                       help="Same as -d '|'. Added for convenience and readability")
-    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=False, action="store_true",
+    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=default_tab_delimited, action="store_true",
                       help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
     input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
                       help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
     input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
                       help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", action='store_true',
+    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", default=default_analyze_only, action='store_true',
                       help="Analyze sample input and provide information about data types")
-    input_data_option_group.add_option("-m", "--mode", dest="mode", default="relaxed",
+    input_data_option_group.add_option("-m", "--mode", dest="mode", default=default_mode,
                       help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
-    input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=None,
+    input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=default_column_count,
                       help="Specific column count when using relaxed or strict mode")
-    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=False, action="store_true",
+    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=default_keep_leading_whitespace_in_values, action="store_true",
                       help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=True, action="store_false",
+    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=default_disable_double_double_quoting, action="store_false",
                       help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=True, action="store_false",
+    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=default_disable_escaped_double_quoting, action="store_false",
                       help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection", default=False, action="store_true",
+    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection", default=default_disable_column_type_detection, action="store_true",
                       help="Don't detect column types - All columns will be treated as text columns")
-    input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default="minimal",
+    input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default=default_input_quoting_mode,
                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
-    input_data_option_group.add_option("-M","--max-column-length-limit",dest="max_column_length_limit",default=131072,
+    input_data_option_group.add_option("-M","--max-column-length-limit",dest="max_column_length_limit",default=default_max_column_length_limit,
                       help="Sets the maximum column length.")
-    input_data_option_group.add_option("-U","--with-universal-newlines",dest="with_universal_newlines",default=False,action="store_true",
+    input_data_option_group.add_option("-U","--with-universal-newlines",dest="with_universal_newlines",default=default_with_universal_newlines,action="store_true",
                       help="Expect universal newlines in the data. Limitation: -U works only with regular files for now, stdin or .gz files are not supported yet.")
     parser.add_option_group(input_data_option_group)
     #-----------------------------------------------
     output_data_option_group = OptionGroup(parser,"Output Options")
     output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
                       help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output", default=False, action="store_true",
+    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output", default=default_pipe_delimited_output, action="store_true",
                       help="Same as -D '|'. Added for convenience and readability.")
-    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=False, action="store_true",
+    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=default_tab_delimited_output, action="store_true",
                       help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
     output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
     output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
@@ -2247,14 +2274,14 @@ def run_standalone():
                       help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
     output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
                       help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-    output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default="minimal",
+    output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default=default_output_quoting_mode,
                       help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
-    output_data_option_group.add_option("-L","--list-user-functions",dest="list_user_functions",default=False,action="store_true",
+    output_data_option_group.add_option("-L","--list-user-functions",dest="list_user_functions",default=default_list_user_functions,action="store_true",
                       help="List all user functions")
     parser.add_option_group(output_data_option_group)
     #-----------------------------------------------
     query_option_group = OptionGroup(parser,"Query Related Options")
-    query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=None,
+    query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=default_query_filename,
                       help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
     query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
                       help="query text encoding. Experimental. Please send your feedback on this")

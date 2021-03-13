@@ -14,6 +14,7 @@ from __future__ import print_function
 import unittest
 import random
 import json
+import uuid
 from json import JSONEncoder
 from subprocess import PIPE, Popen, STDOUT
 import sys
@@ -28,6 +29,7 @@ import codecs
 import itertools
 from gzip import GzipFile
 import pytest
+import uuid
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream
@@ -48,12 +50,17 @@ if os.environ.get('Q_DEBUG'):
     DEBUG = True
 
 
-def run_command(cmd_to_run):
+def run_command(cmd_to_run,env_to_inject=None):
     global DEBUG
     if DEBUG:
         print("CMD: {}".format(cmd_to_run))
 
-    p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True)
+    if env_to_inject is None:
+        env_to_inject = {}
+
+    env = env_to_inject
+
+    p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True,env=env)
     o, e = p.communicate()
     # remove last newline
     o = o.rstrip()
@@ -1497,6 +1504,163 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
 
         self.cleanup(tmpfile)
+
+class QrcTests(AbstractQTestCase):
+
+    def test_explicit_qrc_filename_not_found(self):
+        non_existent_filename = str(uuid.uuid4())
+        env_to_inject = { 'QRC_FILENAME': non_existent_filename}
+        cmd = Q_EXECUTABLE + ' "select 1"'
+        retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
+
+        self.assertEqual(retcode, 244)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0] == six.b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
+
+    def test_explicit_qrc_filename_that_exists(self):
+        tmpfile = self.create_file_with_data(six.b('''[options]
+output_delimiter = \\t
+'''))
+        env_to_inject = { 'QRC_FILENAME': tmpfile.name}
+        cmd = Q_EXECUTABLE + ' "select 1,2"'
+        retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
+
+        print(o)
+        print(e)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertTrue(e[0] == six.b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
+
+        self.cleanup(tmpfile)
+
+class CachingTests(AbstractQTestCase):
+
+    def test_cache_full_flow(self):
+        file_data = six.b("a,b,c\n10,20,30\n30,40,50")
+        tmpfile = self.create_file_with_data(file_data)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # Ensure cache has not been created
+        self.assertTrue(not os.path.exists(expected_cache_filename))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # Ensure cache has not been created, as cache mode is "read" only
+        self.assertTrue(not os.path.exists(expected_cache_filename))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # After readwrite caching has been activated, the cache file is expected to exist
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        # Read the cache file directly, to make sure it's a valid sqlite file
+        import sqlite3
+        db = sqlite3.connect(expected_cache_filename)
+        table_list = db.execute("select * from metaq where filenames_str == '%s'" % tmpfile.name).fetchall()
+        self.assertTrue(len(table_list) == 1)
+        table_metadata = table_list[0]
+        results = db.execute("select * from %s" % table_metadata[1]).fetchall()
+        self.assertEqual(results[0],(10,20,30))
+        self.assertEqual(results[1],(30,40,50))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # After readwrite caching has been activated, the cache file is expected to exist
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        self.cleanup(tmpfile)
+
+    def test_partial_caching_exists(self):
+        file1_data = six.b("a,b,c\n10,20,30\n30,40,50\n60,70,80")
+        tmpfile1 = self.create_file_with_data(file1_data)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsqlite')
+
+        file2_data = six.b("b,x\n10,linewith10\n20,linewith20\n30,linewith30\n40,linewith40")
+        tmpfile2 = self.create_file_with_data(file2_data)
+        tmpfile2_folder = os.path.dirname(tmpfile2.name)
+        tmpfile2_filename = os.path.basename(tmpfile2.name)
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsqlite')
+
+        # Use only first file, and cache
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # Ensure cache has been created for file 1
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        # Use both files with read caching, one should be read from cache, the other from the file
+        cmd = Q_EXECUTABLE + ' -H -d , "select file1.a,file1.b,file1.c,file2.x from %s file1 left join %s file2 on (file1.b = file2.b)" -C read' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('10,20,30,linewith20'))
+        self.assertEqual(o[1],six.b('30,40,50,linewith40'))
+        self.assertEqual(o[2],six.b('60,70,80,'))
+
+        # Ensure cache has NOT been created for file 2
+        self.assertTrue(not os.path.exists(expected_cache_filename2))
+
+        # Now rerun the query, this time with readwrite caching, so the second file cache will be written
+        cmd = Q_EXECUTABLE + ' -H -d , "select file1.a,file1.b,file1.c,file2.x from %s file1 left join %s file2 on (file1.b = file2.b)" -C readwrite' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('10,20,30,linewith20'))
+        self.assertEqual(o[1],six.b('30,40,50,linewith40'))
+        self.assertEqual(o[2],six.b('60,70,80,'))
+
+        # Ensure cache has now been created for file 2
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
+
 
 
 class UserFunctionTests(AbstractQTestCase):

@@ -69,6 +69,7 @@ DEBUG = '-V' in sys.argv
 def xprint(*args,**kwargs):
     global DEBUG
     if DEBUG:
+        d = { "file": sys.stderr }.update(kwargs)
         print(*args,**kwargs)
 
 def get_stdout_encoding(encoding_override=None):
@@ -1109,6 +1110,12 @@ class TableCreator(object):
         self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
         self.disk_db_content_signature = None
 
+    def get_source(self):
+        if self.disk_db is not None:
+            return self.disk_db_filename
+        else:
+            return 'file'
+
     def attach_to(self,query_level_db,disk_url=None):
         if disk_url is None:
             effective_url = self.db.sqlite_db_url
@@ -1271,7 +1278,6 @@ class TableCreator(object):
             if not self.table_created:
                 self.column_inferer.force_analysis()
                 self._do_create_table(filename)
-            #self.db.conn.execute('COMMIT').fetchall()
 
 
         if total_data_lines_read == 0:
@@ -1300,8 +1306,6 @@ class TableCreator(object):
 
         if self.state == TableCreatorState.ANALYZED:
             if self.disk_db_file_exists and self.read_caching:
-                tmp_c = self.db.conn.execute('COMMIT')
-                _ = tmp_c.fetchall()
                 self.load_data_from_disk_db()
                 self.state = TableCreatorState.FULLY_READ
             else:
@@ -1475,8 +1479,8 @@ class TableCreator(object):
             raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
         disk_db_conn = sqlite3.connect(self.disk_db_filename)
         sqlitebck.copy(self.db.conn,disk_db_conn)
-        print("--- Written db to disk: disk db filename %s metaq: %s" % (self.disk_db_filename,disk_db_conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
-        print(disk_db_conn.execute("select 'x',count(*) from temp_table_10001").fetchall())
+        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (self.disk_db_filename,disk_db_conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
+        xprint(disk_db_conn.execute("select 'x',count(*) from temp_table_10001").fetchall())
         disk_db_conn.close()
 
     def load_data_from_disk_db(self):
@@ -1572,11 +1576,12 @@ class QMaterializedFile(object):
     __repr__ = __str__
 
 class QTableStructure(object):
-    def __init__(self,filenames_str,materialized_files,column_names,column_types):
+    def __init__(self,filenames_str,materialized_files,column_names,column_types,source):
         self.filenames_str = filenames_str
         self.materialized_files = materialized_files
         self.column_names = column_names
         self.column_types = column_types
+        self.source = source
 
     def __str__(self):
         return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
@@ -1946,7 +1951,8 @@ class QTextAsData(object):
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
             materialized_files = self._create_materialized_files(table_creator)
-            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types)
+            source = table_creator.get_source()
+            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types,source)
             table_structures.append(table_structure)
         return table_structures
 
@@ -2036,7 +2042,7 @@ class QOutputPrinter(object):
             return
 
         for table_structure in results.metadata.table_structures:
-            print("Table for file: %s" % normalized_filename(table_structure.filenames_str), file=f_out)
+            print("Table for file: %s (source %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
                 print("  `%s` - %s" % (n,t), file=f_out)
 
@@ -2142,9 +2148,21 @@ def get_option_with_default(p, option_type, option, default):
     else:
         raise Exception("Unknown option type")
 
+QRC_FILENAME_ENVVAR = 'QRC_FILENAME'
+
 def run_standalone():
     p = configparser.ConfigParser()
-    p.read([os.path.expanduser('~/.qrc'), '.qrc'])
+    if QRC_FILENAME_ENVVAR in os.environ:
+        qrc_filename = os.environ[QRC_FILENAME_ENVVAR]
+        xprint("qrc filename is %s" % qrc_filename)
+        if os.path.exists(qrc_filename):
+            p.read([os.environ[QRC_FILENAME_ENVVAR]])
+        else:
+            print('QRC_FILENAME env var exists, but cannot find qrc file at %s' % qrc_filename,file=sys.stderr)
+            sys.exit(244)
+    else:
+        p.read([os.path.expanduser('~/.qrc'), '.qrc'])
+
 
     default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
     default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk', None)

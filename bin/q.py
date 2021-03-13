@@ -59,6 +59,8 @@ import six
 import io
 import json
 import inspect
+#print("QQQQ",sys.executable)
+import sqlitebck
 
 if six.PY3:
     long = int
@@ -300,7 +302,6 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
-        xprint("adding to metaq table")
         xprint("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
         import json
         with self.conn as cursor:
@@ -327,7 +328,9 @@ class Sqlite3DB(object):
             return d
 
     def done(self):
-        self.conn.commit()
+        if self.conn.in_transaction:
+            self.conn.commit()
+        self.conn.close()
 
     # TODO RLRL - Remove standard method, we can now release with dependencies
     def store_db_to_disk_standard(self,sqlite_db_filename,table_names_mapping):
@@ -341,12 +344,6 @@ class Sqlite3DB(object):
         new_db.close()
 
     def store_db_to_disk_fast(self,sqlite_db_filename,table_names_mapping):
-        try:
-            import sqlitebck
-        except ImportError as e:
-            msg = "sqlitebck python module cannot be found - fast store to disk cannot be performed. Note that for now, sqlitebck is not packaged as part of q. In order to use the fast method, you need to manually `pip install sqlitebck` into your python environment. We obviously consider this as a bug and it will be fixed once proper packaging will be done, making the fast method the standard one."
-            raise MissingSqliteBckModuleException(msg)
-
         new_db = sqlite3.connect(sqlite_db_filename)
         sqlitebck.copy(self.conn,new_db)
         c = new_db.cursor()
@@ -888,7 +885,10 @@ class TableColumnInferer(object):
         column_count_list = [len(col_vals) for col_vals in self.rows]
 
         if len(self.rows) == 0:
-            self.column_count = 0
+            if self.header_row is None:
+                self.column_count = 0
+            else:
+                self.column_count = len(self.header_row)
         else:
             if self.expected_column_count is not None:
                 self.column_count = self.expected_column_count
@@ -1110,11 +1110,14 @@ class TableCreator(object):
         self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
         self.disk_db_content_signature = None
 
+    def close(self):
+        self.db.close()
+
     def get_source(self):
         if self.disk_db is not None:
             return self.disk_db_filename
         else:
-            return 'file'
+            return 'original file'
 
     def attach_to(self,query_level_db,disk_url=None):
         if disk_url is None:
@@ -1279,9 +1282,12 @@ class TableCreator(object):
                 self.column_inferer.force_analysis()
                 self._do_create_table(filename)
 
+            self.db.conn.commit()
 
-        if total_data_lines_read == 0:
-            raise EmptyDataException()
+
+        # # TODO RLRL - move this to be a non-execption at this layer. Also related to a github issue that was opened a while ago
+        # if total_data_lines_read == 0:
+        #     raise EmptyDataException()
 
     def populate(self,dialect,stop_after_analysis=False):
         xprint("in populate ",self.filenames_str)
@@ -1474,7 +1480,7 @@ class TableCreator(object):
             self.db.drop_table(self.table_name)
 
     def store_data_as_disk_db(self):
-        import sqlitebck
+        xprint("Storing data as disk db")
         if self.state != TableCreatorState.FULLY_READ:
             raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
         disk_db_conn = sqlite3.connect(self.disk_db_filename)
@@ -1489,7 +1495,6 @@ class TableCreator(object):
             raise Exception("Bug - loading data from disk db is supposed to happen right after analysis")
 
         self.db.done()
-        self.db.conn.close()
 
         x = 'file:%s?immutable=1' % self.disk_db_filename
         self.db = Sqlite3DB(x,create_metaq=False)
@@ -1868,6 +1873,9 @@ class QTextAsData(object):
 
             # TODO RLRL - consolidate save_db_to_disk feature into qsqlite
 
+            if len(db_results_obj.results) == 0:
+                warnings.append(QWarning(None, "Warning - data is empty"))
+
             return QOutput(
                 data = db_results_obj.results,
                 metadata = QMetadata(
@@ -1877,8 +1885,6 @@ class QTextAsData(object):
                 warnings = warnings,
                 error = error)
 
-        except EmptyDataException as e:
-            warnings.append(QWarning(e,"Warning - data is empty"))
         except MissingHeaderException as e:
             error = QError(e,e.msg,117)
         except FileNotFoundException as e:
@@ -1919,6 +1925,7 @@ class QTextAsData(object):
             global DEBUG
             if DEBUG:
                 print(traceback.format_exc())
+            xprint(traceback.format_exc())
             error = QError(e,repr(e),199)
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
@@ -2042,7 +2049,8 @@ class QOutputPrinter(object):
             return
 
         for table_structure in results.metadata.table_structures:
-            print("Table for file: %s (source %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
+            #print("Table for file: %s (source: %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
+            print("Table for file: %s" % normalized_filename(table_structure.filenames_str), file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
                 print("  `%s` - %s" % (n,t), file=f_out)
 
@@ -2189,7 +2197,7 @@ def run_standalone():
     default_max_column_length_limit = get_option_with_default(p, 'int', 'max_column_length_limit', 131072)
     default_with_universal_newlines = get_option_with_default(p, 'boolean', 'with_universal_newlines', False)
 
-    default_output_delimiter = get_option_with_default(p, 'escaped_string', 'output_delimiter', None)
+    default_output_delimiter = get_option_with_default(p, 'string', 'output_delimiter', None)
     default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
     default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
     default_output_header = get_option_with_default(p, 'string', 'output_header', False)

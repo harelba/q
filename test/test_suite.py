@@ -44,6 +44,8 @@ Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', './bin/q.py')
 
 if not os.path.exists(Q_EXECUTABLE):
     raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
+else:
+    Q_EXECUTABLE = sys.executable + ' ' + Q_EXECUTABLE
 
 DEBUG = '-v' in sys.argv
 if os.environ.get('Q_DEBUG'):
@@ -592,7 +594,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_empty_data(self):
         tmpfile = self.create_file_with_data(six.b(''))
-        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -632,7 +634,7 @@ class BasicTests(AbstractQTestCase):
 
     def test_one_row_of_data_with_header_param(self):
         tmpfile = self.create_file_with_data(header_row)
-        cmd = Q_EXECUTABLE + ' -d , "select c2 from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1520,21 +1522,57 @@ class QrcTests(AbstractQTestCase):
 
     def test_explicit_qrc_filename_that_exists(self):
         tmpfile = self.create_file_with_data(six.b('''[options]
-output_delimiter = \\t
+output_delimiter=|
 '''))
         env_to_inject = { 'QRC_FILENAME': tmpfile.name}
         cmd = Q_EXECUTABLE + ' "select 1,2"'
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 
-        print(o)
-        print(e)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
-        self.assertTrue(e[0] == six.b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0] == six.b('1|2'))
 
         self.cleanup(tmpfile)
 
 class CachingTests(AbstractQTestCase):
+
+    def test_cache_empty_file(self):
+        file_data = six.b("a,b,c")
+        tmpfile = self.create_file_with_data(file_data)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0],six.b("Warning - data is empty"))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0],six.b("Warning - data is empty"))
+
+        # After readwrite caching has been activated, the cache file is expected to exist
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        # Read the cache file directly, to make sure it's a valid sqlite file
+        import sqlite3
+        db = sqlite3.connect(expected_cache_filename)
+        table_list = db.execute("select * from metaq where filenames_str == '%s'" % tmpfile.name).fetchall()
+        self.assertTrue(len(table_list) == 1)
+        table_metadata = table_list[0]
+        results = db.execute("select * from %s" % table_metadata[1]).fetchall()
+        self.assertTrue(len(results) == 0)
+
+        self.cleanup(tmpfile)
 
     def test_cache_full_flow(self):
         file_data = six.b("a,b,c\n10,20,30\n30,40,50")
@@ -1656,7 +1694,6 @@ class CachingTests(AbstractQTestCase):
 
         # Ensure cache has now been created for file 2
         self.assertTrue(os.path.exists(expected_cache_filename2))
-
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+seq 1 1000 | ../bin/q.py "select count(*) from -" -c 1 -S /var/tmp/store-to-disk-167682577.db -V
+
+cat t1 | ../bin/q.py "select count(*) from -" "select sum(c1) from -" -H -V

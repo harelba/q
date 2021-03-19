@@ -328,27 +328,27 @@ class Sqlite3DB(object):
             return d
 
     def done(self):
-        if self.conn.in_transaction:
-            self.conn.commit()
+        self.conn.commit()
         self.conn.close()
 
     # TODO RLRL - Remove standard method, we can now release with dependencies
     def store_db_to_disk_standard(self,sqlite_db_filename,table_names_mapping):
+        xprint("Storing using standard method")
         new_db = sqlite3.connect(sqlite_db_filename,isolation_level=None)
         c = new_db.cursor()
         for s in self.conn.iterdump():
             c.execute(s)
             _ = c.fetchall()
-        for source_filename_str,tn in six.iteritems(table_names_mapping):
-            c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
+        # for source_filename_str,tn in six.iteritems(table_names_mapping):
+        #     c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
         new_db.close()
 
     def store_db_to_disk_fast(self,sqlite_db_filename,table_names_mapping):
         new_db = sqlite3.connect(sqlite_db_filename)
         sqlitebck.copy(self.conn,new_db)
         c = new_db.cursor()
-        for source_filename_str,tn in six.iteritems(table_names_mapping):
-            c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
+        # for source_filename_str,tn in six.iteritems(table_names_mapping):
+        #     c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
         new_db.close()
 
     def store_db_to_disk(self,sqlite_db_filename,table_names_mapping,method='standard'):
@@ -455,6 +455,16 @@ class CouldNotConvertStringToNumericValueException(Exception):
 
     def __init__(self, msg):
         self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
+
+class IncorrectDefaultValueException(Exception):
+
+    def __init__(self, option_type,option,actual_value):
+        self.option_type = option_type
+        self.option = option
+        self.actual_value = actual_value
 
     def __str(self):
         return repr(self.msg)
@@ -1132,13 +1142,25 @@ class TableCreator(object):
 
     def generate_content_signature(self):
         # TODO RLRL - Push metaq access to the upper layer instead of inside TableCreator
+
+        # TODO RLRL - Should think what should happen to data streams in terms of content signature. Their signature
+        #             should be calculated only when writing them to disk and not before
+        # TODO RLRL - filenames_str should not be in metaq at all - The source of the data doesn't matter. in fact,
+        #             at some point it will be possible to use the cached files only, without having the original file.
+        #             The flow is one way only - From the source file to the cache and not back. Wanting it to be a circular
+        #             relationship has major disadvantages - Content Signature complexity, dependency on the source file,
+        #             syncing between source and cache, and probably more.
+        #             If trying to access a source file, and it exists, then the location of cache is derived from it
+        #             (side by side naming). If the source file doesn't exist, then it's possible to search for the cache
+        #             file and just use it (without comparing signatures to the source file).  If the source file exists
+        #             and the cache doesn't, then it's possible to create it after reading the source file.
         if self.data_stream is None:
             parts = self.filenames_str.split("+")
             fns = os.path.abspath(parts[0])
             size = [os.stat(x).st_size for x in parts]
         else:
             fns = self.filenames_str
-            size = 0
+            size = 0 # probably a bug, needs to be a list of ints
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1856,7 +1878,7 @@ class QTextAsData(object):
 
             # TODO RLRL - Breaking change - save to db needs another approach?
             if save_db_to_disk_filename is not None:
-                self.query_level_db.done()
+                #self.query_level_db.done()
                 dump_start_time = time.time()
                 print("Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time), file=sys.stderr)
                 print("Saving data to db file %s" % save_db_to_disk_filename, file=sys.stderr)
@@ -2143,72 +2165,93 @@ class QOutputPrinter(object):
             pass
 
 def get_option_with_default(p, option_type, option, default):
-    if not p.has_option('options', option):
-        return default
-    if option_type == 'boolean':
-        return p.getboolean('options', option)
-    elif option_type == 'int':
-        return p.getint('options', option)
-    elif option_type == 'string':
-        return p.get('options', option)
-    elif option_type == 'escaped_string':
-        return p.get('options', option).decode('string-escape')
-    else:
-        raise Exception("Unknown option type")
+    try:
+        if not p.has_option('options', option):
+            return default
+        if p.get('options',option) == 'None':
+            return None
+        if option_type == 'boolean':
+            r = p.getboolean('options', option)
+            return r
+        elif option_type == 'int':
+            r = p.getint('options', option)
+            return r
+        elif option_type == 'string':
+            r = p.get('options', option)
+            return r
+        else:
+            raise Exception("Unknown option type %s " % option_type)
+    except ValueError as e:
+        raise IncorrectDefaultValueException(option_type,option,p.get("options",option))
 
 QRC_FILENAME_ENVVAR = 'QRC_FILENAME'
+
+def dump_default_values_as_qrc(parser,exclusions):
+    m = parser.get_default_values().__dict__
+    print("[options]",file=sys.stdout)
+    for k in sorted(m.keys()):
+        if k not in exclusions:
+            print("%s=%s" % (k,m[k]),file=sys.stdout)
 
 def run_standalone():
     p = configparser.ConfigParser()
     if QRC_FILENAME_ENVVAR in os.environ:
         qrc_filename = os.environ[QRC_FILENAME_ENVVAR]
-        xprint("qrc filename is %s" % qrc_filename)
-        if os.path.exists(qrc_filename):
-            p.read([os.environ[QRC_FILENAME_ENVVAR]])
+        if qrc_filename != 'None':
+            xprint("qrc filename is %s" % qrc_filename)
+            if os.path.exists(qrc_filename):
+                p.read([os.environ[QRC_FILENAME_ENVVAR]])
+            else:
+                print('QRC_FILENAME env var exists, but cannot find qrc file at %s' % qrc_filename,file=sys.stderr)
+                sys.exit(244)
         else:
-            print('QRC_FILENAME env var exists, but cannot find qrc file at %s' % qrc_filename,file=sys.stderr)
-            sys.exit(244)
+            pass # special handling of 'None' env var value for QRC_FILENAME. Allows to eliminate the default ~/.qrc reading
     else:
-        p.read([os.path.expanduser('~/.qrc'), '.qrc'])
+        qrc_filename = os.path.expanduser('~/.qrc')
+        p.read([qrc_filename, '.qrc'])
 
 
-    default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
-    default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk', None)
-    default_save_db_to_disk_method = get_option_with_default(p, 'string', 'save_db_to_disk_method', 'fast')
-    default_caching_mode = get_option_with_default(p, 'string', 'caching_mode', 'none')
+    try:
+        default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
+        default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk_filename', None)
+        default_save_db_to_disk_method = get_option_with_default(p, 'string', 'save_db_to_disk_method', 'fast')
+        default_caching_mode = get_option_with_default(p, 'string', 'caching_mode', 'none')
 
-    default_skip_header = get_option_with_default(p, 'boolean', 'skip_header', False)
-    default_delimiter = get_option_with_default(p, 'escaped_string', 'delimiter', None)
-    default_pipe_delimited = get_option_with_default(p, 'boolean', 'pipe_delimited', False)
-    default_tab_delimited = get_option_with_default(p, 'boolean', 'tab_delimited', False)
-    default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
-    default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
-    default_analyze_only = get_option_with_default(p, 'boolean', 'analyze_only', False)
-    default_mode = get_option_with_default(p, 'string', 'mode', "relaxed")
-    default_column_count = get_option_with_default(p, 'string', 'column_count', None)
-    default_keep_leading_whitespace_in_values = get_option_with_default(p, 'boolean',
-                                                                        'keep_leading_whitespace_in_values', False)
-    default_disable_double_double_quoting = get_option_with_default(p, 'boolean', 'disable_double_double_quoting', True)
-    default_disable_escaped_double_quoting = get_option_with_default(p, 'boolean', 'disable_escaped_double_quoting',
-                                                                     True)
-    default_disable_column_type_detection = get_option_with_default(p, 'boolean', 'disable_column_type_detection',
-                                                                    False)
-    default_input_quoting_mode = get_option_with_default(p, 'string', 'input_quoting_mode', 'minimal')
-    default_max_column_length_limit = get_option_with_default(p, 'int', 'max_column_length_limit', 131072)
-    default_with_universal_newlines = get_option_with_default(p, 'boolean', 'with_universal_newlines', False)
+        default_skip_header = get_option_with_default(p, 'boolean', 'skip_header', False)
+        default_delimiter = get_option_with_default(p, 'string', 'delimiter', None)
+        default_pipe_delimited = get_option_with_default(p, 'boolean', 'pipe_delimited', False)
+        default_tab_delimited = get_option_with_default(p, 'boolean', 'tab_delimited', False)
+        default_encoding = get_option_with_default(p, 'string', 'encoding', 'UTF-8')
+        default_gzipped = get_option_with_default(p, 'boolean', 'gzipped', False)
+        default_analyze_only = get_option_with_default(p, 'boolean', 'analyze_only', False)
+        default_mode = get_option_with_default(p, 'string', 'mode', "relaxed")
+        default_column_count = get_option_with_default(p, 'string', 'column_count', None)
+        default_keep_leading_whitespace_in_values = get_option_with_default(p, 'boolean',
+                                                                            'keep_leading_whitespace_in_values', False)
+        default_disable_double_double_quoting = get_option_with_default(p, 'boolean', 'disable_double_double_quoting', True)
+        default_disable_escaped_double_quoting = get_option_with_default(p, 'boolean', 'disable_escaped_double_quoting',
+                                                                         True)
+        default_disable_column_type_detection = get_option_with_default(p, 'boolean', 'disable_column_type_detection',
+                                                                        False)
+        default_input_quoting_mode = get_option_with_default(p, 'string', 'input_quoting_mode', 'minimal')
+        default_max_column_length_limit = get_option_with_default(p, 'int', 'max_column_length_limit', 131072)
+        default_with_universal_newlines = get_option_with_default(p, 'boolean', 'with_universal_newlines', False)
 
-    default_output_delimiter = get_option_with_default(p, 'string', 'output_delimiter', None)
-    default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
-    default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
-    default_output_header = get_option_with_default(p, 'string', 'output_header', False)
-    default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
-    default_formatting = get_option_with_default(p, 'string', 'formatting', None)
-    default_output_encoding = get_option_with_default(p, 'string', 'encoding', 'none')
-    default_output_quoting_mode = get_option_with_default(p, 'string', 'output_quoting_mode', 'minimal')
-    default_list_user_functions = get_option_with_default(p, 'boolean', 'list_user_functions', False)
+        default_output_delimiter = get_option_with_default(p, 'string', 'output_delimiter', None)
+        default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
+        default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
+        default_output_header = get_option_with_default(p, 'string', 'output_header', False)
+        default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
+        default_formatting = get_option_with_default(p, 'string', 'formatting', None)
+        default_output_encoding = get_option_with_default(p, 'string', 'output_encoding', 'none')
+        default_output_quoting_mode = get_option_with_default(p, 'string', 'output_quoting_mode', 'minimal')
+        default_list_user_functions = get_option_with_default(p, 'boolean', 'list_user_functions', False)
 
-    default_query_filename = get_option_with_default(p, 'string', 'query_filename', None)
-    default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+        default_query_filename = get_option_with_default(p, 'string', 'query_filename', None)
+        default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+    except IncorrectDefaultValueException as e:
+        print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (e.actual_value,e.option,qrc_filename,e.option_type))
+        sys.exit(199)
 
     parser = OptionParser(usage="""
         q allows performing SQL-like statements on tabular text data.
@@ -2226,7 +2269,7 @@ def run_standalone():
 
         Examples:
 
-              Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
+          Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
             This example would print a count of each unique permission string in the current folder.
 
           Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
@@ -2236,7 +2279,7 @@ def run_standalone():
             This example will output the total size in MB per user+group in the /tmp subtree
 
 
-            See the help or https://github.com/harelba/q/ for more details.
+        See the help or http://harelba.github.io/q/ for more details.
     """)
 
     #-----------------------------------------------
@@ -2250,6 +2293,8 @@ def run_standalone():
                       help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
     parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsqlite")
+    parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False,action="store_true",
+                      help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
     #-----------------------------------------------
     input_data_option_group = OptionGroup(parser,"Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
@@ -2315,6 +2360,10 @@ def run_standalone():
     #-----------------------------------------------
 
     (options, args) = parser.parse_args()
+
+    if options.dump_defaults:
+        dump_default_values_as_qrc(parser,['dump-defaults','version'])
+        sys.exit(0)
 
     if options.version:
         print_credentials()

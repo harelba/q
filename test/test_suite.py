@@ -58,7 +58,7 @@ def run_command(cmd_to_run,env_to_inject=None):
         print("CMD: {}".format(cmd_to_run))
 
     if env_to_inject is None:
-        env_to_inject = {}
+        env_to_inject = os.environ
 
     env = env_to_inject
 
@@ -1521,10 +1521,10 @@ class QrcTests(AbstractQTestCase):
         self.assertTrue(e[0] == six.b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
 
     def test_explicit_qrc_filename_that_exists(self):
-        tmpfile = self.create_file_with_data(six.b('''[options]
+        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
 output_delimiter=|
 '''))
-        env_to_inject = { 'QRC_FILENAME': tmpfile.name}
+        env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name}
         cmd = Q_EXECUTABLE + ' "select 1,2"'
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 
@@ -1533,6 +1533,130 @@ output_delimiter=|
         self.assertEqual(len(e), 0)
         self.assertTrue(o[0] == six.b('1|2'))
 
+        self.cleanup(tmp_qrc_file)
+
+    def test_all_default_options(self):
+        # Create a qrc file that contains all default values inside the qrc file, but with some different values than the regular defaults
+        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
+analyze_only=True
+beautify=True
+caching_mode=readwrite
+column_count=32
+delimiter=,
+disable_column_type_detection=True
+disable_double_double_quoting=False
+disable_escaped_double_quoting=False
+encoding=ascii
+formatting=xxx
+gzipped=True
+input_quoting_mode=all
+keep_leading_whitespace_in_values=True
+list_user_functions=True
+max_column_length_limit=8888
+mode=strict
+output_delimiter=|
+output_encoding=utf-8
+output_header=True
+output_quoting_mode=all
+pipe_delimited=True
+pipe_delimited_output=True
+query_encoding=ascii
+query_filename=query-filename
+save_db_to_disk_filename=save-db-to-disk-filename
+save_db_to_disk_method=standard
+skip_header=True
+tab_delimited=True
+tab_delimited_output=true
+verbose=True
+with_universal_newlines=True
+'''))
+        env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name}
+        cmd = Q_EXECUTABLE + ' --dump-defaults'
+        retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 33)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b('[options]'))
+        o = o[1:]
+
+        m = {}
+        for r in o:
+            key,val = r.split(six.b("="),1)
+            m[key] = val
+
+        self.assertEqual(m[six.b('analyze_only')],six.b('True'))
+        self.assertEqual(m[six.b('beautify')],six.b('True'))
+        self.assertEqual(m[six.b('caching_mode')],six.b('readwrite'))
+        self.assertEqual(m[six.b('column_count')],six.b('32'))
+        self.assertEqual(m[six.b('delimiter')],six.b(','))
+        self.assertEqual(m[six.b('disable_column_type_detection')],six.b('True'))
+        self.assertEqual(m[six.b('disable_double_double_quoting')],six.b('False'))
+        self.assertEqual(m[six.b('disable_escaped_double_quoting')],six.b('False'))
+        self.assertEqual(m[six.b('encoding')],six.b('ascii'))
+        self.assertEqual(m[six.b('formatting')],six.b('xxx'))
+        self.assertEqual(m[six.b('gzipped')],six.b('True'))
+        self.assertEqual(m[six.b('input_quoting_mode')],six.b('all'))
+        self.assertEqual(m[six.b('keep_leading_whitespace_in_values')],six.b('True'))
+        self.assertEqual(m[six.b('list_user_functions')],six.b('True'))
+        self.assertEqual(m[six.b('max_column_length_limit')],six.b('8888'))
+        self.assertEqual(m[six.b('mode')],six.b('strict'))
+        self.assertEqual(m[six.b('output_delimiter')],six.b('|'))
+        self.assertEqual(m[six.b('output_encoding')],six.b('utf-8'))
+        self.assertEqual(m[six.b('output_header')],six.b('True'))
+        self.assertEqual(m[six.b('output_quoting_mode')],six.b('all'))
+        self.assertEqual(m[six.b('pipe_delimited')],six.b('True'))
+        self.assertEqual(m[six.b('pipe_delimited_output')],six.b('True'))
+        self.assertEqual(m[six.b('query_encoding')],six.b('ascii'))
+        self.assertEqual(m[six.b('query_filename')],six.b('query-filename'))
+        self.assertEqual(m[six.b('save_db_to_disk_filename')],six.b('save-db-to-disk-filename'))
+        self.assertEqual(m[six.b('save_db_to_disk_method')],six.b('standard'))
+        self.assertEqual(m[six.b('skip_header')],six.b('True'))
+        self.assertEqual(m[six.b('tab_delimited')],six.b('True'))
+        self.assertEqual(m[six.b('tab_delimited_output')],six.b('True'))
+        self.assertEqual(m[six.b('verbose')],six.b('True'))
+        self.assertEqual(m[six.b('with_universal_newlines')],six.b('True'))
+
+        self.cleanup(tmp_qrc_file)
+
+    def test_caching_readwrite_using_qrc_file(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),3)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('a,1,0'))
+        self.assertEqual(o[1],six.b('b,2,0'))
+        self.assertEqual(o[2],six.b('c,,0'))
+
+        # Ensure default does not create a cache file
+        self.assertTrue(not os.path.exists(expected_cache_filename))
+
+        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
+caching_mode=readwrite
+'''))
+        env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name}
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),3)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('a,1,0'))
+        self.assertEqual(o[1],six.b('b,2,0'))
+        self.assertEqual(o[2],six.b('c,,0'))
+
+        # Ensure that qrc file caching is being used and caching is activated (cache file should exist)
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        self.cleanup(tmp_qrc_file)
         self.cleanup(tmpfile)
 
 class CachingTests(AbstractQTestCase):
@@ -2940,6 +3064,9 @@ class BenchmarkTests(AbstractQTestCase):
 
         r, o, e = run_command('head -{} {}/benchmark-file.csv | ' + Q_EXECUTABLE + ' -d , "select {} from -" >> {}'.format(lines, BenchmarkTests.BENCHMARK_DIR, ','.join(c), filename))
         self.assertEqual(r, 0)
+        # Create file cache as part of preparation
+        r, o, e = run_command(Q_EXECUTABLE + ' -C readwrite -d , "select count(*) from %s"' % filename)
+        self.asserEqual(r, 0)
         return filename
 
     def _decide_result(self,attempt_results):
@@ -3009,15 +3136,19 @@ class BenchmarkTests(AbstractQTestCase):
             print(open(output_filename,'r').read())
 
     def test_q_matrix(self):
-        venv = os.path.basename(os.environ.get('VIRTUAL_ENV') or 'unknown-virtual-env')
+        Q_BENCHMARK_NAME = os.environ.get('Q_BENCHMARK_NAME')
+        if Q_BENCHMARK_NAME is None:
+            raise Exception('Q_BENCHMARK_NAME must be provided as an env var')
 
-        def generate_q_cmd(data_filename,line_count,column_count):
+        def generate_q_cmd(data_filename, line_count, column_count):
+            Q_BENCHMARK_ADDITIONAL_PARAMS = os.environ.get('Q_BENCHMARK_ADDITIONAL_PARAMS') or ''
             if column_count == 1:
                 additional_params = '-c 1'
             else:
                 additional_params = ''
+            additional_params = additional_params + ' ' + Q_BENCHMARK_ADDITIONAL_PARAMS
             return '{} -d , {} "select count(*) from {}"'.format(Q_EXECUTABLE,additional_params, data_filename)
-        self._perform_test_performance_matrix(venv,generate_q_cmd)
+        self._perform_test_performance_matrix(Q_BENCHMARK_NAME,generate_q_cmd)
 
     def _get_textql_version(self):
         r,o,e = run_command("textql --version")
@@ -3034,7 +3165,7 @@ class BenchmarkTests(AbstractQTestCase):
         if len(e) != 0:
             raise Exception("Errors while getting octosql version")
         import re
-        version = re.findall('v[0-9]+\.[0-9]+\.[0-9]+',o[0])[0]
+        version = re.findall('v[0-9]+\.[0-9]+\.[0-9]+',str(o[0],encoding='utf-8'))[0]
         return version
 
     def test_textql_matrix(self):

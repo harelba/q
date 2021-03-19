@@ -44,6 +44,7 @@ echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
 mkdir -p $Q_BENCHMARK_RESULTS_FOLDER
 
 source benchmark-config.sh
+LATEST_PYTHON_VERSION=${BENCHMARK_PYTHON_VERSIONS[${#BENCHMARK_PYTHON_VERSIONS[@]}-1]}
 
 ALL_FILES=()
 
@@ -59,11 +60,16 @@ then
 	continue
 fi
 
+export Q_BENCHMARK_NAME=${venv_name}
+export Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite"
+
 if [[ ${ver:0:3} != "3.8" ]]
 then
-	pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+	Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+	Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_ADDITIONAL_PARAMS="" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
 else
-	pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+	Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+	Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_ADDITIONAL_PARAMS="" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
 fi
 
 RESULT_FILE="${Q_BENCHMARK_RESULTS_FOLDER}/$venv_name.benchmark-results"
@@ -73,17 +79,28 @@ echo "Deactivating"
 pyenv deactivate
 done
 
+pyenv activate q-benchmark-${LATEST_PYTHON_VERSION}
 echo "==== testing textql ==="
-./run-tests.sh -k BenchmarkTests.test_textql_matrix -v
-RESULT_FILE="textql*.benchmark-results"
-ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
-echo "Done. Results are in textql.benchmark-results"
+if [[ -f `ls $Q_BENCHMARK_RESULTS_FOLDER/textql*.benchmark-results` ]]
+then
+	echo "Results files for textql already exist. Skipping benchmark for textql"
+else
+	pytest -m benchmark -k test_textql_matrix -v -s $PYTEST_OPTIONS
+	RESULT_FILE="textql*.benchmark-results"
+	ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+	echo "Done. Results are in textql.benchmark-results"
+fi
 
 echo "==== testing octosql ==="
-./run-tests.sh -k BenchmarkTests.test_octosql_matrix -v
-RESULT_FILE="octosql*.benchmark-results"
-ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
-echo "Done. Results are in octosql.benchmark-results"
+if [[ -f $Q_BENCHMARK_RESULTS_FOLDER/octosql.benchmark-results ]]
+then
+	echo "Results files for octosql aready exist. Skipping benchmark for octosql"
+else
+	pytest -m benchmark -k test_octosql_matrix -v -s $PYTEST_OPTIONS
+	RESULT_FILE="octosql*.benchmark-results"
+	ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+	echo "Done. Results are in octosql.benchmark-results"
+fi
 
 summary_file="$Q_BENCHMARK_RESULTS_FOLDER/summary.benchmark-results"
 
@@ -91,3 +108,4 @@ rm -vf $summary_file
 
 paste ${ALL_FILES[*]} > $summary_file
 echo "Done. final results file is $summary_file"
+pyenv deactivate

@@ -298,34 +298,44 @@ class Sqlite3DB(object):
 
     def create_metaq_table(self):
         with self.conn as cursor:
-            r = cursor.execute('CREATE TABLE if not exists metaq (filenames_str text, temp_table_name, content_signature text, creation_time text)')
+            r = cursor.execute('CREATE TABLE if not exists metaq ( \
+                               content_signature_key text, \
+                               temp_table_name text, \
+                               content_signature text, \
+                               creation_time text, \
+                               source_filenames_str text)')
             _ = r.fetchall()
 
-    def add_to_metaq_table(self, filenames_str, temp_table_name, content_signature, creation_time):
-        xprint("Adding to metaq table: %s %s" % (filenames_str,temp_table_name))
-        import json
-        with self.conn as cursor:
-            r = cursor.execute('INSERT INTO metaq (filenames_str,temp_table_name,content_signature,creation_time) VALUES (?,?,?,?)',
-                               (filenames_str,temp_table_name,json.dumps(content_signature),creation_time))
-            _ = r.fetchall()
+    def calculate_content_signature_key(self,content_signature):
+        return hashlib.sha1(six.b(json.dumps(content_signature))).hexdigest()
 
-    def get_from_metaq(self,filenames_str):
-        xprint("getting from metaq %s" % filenames_str)
-        with self.conn as cursor:
-            q = 'SELECT filenames_str,temp_table_name,content_signature,creation_time FROM metaq where filenames_str = ?'
-            xprint("Query from metaq %s" % q)
-            r = cursor.execute(q,(filenames_str,))
+    def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_filenames_str):
+        xprint("Adding to metaq table: %s" % (temp_table_name))
+        content_signature_key = self.calculate_content_signature_key(content_signature)
+        r = self.execute_and_fetch(
+            'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_filenames_str) VALUES (?,?,?,?,?)',
+                              (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_filenames_str))
+        xprint("RR",r)
 
+    def get_from_metaq(self, content_signature):
+        xprint("getting from metaq")
+        content_signature_key = self.calculate_content_signature_key(content_signature)
 
-            results = r.fetchall()
-            if results is None:
-                raise InvalidQSqliteFileException("Invalid qsqlite file - Cannot find table %s" % (filenames_str))
+        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_filenames_str"]
 
-            if len(results) > 1:
-                raise Exception("Bug - Exactly one result should have been provided: %s" % str(results))
+        q = "SELECT %s FROM metaq where content_signature_key = ?" % ",".join(field_names)
+        xprint("Query from metaq %s" % q)
+        r = self.execute_and_fetch(q,(content_signature_key,))
 
-            d = dict(zip(["filenames_str","temp_table_name","content_signature","creation_time"],results[0]))
-            return d
+        # TODO RLRL Check
+        if r is None:
+            return None
+
+        if len(r.results) > 1:
+            raise Exception("Bug - Exactly one result should have been provided: %s" % str(results))
+
+        d = dict(zip(field_names,r.results[0]))
+        return d
 
     def done(self):
         self.conn.commit()
@@ -381,22 +391,29 @@ class Sqlite3DB(object):
         finally:
             pass  # cursor.close()
 
-    def execute_and_fetch(self, q):
+    def execute_and_fetch(self, q,params = None):
         try:
-            if self.show_sql:
-                print(repr(q))
-            self.cursor.execute(q)
-            if self.cursor.description is not None:
-                # we decode the column names, so they can be encoded to any output format later on
-                if six.PY2:
-                    query_column_names = [unicode(c[0],'utf-8') for c in self.cursor.description]
+            try:
+                if self.show_sql:
+                    print(repr(q))
+                if params is None:
+                    r = self.cursor.execute(q)
                 else:
-                    query_column_names = [c[0] for c in self.cursor.description]
-            else:
-                query_column_names = None
-            result = self.cursor.fetchall()
-        finally:
-            pass  # cursor.close()
+                    r = self.cursor.execute(q,params)
+                if self.cursor.description is not None:
+                    # we decode the column names, so they can be encoded to any output format later on
+                    if six.PY2:
+                        query_column_names = [unicode(c[0],'utf-8') for c in self.cursor.description]
+                    else:
+                        query_column_names = [c[0] for c in self.cursor.description]
+                else:
+                    query_column_names = None
+                result = self.cursor.fetchall()
+            finally:
+                pass  # cursor.close()
+        except OperationalError as e:
+            # TODO RLRL Check
+            raise SqliteOperationalErrorException("Failed executing sqlite query %s with params %s . error: %s" % (q,params,str(e)),e)
         return Sqlite3DBResults(query_column_names,result)
 
     def _get_as_list_str(self, l):
@@ -458,6 +475,15 @@ class CouldNotConvertStringToNumericValueException(Exception):
 
     def __str(self):
         return repr(self.msg)
+
+class SqliteOperationalErrorException(Exception):
+
+    def __init__(self, msg,original_error):
+        self.msg = msg
+        self.original_error = original_error
+
+    def __str(self):
+        return repr(self.msg) + "//" + repr(self.original_error)
 
 class IncorrectDefaultValueException(Exception):
 
@@ -1156,15 +1182,12 @@ class TableCreator(object):
         #             and the cache doesn't, then it's possible to create it after reading the source file.
         if self.data_stream is None:
             parts = self.filenames_str.split("+")
-            fns = os.path.abspath(parts[0])
             size = [os.stat(x).st_size for x in parts]
         else:
-            fns = self.filenames_str
             size = 0 # probably a bug, needs to be a list of ints
 
         m = OrderedDict({
             "_signature_version": "v1",
-            "filenames_str": fns,
             "line_splitter": self.line_splitter.generate_content_signature(),
             "skip_header": self.skip_header,
             "gzipped": self.gzipped,
@@ -1177,12 +1200,11 @@ class TableCreator(object):
             "original_file_size": size
         })
 
-        # TODO RLRL - allow changing default caching through a side-file
         # TODO RLRL - Solve multi table caching
         return m
 
     def _generate_disk_db_filename(self):
-        fn = '%s.qsqlite' % (os.path.abspath(self.filenames_str).replace("+","__"))
+        fn = '%s.qsql' % (os.path.abspath(self.filenames_str).replace("+","__"))
         return fn
 
     def _generate_disk_db_name(self):
@@ -1311,6 +1333,11 @@ class TableCreator(object):
         # if total_data_lines_read == 0:
         #     raise EmptyDataException()
 
+    def get_absolute_filenames_str(self):
+        files = self.filenames_str.split("+")
+        abs_files = [os.path.abspath(x) for x in files]
+        return "+".join(abs_files)
+
     def populate(self,dialect,stop_after_analysis=False):
         xprint("in populate ",self.filenames_str)
         if self.state == TableCreatorState.NEW:
@@ -1324,10 +1351,11 @@ class TableCreator(object):
             import datetime
             now = datetime.datetime.utcnow().isoformat()
             # RLRLRL
-            # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsqlite file will be near it
-            # TODO RLRL - Move abspath to a separate member
-            self.db.add_to_metaq_table(os.path.abspath(self.filenames_str), self.table_name,
-                                       self.generate_content_signature(), now)
+            # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsql file will be near it
+            self.db.add_to_metaq_table(self.table_name,
+                                       self.generate_content_signature(),
+                                       now,
+                                       self.get_absolute_filenames_str())
 
             if stop_after_analysis:
                 return
@@ -1347,9 +1375,7 @@ class TableCreator(object):
     def get_table_name_for_querying(self):
         xprint("Getting table name for querying %s" % self.disk_db_name)
         xprint("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
-        # TODO RLRL - adhoc db is ok, but the filenames_str needs more work in order to allow stdin injection isolation
-        # TODO and is incorrect in its nature
-        d = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
+        d = self.db.get_from_metaq(self.generate_content_signature())
         table_name_in_disk_db = d['temp_table_name']
         return table_name_in_disk_db
 
@@ -1507,8 +1533,7 @@ class TableCreator(object):
             raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
         disk_db_conn = sqlite3.connect(self.disk_db_filename)
         sqlitebck.copy(self.db.conn,disk_db_conn)
-        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (self.disk_db_filename,disk_db_conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
-        xprint(disk_db_conn.execute("select 'x',count(*) from temp_table_10001").fetchall())
+        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (self.disk_db_filename,disk_db_conn.execute('select content_signature_key,temp_table_name from metaq').fetchall()))
         disk_db_conn.close()
 
     def load_data_from_disk_db(self):
@@ -1522,12 +1547,18 @@ class TableCreator(object):
         self.db = Sqlite3DB(x,create_metaq=False)
 
         xprint("Getting content signature for %s" % x)
-        r = self.db.get_from_metaq(os.path.abspath(self.filenames_str))
-        self.validate_content_signature(self.generate_content_signature(),json.loads(r['content_signature']))
+        # TODO RLRL - Handle multi-table caches?
+        content_signature = self.generate_content_signature()
+        r = self.db.get_from_metaq(content_signature)
+        if r is None:
+            raise InvalidQSqliteFileException("Could not find table %s : %s in %s with content signature %s" %
+                                              (self.disk_db_name,self.disk_db_filename,self.disk_db,content_signature))
+
+        self.validate_content_signature(content_signature,json.loads(r['content_signature']))
 
         xprint("--- db has been from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
                                                                                      self.disk_db_filename,
-                                                                                     self.db.conn.execute('select filenames_str,temp_table_name from metaq').fetchall()))
+                                                                                     self.db.conn.execute('select * from metaq').fetchall()))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
         if scope is None:
@@ -1893,7 +1924,7 @@ class QTextAsData(object):
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.query_level_db)
 
-            # TODO RLRL - consolidate save_db_to_disk feature into qsqlite
+            # TODO RLRL - consolidate save_db_to_disk feature into qsql
 
             if len(db_results_obj.results) == 0:
                 warnings.append(QWarning(None, "Warning - data is empty"))
@@ -1911,8 +1942,8 @@ class QTextAsData(object):
             error = QError(e,e.msg,117)
         except FileNotFoundException as e:
             error = QError(e,e.msg,30)
-        except sqlite3.OperationalError as e:
-            msg = str(e)
+        except SqliteOperationalErrorException as e:
+            msg = str(e.original_error)
             error = QError(e,"query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
                 warnings.append(QWarning(e,'Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names. Another issue might be that the file contains a BOM. Files that are encoded with UTF8 and contain a BOM can be read by specifying `-e utf-9-sig` in the command line. Support for non-UTF8 encoding will be provided in the future.'))
@@ -2292,7 +2323,7 @@ def run_standalone():
     parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default=default_save_db_to_disk_method,
                       help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
     parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
-                      help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsqlite")
+                      help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
     parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False,action="store_true",
                       help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
     #-----------------------------------------------

@@ -694,7 +694,7 @@ class BasicTests(AbstractQTestCase):
     def test_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
             header_row_with_spaces + six.b("\n") + sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , "select name,\`value 1\` from %s" -H' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name,\\`value 1\\` from %s" -H' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -710,7 +710,7 @@ class BasicTests(AbstractQTestCase):
     def test_column_analysis_for_spaces_in_header_row(self):
         tmpfile = self.create_file_with_data(
             header_row_with_spaces + six.b("\n") + sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , "select name,\`value 1\` from %s" -H -A' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -d , "select name,\\`value 1\\` from %s" -H -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1574,6 +1574,8 @@ with_universal_newlines=True
         cmd = Q_EXECUTABLE + ' --dump-defaults'
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 
+        print("OO",o)
+        print("EE",e)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 33)
         self.assertEqual(len(e), 0)
@@ -1624,7 +1626,7 @@ with_universal_newlines=True
         tmpfile = self.create_file_with_data(sample_data_no_header)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
-        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -1666,7 +1668,7 @@ class CachingTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
-        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -1690,7 +1692,7 @@ class CachingTests(AbstractQTestCase):
         # Read the cache file directly, to make sure it's a valid sqlite file
         import sqlite3
         db = sqlite3.connect(expected_cache_filename)
-        table_list = db.execute("select * from metaq where filenames_str == '%s'" % tmpfile.name).fetchall()
+        table_list = db.execute("select * from metaq where temp_table_name == 'temp_table_10001'").fetchall()
         self.assertTrue(len(table_list) == 1)
         table_metadata = table_list[0]
         results = db.execute("select * from %s" % table_metadata[1]).fetchall()
@@ -1703,7 +1705,7 @@ class CachingTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
-        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsqlite')
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -1744,7 +1746,7 @@ class CachingTests(AbstractQTestCase):
         # Read the cache file directly, to make sure it's a valid sqlite file
         import sqlite3
         db = sqlite3.connect(expected_cache_filename)
-        table_list = db.execute("select * from metaq where filenames_str == '%s'" % tmpfile.name).fetchall()
+        table_list = db.execute("select * from metaq where temp_table_name == 'temp_table_10001'").fetchall()
         self.assertTrue(len(table_list) == 1)
         table_metadata = table_list[0]
         results = db.execute("select * from %s" % table_metadata[1]).fetchall()
@@ -1770,13 +1772,13 @@ class CachingTests(AbstractQTestCase):
         tmpfile1 = self.create_file_with_data(file1_data)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
         tmpfile1_filename = os.path.basename(tmpfile1.name)
-        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsqlite')
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
 
         file2_data = six.b("b,x\n10,linewith10\n20,linewith20\n30,linewith30\n40,linewith40")
         tmpfile2 = self.create_file_with_data(file2_data)
         tmpfile2_folder = os.path.dirname(tmpfile2.name)
         tmpfile2_filename = os.path.basename(tmpfile2.name)
-        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsqlite')
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
 
         # Use only first file, and cache
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
@@ -3165,7 +3167,7 @@ class BenchmarkTests(AbstractQTestCase):
         if len(e) != 0:
             raise Exception("Errors while getting octosql version")
         import re
-        version = re.findall('v[0-9]+\.[0-9]+\.[0-9]+',str(o[0],encoding='utf-8'))[0]
+        version = re.findall('v[0-9]+\\.[0-9]+\\.[0-9]+',str(o[0],encoding='utf-8'))[0]
         return version
 
     def test_textql_matrix(self):

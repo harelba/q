@@ -547,10 +547,15 @@ class Sql(object):
                     raise Exception(
                         'FROM/JOIN is missing a table name after it')
 
+                # If there's an open paren, the table is a subquery. There's no name here.
                 qtable_name = self.sql_parts[idx + 1]
+                if qtable_name.startswith('('):
+                    idx += 1
+                    continue
+
                 # Otherwise, the next part contains the qtable name. In most cases the next part will be only the qtable name.
-                # We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...".
-                # In that case, there will be an ending paranthesis as part of the name, and we want to handle this case gracefully.
+                # We handle one special case here, where this is a subquery such as: "SELECT (SELECT ... FROM qtable),100 FROM ...".
+                # In that case, there may be an ending paranthesis as part of the name, and we want to handle this case gracefully.
                 # This is obviously a hack of a hack :) Just until we have
                 # complete parsing capabilities
                 if ')' in qtable_name:

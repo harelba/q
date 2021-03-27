@@ -59,14 +59,13 @@ import six
 import io
 import json
 import inspect
-#print("QQQQ",sys.executable)
 import sqlitebck
 
 if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = '-V' in sys.argv
+DEBUG = True or '-V' in sys.argv
 
 def xprint(*args,**kwargs):
     global DEBUG
@@ -275,12 +274,21 @@ class Sqlite3DBResults(object):
         self.query_column_names = query_column_names
         self.results = results
 
-class Sqlite3DB(object):
+    def __str__(self):
+        return "Sqlite3DBResults<result_count=%d,query_column_names=%s>" % (len(self.results),str(self.query_column_names))
+    __repr__ = __str__
 
-    def __init__(self, sqlite_db_url, create_metaq, show_sql=SHOW_SQL):
+class Sqlite3DB(object):
+    def __str__(self):
+        return "Sqlite3DB<url=%s>" % self.sqlite_db_url
+    __repr__ = __str__
+
+    def __init__(self, db_id, sqlite_db_url, create_metaq, show_sql=SHOW_SQL):
         self.show_sql = show_sql
         self.create_metaq = create_metaq
 
+        
+        self.db_id = db_id
         self.sqlite_db_url = sqlite_db_url
         if six.PY2:
             self.conn = sqlite3.connect(self.sqlite_db_url)
@@ -295,6 +303,8 @@ class Sqlite3DB(object):
 
         if create_metaq:
             self.create_metaq_table()
+        else:
+            xprint('using database with the following metaq content: %s',self.execute_and_fetch('select * from metaq').results)
 
     def create_metaq_table(self):
         with self.conn as cursor:
@@ -413,6 +423,7 @@ class Sqlite3DB(object):
                 pass  # cursor.close()
         except OperationalError as e:
             # TODO RLRL Check
+            xprint("YYYYY")
             raise SqliteOperationalErrorException("Failed executing sqlite query %s with params %s . error: %s" % (q,params,str(e)),e)
         return Sqlite3DBResults(query_column_names,result)
 
@@ -1091,21 +1102,19 @@ class MaterializedFileState(object):
 import hashlib
 
 class TableCreator(object):
+    def __str__(self):
+        return "TableCreator<db=%s>" % str(self.sqlite_db)
+    __repr__ = __str__
 
     def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,data_stream=None,
-                 read_caching=False,write_caching=False,adhoc_db_to_use=None):
-        xprint("in table creator init ",inspect.getouterframes(inspect.currentframe(),2)[1])
+                 read_caching=False,write_caching=False,sqlite_db=None,target_sqlite_table_name=None):
+        xprint("in table creator init for filename %s" % filenames_str)
         self.filenames_str = filenames_str
 
-        # TODO RLRL - "disk_db should actually become the "db", as we're splitting everything to run through attached dbs
-        #             whether in memory or disk based
-        if adhoc_db_to_use is not None:
-            self.db = adhoc_db_to_use
-        else:
-            self.db = Sqlite3DB('file:mem-%s?mode=memory&cache=shared' % self._generate_disk_db_name(),create_metaq=True)
-        self.adhoc_db_to_use = adhoc_db_to_use
+        self.sqlite_db = sqlite_db
+        self.target_sqlite_table_name = target_sqlite_table_name
 
         self.skip_header = skip_header
         self.gzipped = gzipped
@@ -1120,10 +1129,6 @@ class TableCreator(object):
 
         self.column_inferer = TableColumnInferer(
             mode, expected_column_count, input_delimiter, skip_header,disable_column_type_detection)
-
-        # Filled only after table population since we're inferring the table
-        # creation data
-        self.table_name = None
 
         self.pre_creation_rows = []
         self.buffered_inserts = []
@@ -1142,29 +1147,14 @@ class TableCreator(object):
         self.write_caching = write_caching
         self.disk_db = None
         self.disk_db_filename = self._generate_disk_db_filename()
-        self.disk_db_name = self._generate_disk_db_name()
         self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
         self.disk_db_content_signature = None
-
-    def close(self):
-        self.db.close()
 
     def get_source(self):
         if self.disk_db is not None:
             return self.disk_db_filename
         else:
             return 'original file'
-
-    def attach_to(self,query_level_db,disk_url=None):
-        if disk_url is None:
-            effective_url = self.db.sqlite_db_url
-        else:
-            effective_url = disk_url
-
-        q = "attach '%s' as %s" % (effective_url,self._generate_disk_db_name())
-        xprint("Attach query: %s" % q)
-        c = query_level_db.execute(q)
-        c.fetchall()
 
     def generate_content_signature(self):
         # TODO RLRL - Push metaq access to the upper layer instead of inside TableCreator
@@ -1206,10 +1196,6 @@ class TableCreator(object):
     def _generate_disk_db_filename(self):
         fn = '%s.qsql' % (os.path.abspath(self.filenames_str).replace("+","__"))
         return fn
-
-    def _generate_disk_db_name(self):
-        return 'ddb_' + hashlib.sha1(six.b(self.filenames_str)).hexdigest()
-
 
     def materialize_file_list(self):
         materialized_file_list = []
@@ -1326,7 +1312,7 @@ class TableCreator(object):
                 self.column_inferer.force_analysis()
                 self._do_create_table(filename)
 
-            self.db.conn.commit()
+            self.sqlite_db.conn.commit()
 
 
         # # TODO RLRL - move this to be a non-execption at this layer. Also related to a github issue that was opened a while ago
@@ -1352,17 +1338,17 @@ class TableCreator(object):
             now = datetime.datetime.utcnow().isoformat()
             # RLRLRL
             # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsql file will be near it
-            self.db.add_to_metaq_table(self.table_name,
-                                       self.generate_content_signature(),
-                                       now,
-                                       self.get_absolute_filenames_str())
+            self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
+                                              self.generate_content_signature(),
+                                              now,
+                                              self.get_absolute_filenames_str())
 
             if stop_after_analysis:
                 return
 
         if self.state == TableCreatorState.ANALYZED:
             if self.disk_db_file_exists and self.read_caching:
-                self.load_data_from_disk_db()
+                self.load_data_from_disk_db(self.sqlite_db.db_id)
                 self.state = TableCreatorState.FULLY_READ
             else:
                 self._populate(dialect,stop_after_analysis=False)
@@ -1373,10 +1359,10 @@ class TableCreator(object):
             return
 
     def get_table_name_for_querying(self):
-        xprint("Getting table name for querying %s" % self.disk_db_name)
-        xprint("getting table name for querying: ",self.db.conn.execute("select * from metaq").fetchall())
-        d = self.db.get_from_metaq(self.generate_content_signature())
+        xprint("getting table name for querying")
+        d = self.sqlite_db.get_from_metaq(self.generate_content_signature())
         table_name_in_disk_db = d['temp_table_name']
+        xprint("table name for querying is %s" % table_name_in_disk_db)
         return table_name_in_disk_db
 
     def _flush_pre_creation_rows(self, filename):
@@ -1409,7 +1395,7 @@ class TableCreator(object):
         if self.numeric_column_indices is None:
             column_types = self.column_inferer.get_column_types()
             self.numeric_column_indices = [idx for idx, column_type in enumerate(
-                column_types) if self.db.is_numeric_type(column_type)]
+                column_types) if self.sqlite_db.is_numeric_type(column_type)]
 
     def nullify_values_if_needed(self, col_vals):
         new_vals = col_vals[:]
@@ -1481,10 +1467,10 @@ class TableCreator(object):
             return
 
         if len(self.buffered_inserts) > 0:
-            insert_row_stmt = self.db.generate_insert_row(
-                self.table_name, self.effective_column_names)
+            insert_row_stmt = self.sqlite_db.generate_insert_row(
+                self.target_sqlite_table_name, self.effective_column_names)
 
-            self.db.update_many(insert_row_stmt, self.buffered_inserts)
+            self.sqlite_db.update_many(insert_row_stmt, self.buffered_inserts)
         # print self.db.execute_and_fetch(self.db.generate_end_transaction())
         self.buffered_inserts = []
 
@@ -1501,9 +1487,6 @@ class TableCreator(object):
             pass  # We don't have enough information for creating the table yet
 
     def _do_create_table(self,filename):
-        # Then generate a temp table name
-        tbl_name = self.db.generate_temp_table_name()
-        self.table_name = tbl_name
         # Get the column definition dict from the inferer
         column_dict = self.column_inferer.get_column_dict()
 
@@ -1515,50 +1498,51 @@ class TableCreator(object):
             ordered_column_names = self.column_inferer.get_column_names()
 
         # Create the CREATE TABLE statement
-        create_table_stmt = self.db.generate_create_table(
-            self.table_name, ordered_column_names, column_dict)
+        create_table_stmt = self.sqlite_db.generate_create_table(
+            self.target_sqlite_table_name, ordered_column_names, column_dict)
         # And create the table itself
-        self.db.execute_and_fetch(create_table_stmt)
+        self.sqlite_db.execute_and_fetch(create_table_stmt)
         # Mark the table as created
         self.table_created = True
         self._flush_pre_creation_rows(filename)
 
     def drop_table(self):
         if self.table_created:
-            self.db.drop_table(self.table_name)
+            self.sqlite_db.drop_table(self.table_name)
 
     def store_data_as_disk_db(self):
         xprint("Storing data as disk db")
         if self.state != TableCreatorState.FULLY_READ:
             raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
         disk_db_conn = sqlite3.connect(self.disk_db_filename)
-        sqlitebck.copy(self.db.conn,disk_db_conn)
+        sqlitebck.copy(self.sqlite_db.conn,disk_db_conn)
         xprint("--- Written db to disk: disk db filename %s metaq: %s" % (self.disk_db_filename,disk_db_conn.execute('select content_signature_key,temp_table_name from metaq').fetchall()))
         disk_db_conn.close()
 
-    def load_data_from_disk_db(self):
+    def load_data_from_disk_db(self,db_id):
         start = time.time()
         if self.state != TableCreatorState.ANALYZED:
             raise Exception("Bug - loading data from disk db is supposed to happen right after analysis")
 
-        self.db.done()
+        self.sqlite_db.done()
 
         x = 'file:%s?immutable=1' % self.disk_db_filename
-        self.db = Sqlite3DB(x,create_metaq=False)
+        xprint("PPP Overwriting sqlite_db from %s" % self.sqlite_db)
+        self.sqlite_db = Sqlite3DB(db_id,x,create_metaq=False)
+        xprint("PPP into %s" % self.sqlite_db)
 
         xprint("Getting content signature for %s" % x)
         # TODO RLRL - Handle multi-table caches?
         content_signature = self.generate_content_signature()
-        r = self.db.get_from_metaq(content_signature)
+        r = self.sqlite_db.get_from_metaq(content_signature)
         if r is None:
-            raise InvalidQSqliteFileException("Could not find table %s : %s in %s with content signature %s" %
-                                              (self.disk_db_name,self.disk_db_filename,self.disk_db,content_signature))
+            raise InvalidQSqliteFileException("Could not find table %s in %s with content signature %s" %
+                                              (self.disk_db_filename,self.disk_db,content_signature))
 
         self.validate_content_signature(content_signature,json.loads(r['content_signature']))
 
-        xprint("--- db has been from disk: disk db name: %s disk db filename %s metaq: %s" % (self.disk_db_name,
-                                                                                     self.disk_db_filename,
-                                                                                     self.db.conn.execute('select * from metaq').fetchall()))
+        xprint("--- db has been from disk: disk db filename %s metaq: %s" % (self.disk_db_filename,
+                                                                             self.sqlite_db.conn.execute('select * from metaq').fetchall()))
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
         if scope is None:
@@ -1762,9 +1746,9 @@ class QTextAsData(object):
             self.data_streams = DataStreams({})
 
         # Create DB object
-        self.query_level_db = Sqlite3DB('file:query-level-db?mode=memory&cache=shared',create_metaq=True)
-        self.adhoc_db_name = 'file:adhoc-db?mode=memory&cache=shared'
-        self.adhoc_db = Sqlite3DB(self.adhoc_db_name,create_metaq=True)
+        self.query_level_db = Sqlite3DB('query_level_db','file:query_level_db?mode=memory&cache=shared',create_metaq=True)
+        self.adhoc_db_name = 'file:adhoc_db?mode=memory&cache=shared'
+        self.adhoc_db = Sqlite3DB('adhoc_db',self.adhoc_db_name,create_metaq=True)
         self.query_level_db.conn.execute("attach '%s' as adhoc_db" % self.adhoc_db_name)
 
 
@@ -1777,7 +1761,7 @@ class QTextAsData(object):
     def close_all(self):
         for tc in self.table_creators:
             xprint("Closing %s" % tc)
-            self.table_creators[tc].db.conn.close()
+            self.table_creators[tc].sqlite_db.conn.close()
             #XXX
         self.query_level_db.conn.close()
 
@@ -1803,8 +1787,11 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
+    def _generate_disk_db_name(self,filenames_str):
+        return 'ddb_' + hashlib.sha1(six.b(filenames_str)).hexdigest()
+
     def _load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        xprint("loading data",inspect.getouterframes(inspect.currentframe(),2)[1])
+        xprint("loading data for filename %s" % filename)
 
         start_time = time.time()
 
@@ -1821,17 +1808,19 @@ class QTextAsData(object):
         xprint("checking",self.table_creators.keys())
         if filename in self.table_creators.keys():
             return None
+        xprint("%s not found - loading" % filename)
 
         # Skip caching for streams input
         if self.data_streams.get_for_filename(filename):
             effective_read_caching = False
             effective_write_caching = False
-            adhoc_db_to_use = self.adhoc_db
+            db_to_use = self.adhoc_db
             data_stream = self.data_streams.get_for_filename(filename)
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
-            adhoc_db_to_use = None
+            db_id = self._generate_disk_db_name(filename)
+            db_to_use = Sqlite3DB(db_id,'file:mem-%s?mode=memory&cache=shared' % db_id,create_metaq=True)
             data_stream = None
 
         # Create the matching database table and populate it
@@ -1840,16 +1829,26 @@ class QTextAsData(object):
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
             data_stream=data_stream,
-            read_caching=effective_read_caching,write_caching=effective_write_caching,adhoc_db_to_use=adhoc_db_to_use)
+            read_caching=effective_read_caching,write_caching=effective_write_caching,
+            sqlite_db=db_to_use,target_sqlite_table_name='temp_table_10001')
 
         table_creator.populate(dialect_id,stop_after_analysis)
 
-        if adhoc_db_to_use is None:
-            table_creator.attach_to(self.query_level_db.conn)
+        if db_to_use.db_id != 'adhoc_db':
+            # TODO RLRL - Decision on which db to use should become external to TC, so "db_to_use" can be decided here instead
+            #   of taking it from the table_creator (which can now override the sqlite db to use due to the loading from cache)
+            self.attach_to_query_level_db(table_creator.sqlite_db)
 
         self.table_creators[filename] = table_creator
 
         return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
+
+    def attach_to_query_level_db(self,target_db):
+        q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
+        xprint("Attach query: %s" % q)
+        c = self.query_level_db.execute_and_fetch(q)
+        xprint(c)
+
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
@@ -1871,10 +1870,9 @@ class QTextAsData(object):
         for filename in sql_object.qtable_names:
             tc = self.table_creators[filename]
             table_name_in_disk_db = tc.get_table_name_for_querying()
-            if tc.adhoc_db_to_use is not None:
-                effective_table_name = 'adhoc_db.%s' % (table_name_in_disk_db)
-            else:
-                effective_table_name = '%s.%s' % (tc.disk_db_name,table_name_in_disk_db)
+
+            effective_table_name = '%s.%s' % (tc.sqlite_db.db_id,table_name_in_disk_db)
+
             sql_object.set_effective_table_name(filename,effective_table_name)
 
     def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
@@ -1904,6 +1902,10 @@ class QTextAsData(object):
             data_loads += self._ensure_data_is_loaded(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
 
             table_structures = self._create_table_structures_list()
+
+            xprint("QQQ",self.query_level_db.execute_and_fetch('pragma database_list'))
+            xprint("WWW",{ x:self.table_creators[x] for x in self.table_creators})
+
 
             self.materialize_sql_object(sql_object)
 
@@ -1943,6 +1945,7 @@ class QTextAsData(object):
         except FileNotFoundException as e:
             error = QError(e,e.msg,30)
         except SqliteOperationalErrorException as e:
+            xprint("Operational error: %s" % e)
             msg = str(e.original_error)
             error = QError(e,"query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
@@ -1977,7 +1980,7 @@ class QTextAsData(object):
         except Exception as e:
             global DEBUG
             if DEBUG:
-                print(traceback.format_exc())
+                xprint(traceback.format_exc())
             xprint(traceback.format_exc())
             error = QError(e,repr(e),199)
 

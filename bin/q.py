@@ -65,7 +65,7 @@ if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = True or '-V' in sys.argv
+DEBUG = os.environ.get('Q_DEBUG', None) or '-V' in sys.argv
 
 def xprint(*args,**kwargs):
     global DEBUG
@@ -287,7 +287,6 @@ class Sqlite3DB(object):
         self.show_sql = show_sql
         self.create_metaq = create_metaq
 
-        
         self.db_id = db_id
         self.sqlite_db_url = sqlite_db_url
         if six.PY2:
@@ -1823,6 +1822,8 @@ class QTextAsData(object):
             db_to_use = Sqlite3DB(db_id,'file:mem-%s?mode=memory&cache=shared' % db_id,create_metaq=True)
             data_stream = None
 
+        target_sqlite_table_name = db_to_use.generate_temp_table_name()
+
         # Create the matching database table and populate it
         table_creator = TableCreator(
             filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
@@ -1830,7 +1831,7 @@ class QTextAsData(object):
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
             data_stream=data_stream,
             read_caching=effective_read_caching,write_caching=effective_write_caching,
-            sqlite_db=db_to_use,target_sqlite_table_name='temp_table_10001')
+            sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
 
         table_creator.populate(dialect_id,stop_after_analysis)
 

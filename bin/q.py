@@ -1108,7 +1108,7 @@ class TableCreator(object):
     def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,data_stream=None,
-                 read_caching=False,write_caching=False,sqlite_db=None,target_sqlite_table_name=None):
+                 read_caching=False,sqlite_db=None,target_sqlite_table_name=None):
         xprint("in table creator init for filename %s" % filenames_str)
         self.filenames_str = filenames_str
 
@@ -1143,7 +1143,6 @@ class TableCreator(object):
         self.state = TableCreatorState.NEW
 
         self.read_caching = read_caching
-        self.write_caching = write_caching
         self.disk_db = None
         self.disk_db_filename = self._generate_disk_db_filename()
         self.disk_db_file_exists = os.path.exists(self.disk_db_filename)
@@ -1352,8 +1351,6 @@ class TableCreator(object):
             else:
                 self._populate(dialect,stop_after_analysis=False)
                 self.state = TableCreatorState.FULLY_READ
-                if self.write_caching:
-                    self.store_data_as_disk_db()
 
             return
 
@@ -1809,18 +1806,17 @@ class QTextAsData(object):
             return None
         xprint("%s not found - loading" % filename)
 
+        data_stream = self.data_streams.get_for_filename(filename)
         # Skip caching for streams input
-        if self.data_streams.get_for_filename(filename):
+        if data_stream is not None:
             effective_read_caching = False
             effective_write_caching = False
             db_to_use = self.adhoc_db
-            data_stream = self.data_streams.get_for_filename(filename)
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
             db_id = self._generate_disk_db_name(filename)
             db_to_use = Sqlite3DB(db_id,'file:mem-%s?mode=memory&cache=shared' % db_id,create_metaq=True)
-            data_stream = None
 
         target_sqlite_table_name = db_to_use.generate_temp_table_name()
 
@@ -1830,7 +1826,7 @@ class QTextAsData(object):
             mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
             input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
             data_stream=data_stream,
-            read_caching=effective_read_caching,write_caching=effective_write_caching,
+            read_caching=effective_read_caching,
             sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
 
         table_creator.populate(dialect_id,stop_after_analysis)
@@ -1841,6 +1837,9 @@ class QTextAsData(object):
             self.attach_to_query_level_db(table_creator.sqlite_db)
 
         self.table_creators[filename] = table_creator
+
+        if effective_write_caching:
+            table_creator.store_data_as_disk_db()
 
         return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
 

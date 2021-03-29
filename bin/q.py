@@ -1322,12 +1322,14 @@ class TableCreator(object):
         abs_files = [os.path.abspath(x) for x in files]
         return "+".join(abs_files)
 
-    def populate(self,dialect,stop_after_analysis=False):
-        xprint("in populate ",self.filenames_str)
+    def perform_pre_populate(self,dialect):
         if self.state == TableCreatorState.NEW:
             self._pre_populate(dialect)
             self.state = TableCreatorState.INITIALIZED
+        else:
+            raise Exception('Bug - Wrong state %s' % self.state)
 
+    def perform_analyze(self, dialect):
         if self.state == TableCreatorState.INITIALIZED:
             self._populate(dialect,stop_after_analysis=True)
             self.state = TableCreatorState.ANALYZED
@@ -1340,10 +1342,10 @@ class TableCreator(object):
                                               self.generate_content_signature(),
                                               now,
                                               self.get_absolute_filenames_str())
+        else:
+            raise Exception('Bug - Wrong state %s' % self.state)
 
-            if stop_after_analysis:
-                return
-
+    def perform_read_fully(self, dialect):
         if self.state == TableCreatorState.ANALYZED:
             if self.disk_db_file_exists and self.read_caching:
                 self.load_data_from_disk_db(self.sqlite_db.db_id)
@@ -1351,8 +1353,8 @@ class TableCreator(object):
             else:
                 self._populate(dialect,stop_after_analysis=False)
                 self.state = TableCreatorState.FULLY_READ
-
-            return
+        else:
+            raise Exception('Bug - Wrong state %s' % self.state)
 
     def get_table_name_for_querying(self):
         xprint("getting table name for querying")
@@ -1829,7 +1831,12 @@ class QTextAsData(object):
             read_caching=effective_read_caching,
             sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
 
-        table_creator.populate(dialect_id,stop_after_analysis)
+        table_creator.perform_pre_populate(dialect_id)
+
+        table_creator.perform_analyze(dialect_id)
+
+        if not stop_after_analysis:
+            table_creator.perform_read_fully(dialect_id)
 
         if db_to_use.db_id != 'adhoc_db':
             # TODO RLRL - Decision on which db to use should become external to TC, so "db_to_use" can be decided here instead

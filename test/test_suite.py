@@ -2604,6 +2604,37 @@ class SqlTests(AbstractQTestCase):
 
 class BasicModuleTests(AbstractQTestCase):
 
+    def test_engine_isolation(self):
+        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+
+        q1 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        r = q1.execute('select * from %s' % tmpfile1.name)
+
+        self.assertTrue(r.status == 'ok')
+        self.assertEqual(len(r.warnings),0)
+        self.assertEqual(len(r.data),2)
+        self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r.metadata.data_loads),1)
+        self.assertEqual(r.metadata.data_loads[0].filename,tmpfile1.name)
+
+        q1.done()
+
+        q2 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
+        r2 = q2.execute('select * from %s' % tmpfile1.name)
+
+        self.assertTrue(r2.status == 'ok')
+        self.assertEqual(len(r2.warnings),0)
+        self.assertEqual(len(r2.data),2)
+        self.assertEqual(r2.metadata.output_column_name_list,['a','b','c'])
+        self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
+        self.assertEqual(len(r2.metadata.data_loads),1)
+        self.assertEqual(r2.metadata.data_loads[0].filename,tmpfile1.name)
+
+        q2.done()
+
+        self.cleanup(tmpfile1)
+
     def test_simple_query(self):
         tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
 
@@ -2618,7 +2649,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,tmpfile.name)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     def test_loaded_data_reuse(self):
@@ -2644,7 +2675,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
         self.assertEqual(len(r2.warnings),0)
 
-        q.close_all()
+        q.done()
+
         self.cleanup(tmpfile)
 
     def test_stdin_injection(self):
@@ -2664,7 +2696,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,'-')
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     def test_named_stdin_injection(self):
@@ -2685,7 +2717,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,'my_stdin_data')
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     # TODO RLRL - Maybe not needed
@@ -2720,7 +2752,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.metadata.data_loads),1)
         self.assertEqual(r2.metadata.data_loads[0].filename,'b-')
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2763,7 +2795,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r3.metadata.data_loads),0)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2785,7 +2817,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r.metadata.data_loads),0)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2807,7 +2839,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
         self.assertEqual(len(r.metadata.data_loads),0)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
@@ -2837,7 +2869,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.metadata.data_loads),1)
         self.assertEqual(r2.metadata.data_loads[0].filename,tmpfile.name)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     def test_input_params_merge(self):
@@ -2860,7 +2892,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         q_output = q.analyze("bad syntax")
 
-        q.close_all()
+        q.done()
         self.assertTrue(q_output.status == 'error')
         self.assertTrue(q_output.error.msg.startswith('query error'))
 
@@ -2893,7 +2925,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     def test_analyze_response(self):
@@ -2925,7 +2957,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)
 
-        q.close_all()
+        q.done()
         self.cleanup(tmpfile)
 
     def test_load_data_from_string_without_previous_data_load(self):
@@ -2961,7 +2993,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
 
-        q.close_all()
+        q.done()
 
     def test_load_data_from_string_with_previous_data_load(self):
         input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
@@ -2997,7 +3029,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
 
-        q.close_all()
+        q.done()
 
 
 

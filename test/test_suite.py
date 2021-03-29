@@ -1824,6 +1824,8 @@ class CachingTests(AbstractQTestCase):
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
+    # TODO RLRL prevent writing to metaq if data stream
+    # TODO RLRL reimplement --save-to-file
 
 
 class UserFunctionTests(AbstractQTestCase):
@@ -2606,6 +2608,7 @@ class BasicModuleTests(AbstractQTestCase):
 
     def test_engine_isolation(self):
         tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(six.b("d e f\n10 20 30\n40 50 60"))
 
         q1 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q1.execute('select * from %s' % tmpfile1.name)
@@ -2618,8 +2621,6 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.metadata.data_loads),1)
         self.assertEqual(r.metadata.data_loads[0].filename,tmpfile1.name)
 
-        q1.done()
-
         q2 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r2 = q2.execute('select * from %s' % tmpfile1.name)
 
@@ -2631,9 +2632,21 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.metadata.data_loads),1)
         self.assertEqual(r2.metadata.data_loads[0].filename,tmpfile1.name)
 
+        r3 = q1.execute('select * from %s' % tmpfile2.name)
+
+        self.assertTrue(r3.status == 'ok')
+        self.assertEqual(len(r3.warnings),0)
+        self.assertEqual(len(r3.data),2)
+        self.assertEqual(r3.metadata.output_column_name_list,['d','e','f'])
+        self.assertEqual(r3.data,[(10,20,30),(40,50,60)])
+        self.assertEqual(len(r3.metadata.data_loads),1)
+        self.assertEqual(r3.metadata.data_loads[0].filename,tmpfile2.name)
+
+        q1.done()
         q2.done()
 
         self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
     def test_simple_query(self):
         tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))

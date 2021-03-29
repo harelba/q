@@ -1740,6 +1740,8 @@ class DataStreams(object):
 
 class QTextAsData(object):
     def __init__(self,default_input_params=QInputParams(),data_streams_dict=None):
+        self.engine_id = str(uuid.uuid4()).replace("-","_")
+
         self.default_input_params = default_input_params
 
         self.table_creators = {}
@@ -1751,13 +1753,16 @@ class QTextAsData(object):
             self.data_streams = DataStreams({})
 
         # Create DB object
-        self.query_level_db = Sqlite3DB('query_level_db','file:query_level_db?mode=memory&cache=shared',create_metaq=True)
-        self.adhoc_db_name = 'file:adhoc_db?mode=memory&cache=shared'
-        self.adhoc_db = Sqlite3DB('adhoc_db',self.adhoc_db_name,create_metaq=True)
-        self.query_level_db.conn.execute("attach '%s' as adhoc_db" % self.adhoc_db_name)
+        self.query_level_db_id = 'qldb_%s' % self.engine_id
+        self.query_level_db = Sqlite3DB(self.query_level_db_id,
+                                        'file:%s?mode=memory&cache=shared' % self.query_level_db_id,create_metaq=True)
+        self.adhoc_db_id = 'adhoc_%s' % self.engine_id
+        self.adhoc_db_name = 'file:%s?mode=memory&cache=shared' % self.adhoc_db_id
+        self.adhoc_db = Sqlite3DB(self.adhoc_db_id,self.adhoc_db_name,create_metaq=True)
+        self.query_level_db.conn.execute("attach '%s' as %s" % (self.adhoc_db_name,self.adhoc_db_id))
 
-        self.databases_to_close['adhoc_db'] = self.adhoc_db
-        self.databases_to_close['query_level_db'] = self.query_level_db
+        self.databases_to_close[self.adhoc_db_id] = self.adhoc_db
+        self.databases_to_close[self.query_level_db_id] = self.query_level_db
 
     def done(self):
         for db_id in reversed(self.databases_to_close.keys()):
@@ -1793,8 +1798,8 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _generate_disk_db_name(self,filenames_str):
-        return 'ddb_' + hashlib.sha1(six.b(filenames_str)).hexdigest()
+    def _generate_disk_db_name(self, filenames_str):
+        return 'ddb_%s_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
     def _generate_disk_db_filename(self, filenames_str):
         fn = '%s.qsql' % (os.path.abspath(filenames_str).replace("+","__"))
@@ -1822,6 +1827,7 @@ class QTextAsData(object):
 
         data_stream = self.data_streams.get_for_filename(filename)
         # Skip caching for streams input
+        db_id = None
         if data_stream is not None:
             effective_read_caching = False
             effective_write_caching = False
@@ -1854,12 +1860,13 @@ class QTextAsData(object):
         if not stop_after_analysis:
             if effective_read_caching and disk_db_file_exists:
                 table_creator.perform_load_data_from_disk(disk_db_filename,table_creator.content_signature)
+                assert db_id is not None
                 # TODO RLRL - Remove from the list of databases. Essentially should be marked as "immutable" and closing should be skipped
                 del self.databases_to_close[db_id]
             else:
                 table_creator.perform_read_fully(dialect_id)
 
-        if db_to_use.db_id != 'adhoc_db':
+        if db_to_use.db_id != self.adhoc_db_id:
             self.attach_to_query_level_db(table_creator.sqlite_db)
 
         self.table_creators[filename] = table_creator

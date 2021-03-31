@@ -484,6 +484,7 @@ class Sqlite3DB(object):
     def drop_table(self, table_name):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
+
 class CouldNotConvertStringToNumericValueException(Exception):
 
     def __init__(self, msg):
@@ -1062,6 +1063,8 @@ class TableCreatorState(object):
     INITIALIZED = 'INITIALIZED'
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
+    # TODO RLRL take into account in TableCreator state management
+    LOADED = 'LOADED'
 
 class MaterializedFileState(object):
     def __init__(self,filename,f,encoding,dialect,data_stream=None):
@@ -1154,6 +1157,8 @@ class TableCreator(object):
     def get_source(self):
         # TODO RLRL Check
         return self.sqlite_db.db_id
+
+    # TODO RLRL Add -A source and test
 
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
@@ -1355,10 +1360,21 @@ class TableCreator(object):
     def perform_load_data_from_disk(self, disk_db_filename, content_signature=None):
         if self.state == TableCreatorState.ANALYZED:
             if self.read_caching:
-                self.load_data_from_disk_db(self.sqlite_db.db_id, disk_db_filename, content_signature)
+                self.load_qsql(self.sqlite_db.db_id, disk_db_filename, content_signature)
                 self.state = TableCreatorState.FULLY_READ
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
+
+    # TODO RLRL - metaq should belong to teh db layer. and finding the right table should be done at that layer
+    # TODO RLRL - "qsql db version" should be managed at the db layer as well, and compared pre-signature validation
+    def load_qsql(self, db_id, disk_db_filename, expected_content_signature):
+        x = 'file:%s?immutable=1' % disk_db_filename
+        xprint("PPP Loading sqlite_db %s from %s" % (db_id, disk_db_filename))
+        new_db = Sqlite3DB(db_id, x, create_metaq=False)
+        xprint("PPP into %s" % new_db)
+
+        self.sqlite_db.done()
+        self.sqlite_db = new_db
 
     def get_table_name_for_querying(self):
         xprint("getting table name for querying")
@@ -1512,41 +1528,7 @@ class TableCreator(object):
         if self.table_created:
             self.sqlite_db.drop_table(self.target_sqlite_table_name)
 
-    def store_data_as_disk_db(self,disk_db_filename):
-        xprint("Storing data as disk db")
-        if self.state != TableCreatorState.FULLY_READ:
-            raise Exception("Bug - storing data to a disk db is supposed to be happen right after table is fully read")
-        disk_db_conn = sqlite3.connect(disk_db_filename)
-        sqlitebck.copy(self.sqlite_db.conn,disk_db_conn)
-        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (disk_db_filename,disk_db_conn.execute('select content_signature_key,temp_table_name from metaq').fetchall()))
-        disk_db_conn.close()
-
-    # TODO RLRL - metaq should belong to teh db layer. and finding the right table should be done at that layer
-    # TODO RLRL - "qsql db version" should be managed at the db layer as well, and compared pre-signature validation
-    def load_data_from_disk_db(self,db_id, disk_db_filename, expected_content_signature):
-        start = time.time()
-        if self.state != TableCreatorState.ANALYZED:
-            raise Exception("Bug - loading data from disk db is supposed to happen right after analysis")
-
-        xprint("Gonna close old db %s before loading" % self.sqlite_db.db_id)
-        self.sqlite_db.done()
-
-        x = 'file:%s?immutable=1' % disk_db_filename
-        xprint("PPP Overwriting sqlite_db from %s" % self.sqlite_db)
-        self.sqlite_db = Sqlite3DB(db_id,x,create_metaq=False)
-        xprint("PPP into %s" % self.sqlite_db)
-
-        xprint("Getting content signature for %s" % x)
-        r = self.sqlite_db.get_from_metaq(expected_content_signature)
-        if r is None:
-            raise InvalidQSqliteFileException("Could not find table %s with content signature %s" %
-                                              (disk_db_filename,expected_content_signature))
-
-        # TODO RLRL Could be futile, as content signatures are now the key
-        self.validate_content_signature(expected_content_signature,json.loads(r['content_signature']))
-
-        xprint("--- db has been from disk: disk db filename %s metaq: %s" % (disk_db_filename,
-                                                                             self.sqlite_db.conn.execute('select * from metaq').fetchall()))
+    # store_qsql and load_qsql should be moved to the engine layer
 
     def validate_content_signature(self,source_signature,content_signature,scope=None):
         if scope is None:
@@ -1857,22 +1839,27 @@ class QTextAsData(object):
 
         table_creator.perform_analyze(dialect_id)
 
+        content_signature = table_creator.content_signature
+
         if not stop_after_analysis:
             if effective_read_caching and disk_db_file_exists:
-                table_creator.perform_load_data_from_disk(disk_db_filename,table_creator.content_signature)
                 assert db_id is not None
-                # TODO RLRL - Remove from the list of databases. Essentially should be marked as "immutable" and closing should be skipped
+                # TODO RLRL - Remove from the list of databases. Essentially should be marked as "immutable" in the dict and closing should be skipped
                 del self.databases_to_close[db_id]
+
+                # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
+                #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+                table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
             else:
                 table_creator.perform_read_fully(dialect_id)
+
+                if effective_write_caching:
+                    self.store_qsql(table_creator.sqlite_db, disk_db_filename)
 
         if db_to_use.db_id != self.adhoc_db_id:
             self.attach_to_query_level_db(table_creator.sqlite_db)
 
         self.table_creators[filename] = table_creator
-
-        if effective_write_caching:
-            table_creator.store_data_as_disk_db(disk_db_filename)
 
         return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
 
@@ -1908,6 +1895,16 @@ class QTextAsData(object):
 
             sql_object.set_effective_table_name(filename,effective_table_name)
 
+    def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
+        # TODO Need to attach each db into the new one so the create table as select would work
+        materialized_db = Sqlite3DB("xxx","file:%s" % save_db_to_disk_filename,create_metaq=True)
+        effective_table_names = sql_object.get_qtable_name_effective_table_names()
+        for i, k in enumerate(effective_table_names):
+            v = effective_table_names[k]
+            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % ('t%s' % i,v))
+            print("QQ",k,v,xx)
+        pass
+
     def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []
         error = None
@@ -1936,7 +1933,7 @@ class QTextAsData(object):
 
             table_structures = self._create_table_structures_list()
 
-            xprint("QQQ",self.query_level_db.execute_and_fetch('pragma database_list'))
+            xprint("QQQ",self.query_level_db.execute_and_fetch('pragma database_list').results)
             xprint("WWW",{ x:self.table_creators[x] for x in self.table_creators})
 
 
@@ -1944,15 +1941,15 @@ class QTextAsData(object):
 
             # TODO RLRL - Breaking change - save to db needs another approach?
             if save_db_to_disk_filename is not None:
-                #self.query_level_db.done()
+                xprint("Saving query data to disk...")
                 dump_start_time = time.time()
-                print("Data has been loaded in %4.3f seconds" % (dump_start_time - load_start_time), file=sys.stderr)
                 print("Saving data to db file %s" % save_db_to_disk_filename, file=sys.stderr)
-                self.query_level_db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
+                # self.query_level_db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
+                self.materialize_query_level_db(save_db_to_disk_filename,sql_object)
                 print("Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time), file=sys.stderr)
                 print("Query to run on the database: %s;" % sql_object.get_effective_sql(True), file=sys.stderr)
-                # TODO Propagate dump results using a different output class instead of an empty one
 
+                # TODO Propagate dump results using a different output class instead of an empty one
                 return QOutput()
 
             xprint("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
@@ -2056,6 +2053,14 @@ class QTextAsData(object):
         q_output = self._execute(query_str,input_params,data_streams=data_streams,stop_after_analysis=True)
 
         return q_output
+
+    def store_qsql(self, source_sqlite_db, disk_db_filename):
+        xprint("Storing data as disk db")
+        disk_db_conn = sqlite3.connect(disk_db_filename)
+        sqlitebck.copy(source_sqlite_db.conn,disk_db_conn)
+        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (disk_db_filename,disk_db_conn.execute('select content_signature_key,temp_table_name from metaq').fetchall()))
+        disk_db_conn.close()
+
 
 def escape_double_quotes_if_needed(v):
     x = v.replace(six.u('"'), six.u('""'))

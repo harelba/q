@@ -312,19 +312,19 @@ class Sqlite3DB(object):
                                temp_table_name text, \
                                content_signature text, \
                                creation_time text, \
+                               source_type text, \
                                source_filenames_str text)')
             _ = r.fetchall()
 
     def calculate_content_signature_key(self,content_signature):
         return hashlib.sha1(six.b(json.dumps(content_signature))).hexdigest()
 
-    def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_filenames_str):
+    def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_type, source_filenames_str):
         xprint("Adding to metaq table: %s" % (temp_table_name))
         content_signature_key = self.calculate_content_signature_key(content_signature)
         r = self.execute_and_fetch(
-            'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_filenames_str) VALUES (?,?,?,?,?)',
-                              (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_filenames_str))
-        xprint("RR",r)
+            'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_type,source_filenames_str) VALUES (?,?,?,?,?,?)',
+                              (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_type,source_filenames_str))
         # Ensure transaction is completed
         self.conn.commit()
 
@@ -1179,10 +1179,13 @@ class TableCreator(object):
         #             file and just use it (without comparing signatures to the source file).  If the source file exists
         #             and the cache doesn't, then it's possible to create it after reading the source file.
         if self.data_stream is None:
+            xprint("DD",self.data_stream)
             parts = self.filenames_str.split("+")
-            size = [os.stat(x).st_size for x in parts]
+            sizes = [os.stat(x).st_size for x in parts]
+            last_modification_times = [os.stat(x).st_mtime_ns for x in parts]
         else:
-            size = 0 # probably a bug, needs to be a list of ints
+            sizes = [0]
+            last_modification_times = [0]
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1195,7 +1198,8 @@ class TableCreator(object):
             "expected_column_count": self.expected_column_count,
             "input_delimiter": self.input_delimiter,
             "inferer": self.column_inferer._generate_content_signature(),
-            "original_file_size": size
+            "original_file_size": sizes,
+            "last_modification_time": last_modification_times
         })
 
         # TODO RLRL - Solve multi table caching
@@ -1333,11 +1337,12 @@ class TableCreator(object):
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
-    def perform_analyze(self, dialect):
+    def perform_analyze(self, dialect,data_stream):
         xprint("Analyzing... %s" % dialect)
         if self.state == TableCreatorState.INITIALIZED:
             self._populate(dialect,stop_after_analysis=True)
             self.state = TableCreatorState.ANALYZED
+
             xprint("Setting content signature after analysis")
             self.content_signature = self._generate_content_signature()
 
@@ -1345,9 +1350,15 @@ class TableCreator(object):
             now = datetime.datetime.utcnow().isoformat()
             # RLRLRL
             # TODO RLRL - Pass metaq only the first file when using data1+data2, so the location of the qsql file will be near it
+            if data_stream is not None:
+                source_type = 'data-stream'
+            else:
+                source_type = 'file'
+
             self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
                                               self.content_signature,
                                               now,
+                                              source_type,
                                               self.get_absolute_filenames_str())
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
@@ -1843,7 +1854,7 @@ class QTextAsData(object):
 
         table_creator.perform_pre_populate(dialect_id)
 
-        table_creator.perform_analyze(dialect_id)
+        table_creator.perform_analyze(dialect_id,table_creator.data_stream)
 
         content_signature = table_creator.content_signature
 

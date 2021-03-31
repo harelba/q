@@ -295,6 +295,24 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_analyze_result(self):
+        d = "\n".join(['%s\t%s\t%s' % (x+1,x+1,x+1) for x in range(100)])
+        tmpfile = self.create_file_with_data(six.b(d))
+
+        cmd = Q_EXECUTABLE + ' -c 1 "select count(*) from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
+        # an error when accessing the table
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1], six.b('  `c1` - text'))
+
+        self.cleanup(tmpfile)
+
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 

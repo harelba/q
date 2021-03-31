@@ -325,6 +325,8 @@ class Sqlite3DB(object):
             'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_filenames_str) VALUES (?,?,?,?,?)',
                               (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_filenames_str))
         xprint("RR",r)
+        # Ensure transaction is completed
+        self.conn.commit()
 
     def get_from_metaq(self, content_signature):
         xprint("getting from metaq")
@@ -1155,8 +1157,8 @@ class TableCreator(object):
         self.content_signature = None
 
     def get_source(self):
-        # TODO RLRL Check
-        return self.sqlite_db.db_id
+        if self.data_stream is not None:
+            return self.get_absolute_filenames_str()
 
     # TODO RLRL Add -A source and test
 
@@ -1580,6 +1582,10 @@ class QError(object):
         self.errorcode = errorcode
         self.traceback = traceback.format_exc()
 
+    def __str__(self):
+        return "QError<errorcode=%s,msg=%s,exception=%s,traceback=%s>" % (self.errorcode,self.msg,self.exception,str(self.traceback))
+    __repr__ = __str__
+
 class QDataLoad(object):
     def __init__(self,filename,start_time,end_time,data_stream=None):
         self.filename = filename
@@ -1612,8 +1618,8 @@ class QTableStructure(object):
         self.source = source
 
     def __str__(self):
-        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
-            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types)
+        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s,source=%s>" % (
+            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types,self.source)
     __repr__ = __str__
 
 class QMetadata(object):
@@ -1780,8 +1786,8 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _generate_disk_db_name(self, filenames_str):
-        return 'ddb_%s_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
+    def _generate_db_name(self, filenames_str):
+        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
     def _generate_disk_db_filename(self, filenames_str):
         fn = '%s.qsql' % (os.path.abspath(filenames_str).replace("+","__"))
@@ -1817,8 +1823,8 @@ class QTextAsData(object):
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
-            db_id = self._generate_disk_db_name(filename)
-            db_to_use = Sqlite3DB(db_id,'file:mem-%s?mode=memory&cache=shared' % db_id,create_metaq=True)
+            db_id = 'mem_%s' % self._generate_db_name(filename)
+            db_to_use = Sqlite3DB(db_id,'file:%s?mode=memory&cache=shared' % db_id,create_metaq=True)
             self.databases_to_close[db_id] = db_to_use
 
         target_sqlite_table_name = db_to_use.generate_temp_table_name()
@@ -1951,6 +1957,9 @@ class QTextAsData(object):
 
                 # TODO Propagate dump results using a different output class instead of an empty one
                 return QOutput()
+
+            # Ensure that adhoc db is not in the middle of a transaction
+            self.adhoc_db.conn.commit()
 
             xprint("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
             # Execute the query and fetch the data
@@ -2144,6 +2153,7 @@ class QOutputPrinter(object):
 
         for table_structure in results.metadata.table_structures:
             #print("Table for file: %s (source: %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
+            #print("Table for file: %s (source %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
             print("Table for file: %s" % normalized_filename(table_structure.filenames_str), file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
                 print("  `%s` - %s" % (n,t), file=f_out)
@@ -2620,7 +2630,7 @@ def run_standalone():
         formatting=options.formatting,
         output_header=options.output_header,
         encoding=output_encoding)
-    q_output_printer = QOutputPrinter(output_params,show_tracebacks=options.verbose)
+    q_output_printer = QOutputPrinter(output_params,show_tracebacks=DEBUG)
 
     for query_str in query_strs:
         if options.analyze_only:

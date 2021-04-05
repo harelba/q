@@ -332,11 +332,30 @@ class Sqlite3DB(object):
         xprint("getting from metaq")
         content_signature_key = self.calculate_content_signature_key(content_signature)
 
-        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_filenames_str"]
+        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_type","source_filenames_str"]
 
         q = "SELECT %s FROM metaq where content_signature_key = ?" % ",".join(field_names)
-        xprint("Query from metaq %s" % q)
+        xprint("X Query from metaq %s" % q)
         r = self.execute_and_fetch(q,(content_signature_key,))
+
+        # TODO RLRL Check
+        if r is None:
+            return None
+
+        if len(r.results) > 1:
+            raise Exception("Bug - Exactly one result should have been provided: %s" % str(r.results))
+
+        d = dict(zip(field_names,r.results[0]))
+        return d
+
+    def get_from_metaq_using_table_name(self, temp_table_name):
+        xprint("getting from metaq using table name")
+
+        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_type","source_filenames_str"]
+
+        q = "SELECT %s FROM metaq where temp_table_name = ?" % ",".join(field_names)
+        xprint("Query from metaq %s" % q)
+        r = self.execute_and_fetch(q,(temp_table_name,))
 
         # TODO RLRL Check
         if r is None:
@@ -706,7 +725,7 @@ class Sql(object):
         self.qtable_name_effective_table_names[
             qtable_name] = effective_table_name
 
-    def get_effective_sql(self,original_names=False):
+    def get_effective_sql(self,table_name_mapping=None):
         if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
             raise Exception('There are qtables without effective tables')
 
@@ -714,11 +733,12 @@ class Sql(object):
 
         for qtable_name, positions in six.iteritems(self.qtable_name_positions):
             for pos in positions:
-                if not original_names:
+                if table_name_mapping is not None:
+                    x = self.qtable_name_effective_table_names[qtable_name]
+                    effective_sql[pos] = table_name_mapping[x]
+                else:
                     effective_sql[pos] = self.qtable_name_effective_table_names[
                         qtable_name]
-                else:
-                    effective_sql[pos] = "`%s`" % qtable_name
 
         return " ".join(effective_sql)
 
@@ -1737,6 +1757,15 @@ class DataStreams(object):
         x = self.data_streams_dict.get(filename)
         return x
 
+class DatabaseInfo(object):
+    def __init__(self,sqlite_db,needs_closing):
+        self.sqlite_db = sqlite_db
+        self.needs_closing = needs_closing
+
+    def __str__(self):
+        return "DatabaseInfo<sqlite_db=%s,needs_closing=%s>" % (self.sqlite_db,self.needs_closing)
+    __repr__ = __str__
+
 class QTextAsData(object):
     def __init__(self,default_input_params=QInputParams(),data_streams_dict=None):
         self.engine_id = str(uuid.uuid4()).replace("-","_")
@@ -1744,7 +1773,7 @@ class QTextAsData(object):
         self.default_input_params = default_input_params
 
         self.table_creators = {}
-        self.databases_to_close = OrderedDict()
+        self.databases = OrderedDict()
 
         if data_streams_dict is not None:
             self.data_streams = DataStreams(data_streams_dict)
@@ -1760,13 +1789,17 @@ class QTextAsData(object):
         self.adhoc_db = Sqlite3DB(self.adhoc_db_id,self.adhoc_db_name,create_metaq=True)
         self.query_level_db.conn.execute("attach '%s' as %s" % (self.adhoc_db_name,self.adhoc_db_id))
 
-        self.databases_to_close[self.adhoc_db_id] = self.adhoc_db
-        self.databases_to_close[self.query_level_db_id] = self.query_level_db
+        self.databases[self.query_level_db_id] = DatabaseInfo(self.query_level_db,needs_closing=True)
+        self.databases[self.adhoc_db_id] = DatabaseInfo(self.adhoc_db,needs_closing=True)
 
     def done(self):
-        for db_id in reversed(self.databases_to_close.keys()):
-            xprint("Closing database %s" % db_id)
-            self.databases_to_close[db_id].done()
+        for db_id in reversed(self.databases.keys()):
+            database_info = self.databases[db_id]
+            if database_info.needs_closing:
+                xprint("Closing database %s" % db_id)
+                self.databases[db_id].sqlite_db.done()
+            else:
+                xprint("No need to close database %s" % db_id)
         xprint("Closed all databases")
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
@@ -1834,9 +1867,9 @@ class QTextAsData(object):
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
-            db_id = 'mem_%s' % self._generate_db_name(filename)
+            db_id = '%s' % self._generate_db_name(filename)
             db_to_use = Sqlite3DB(db_id,'file:%s?mode=memory&cache=shared' % db_id,create_metaq=True)
-            self.databases_to_close[db_id] = db_to_use
+            self.databases[db_id] = DatabaseInfo(db_to_use,needs_closing=True)
 
         target_sqlite_table_name = db_to_use.generate_temp_table_name()
 
@@ -1860,13 +1893,13 @@ class QTextAsData(object):
 
         if not stop_after_analysis:
             if effective_read_caching and disk_db_file_exists:
-                assert db_id is not None
-                # TODO RLRL - Remove from the list of databases. Essentially should be marked as "immutable" in the dict and closing should be skipped
-                del self.databases_to_close[db_id]
-
                 # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
                 #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+                xprint("replacing....")
                 table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
+                del self.databases[db_id]
+                db_id = 'disk_%s' % db_id
+                self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
             else:
                 table_creator.perform_read_fully(dialect_id)
 
@@ -1874,16 +1907,16 @@ class QTextAsData(object):
                     self.store_qsql(table_creator.sqlite_db, disk_db_filename)
 
         if db_to_use.db_id != self.adhoc_db_id:
-            self.attach_to_query_level_db(table_creator.sqlite_db)
+            self.attach_to_query_level_db(table_creator.sqlite_db,self.query_level_db)
 
         self.table_creators[filename] = table_creator
 
         return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
 
-    def attach_to_query_level_db(self,target_db):
+    def attach_to_query_level_db(self,target_db,source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
         xprint("Attach query: %s" % q)
-        c = self.query_level_db.execute_and_fetch(q)
+        c = source_db.execute_and_fetch(q)
         xprint(c)
 
 
@@ -1914,13 +1947,39 @@ class QTextAsData(object):
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO Need to attach each db into the new one so the create table as select would work
-        materialized_db = Sqlite3DB("xxx","file:%s" % save_db_to_disk_filename,create_metaq=True)
+        materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,create_metaq=True)
+        table_name_mapping = {}
+
+        # Attach all databases
+        for db_id in self.databases.keys():
+            if db_id != self.query_level_db_id:
+                self.attach_to_query_level_db(self.databases[db_id].sqlite_db, materialized_db)
+
+        # For each table in the query
         effective_table_names = sql_object.get_qtable_name_effective_table_names()
         for i, k in enumerate(effective_table_names):
+            # table name, in the format db_id.table_name
             v = effective_table_names[k]
-            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % ('t%s' % i,v))
-            print("QQ",k,v,xx)
-        pass
+            db_id,table_name = v.split(".",1)
+
+            # The DatabseInfo instance for this db
+            source_database = self.databases[db_id]
+
+            new_table_name = 't%s' % i
+            # Copy the table into the materialized database
+            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
+
+            # Add it to metaq
+            xprint("TTT",materialized_db.execute_and_fetch('select * from %s.metaq' % db_id))
+            metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(table_name)
+            if metaq_data is None:
+                raise Exception('Bug - must find table in metaq - %s' % v)
+
+            materialized_db.add_to_metaq_table(new_table_name,metaq_data['content_signature'],metaq_data['creation_time'],
+                                               metaq_data['source_type'],metaq_data['source_filenames_str'])
+            table_name_mapping[v] = new_table_name
+
+        return table_name_mapping
 
     def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
         warnings = []
@@ -1960,11 +2019,9 @@ class QTextAsData(object):
             if save_db_to_disk_filename is not None:
                 xprint("Saving query data to disk...")
                 dump_start_time = time.time()
-                print("Saving data to db file %s" % save_db_to_disk_filename, file=sys.stderr)
-                # self.query_level_db.store_db_to_disk(save_db_to_disk_filename,sql_object.get_qtable_name_effective_table_names(),save_db_to_disk_method)
-                self.materialize_query_level_db(save_db_to_disk_filename,sql_object)
+                table_name_mapping = self.materialize_query_level_db(save_db_to_disk_filename,sql_object)
                 print("Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time), file=sys.stderr)
-                print("Query to run on the database: %s;" % sql_object.get_effective_sql(True), file=sys.stderr)
+                print("Query to run on the database: %s;" % sql_object.get_effective_sql(table_name_mapping), file=sys.stderr)
 
                 # TODO Propagate dump results using a different output class instead of an empty one
                 return QOutput()

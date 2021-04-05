@@ -187,34 +187,37 @@ class AbstractQTestCase(unittest.TestCase):
         return '%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix)
 
 
-@unittest.skip("save to db is deprecated")
 class SaveDbToDiskTests(AbstractQTestCase):
 
-    def test_store_to_disk(self):
-        db_filename = self.random_tmp_filename('store-to-disk','db')
-        self.assertFalse(os.path.exists(db_filename))
+    def test_join_with_stdin_and_save(self):
+        x = [six.b(a) for a in map(str,range(1,101))]
+        large_file_data = six.b("val\n") + six.b("\n").join(x)
+        tmpfile = self.create_file_with_data(large_file_data)
 
-        retcode, o, e = run_command('seq 1 1000 | ' + Q_EXECUTABLE + ' "select count(*) from -" -c 1 -S %s' % db_filename)
+        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
 
-        self.assertTrue(retcode == 0)
-        self.assertTrue(len(o) == 0)
-        self.assertTrue(len(e) == 5)
-        self.assertTrue(e[0].startswith(six.b('Going to save data')))
-        self.assertTrue(db_filename.encode(sys.stdout.encoding or 'utf-8') in e[0])
-        self.assertTrue(e[1].startswith(six.b('Data has been loaded in')))
-        self.assertTrue(e[2].startswith(six.b('Saving data to db file')))
-        self.assertTrue(e[3].startswith(six.b('Data has been saved into')))
-        self.assertTrue(e[4] == six.b('Query to run on the database: select count(*) from `-`;'))
+        cmd = '(echo id ; seq 1 2 10) | ' + Q_EXECUTABLE + ' -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)" -S %s' % \
+            (tmpfile.name,disk_db_filename)
+        retcode, o, e = run_command(cmd)
 
-        self.assertTrue(os.path.exists(db_filename))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 3)
 
-        sqlite_command = """echo 'select * from `-`;' | sqlite3 %s""" % db_filename
-        sqlite_retcode,sqlite_o,sqlite_e = run_command(sqlite_command)
-        self.assertTrue(sqlite_retcode == 0)
-        self.assertTrue(len(sqlite_o) == 1000)
-        self.assertTrue(len(sqlite_e) == 0)
+        self.assertEqual(e[0],six.b('Going to save data into a disk database: %s' % disk_db_filename))
+        self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken ' % disk_db_filename)))
+        self.assertEqual(e[2],six.b('Query to run on the database: select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val);'))
 
-        os.remove(db_filename)
+        # TODO RLRL - Should the real output be printed when storing to disk?
+        # self.assertEqual(o[0],six.b('id val'))
+        # self.assertEqual(o[1],six.b('1 10'))
+        # self.assertEqual(o[2],six.b('3 30'))
+        # self.assertEqual(o[3],six.b('5 50'))
+        # self.assertEqual(o[4],six.b('7 70'))
+        # self.assertEqual(o[5],six.b('9 90'))
+
+        self.assertTrue(os.path.exists(disk_db_filename))
+        self.cleanup(tmpfile)
 
     def test_preventing_db_overwrite(self):
         db_filename = self.random_tmp_filename('store-to-disk', 'db')
@@ -1524,6 +1527,28 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
 
         self.cleanup(tmpfile)
+
+    def test_join_with_stdin(self):
+        x = [six.b(a) for a in map(str,range(1,101))]
+        large_file_data = six.b("val\n") + six.b("\n").join(x)
+        tmpfile = self.create_file_with_data(large_file_data)
+
+        cmd = '(echo id ; seq 1 2 10) | bin/q.py -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 6)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b('id val'))
+        self.assertEqual(o[1],six.b('1 10'))
+        self.assertEqual(o[2],six.b('3 30'))
+        self.assertEqual(o[3],six.b('5 50'))
+        self.assertEqual(o[4],six.b('7 70'))
+        self.assertEqual(o[5],six.b('9 90'))
+
+        self.cleanup(tmpfile)
+
 
 class QrcTests(AbstractQTestCase):
 

@@ -30,9 +30,10 @@ import itertools
 from gzip import GzipFile
 import pytest
 import uuid
+import sqlite3
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream
+from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream, Sqlite3DB
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded
@@ -165,6 +166,11 @@ sample_data_with_long_values = "%s\n%s\n%s" % (long_value1,int_value,int_value)
 def one_column_warning(e):
     return e[0].startswith(six.b('Warning: column count is one'))
 
+def sqlite_dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 class AbstractQTestCase(unittest.TestCase):
 
@@ -207,16 +213,35 @@ class SaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(e[0],six.b('Going to save data into a disk database: %s' % disk_db_filename))
         self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken ' % disk_db_filename)))
         self.assertEqual(e[2],six.b('Query to run on the database: select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val);'))
-
-        # TODO RLRL - Should the real output be printed when storing to disk?
-        # self.assertEqual(o[0],six.b('id val'))
-        # self.assertEqual(o[1],six.b('1 10'))
-        # self.assertEqual(o[2],six.b('3 30'))
-        # self.assertEqual(o[3],six.b('5 50'))
-        # self.assertEqual(o[4],six.b('7 70'))
-        # self.assertEqual(o[5],six.b('9 90'))
+        import re
+        P = re.compile(six.b("^Query to run on the database: (?P<query_to_run_on_db>.*)$"))
+        m = P.search(e[2])
+        query_to_run_on_db = m.groupdict()['query_to_run_on_db']
 
         self.assertTrue(os.path.exists(disk_db_filename))
+
+        # validate disk db content natively
+        c = sqlite3.connect(disk_db_filename)
+        c.row_factory = sqlite_dict_factory
+        t0_results = c.execute('select * from t0').fetchall()
+        self.assertEqual(len(t0_results),5)
+        self.assertEqual(sorted(list(t0_results[0].keys())), ['id'])
+        self.assertEqual(list(map(lambda x:x['id'],t0_results)),[1,3,5,7,9])
+        t1_results = c.execute('select * from t1').fetchall()
+        self.assertEqual(len(t1_results),100)
+        self.assertEqual(sorted(list(t1_results[0].keys())), ['val'])
+        self.assertEqual("\n".join(list(map(lambda x:str(x['val']),t1_results))),"\n".join(map(str,range(1,101))))
+
+        query_results = c.execute(query_to_run_on_db.decode('utf-8')).fetchall()
+
+        # TODO RLRL - Should the real output be printed when storing to disk?
+
+        self.assertEqual(query_results[0],{ 'id': 1 , 'val': 10})
+        self.assertEqual(query_results[1],{ 'id': 3 , 'val': 30})
+        self.assertEqual(query_results[2],{ 'id': 5 , 'val': 50})
+        self.assertEqual(query_results[3],{ 'id': 7 , 'val': 70})
+        self.assertEqual(query_results[4],{ 'id': 9 , 'val': 90})
+
         self.cleanup(tmpfile)
 
     def test_preventing_db_overwrite(self):

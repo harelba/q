@@ -16,3 +16,4 @@ benchmark_data.tar.gz
 _benchmark_data/
 q.egg-info/
 .pytest_cache/
+*.qsql

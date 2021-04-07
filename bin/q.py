@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#   Copyright (C) 2012-2020 Harel Ben-Attia
+#   Copyright (C) 2012-2021 Harel Ben-Attia
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -15,8 +15,7 @@
 #
 #
 # Name      : q (With respect to The Q Continuum)
-# Author    : Harel Ben Attia - harelba@gmail.com, harelba @ github, @harelba on twitter
-# Requires  : python with sqlite3 (standard in python>=2.6)
+# Author    : Harel Ben-Attia - harelba@gmail.com, harelba @ github, @harelba on twitter
 #
 #
 # q allows performing SQL-like statements on tabular text data.
@@ -58,7 +57,6 @@ import math
 import six
 import io
 import json
-import inspect
 import sqlitebck
 
 if six.PY3:
@@ -67,11 +65,11 @@ if six.PY3:
 
 DEBUG = os.environ.get('Q_DEBUG', None) or '-V' in sys.argv
 
-def xprint(*args,**kwargs):
-    global DEBUG
-    if DEBUG:
-        d = { "file": sys.stderr }.update(kwargs)
-        print(*args,**kwargs)
+if DEBUG:
+    def xprint(*args,**kwargs):
+        print("DEBUG",*args,file=sys.stderr,**kwargs)
+else:
+    def xprint(*args,**kwargs): pass
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -376,34 +374,6 @@ class Sqlite3DB(object):
         except Exception as e:
             xprint("Could not close database %s" % self.db_id)
             raise
-
-    # TODO RLRL - Remove standard method, we can now release with dependencies
-    def store_db_to_disk_standard(self,sqlite_db_filename,table_names_mapping):
-        xprint("Storing using standard method")
-        new_db = sqlite3.connect(sqlite_db_filename,isolation_level=None)
-        c = new_db.cursor()
-        for s in self.conn.iterdump():
-            c.execute(s)
-            _ = c.fetchall()
-        # for source_filename_str,tn in six.iteritems(table_names_mapping):
-        #     c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
-        new_db.close()
-
-    def store_db_to_disk_fast(self,sqlite_db_filename,table_names_mapping):
-        new_db = sqlite3.connect(sqlite_db_filename)
-        sqlitebck.copy(self.conn,new_db)
-        c = new_db.cursor()
-        # for source_filename_str,tn in six.iteritems(table_names_mapping):
-        #     c.execute('alter table `%s` rename to `%s`' % (tn, source_filename_str))
-        new_db.close()
-
-    def store_db_to_disk(self,sqlite_db_filename,table_names_mapping,method='standard'):
-        if method == 'standard':
-            self.store_db_to_disk_standard(sqlite_db_filename,table_names_mapping)
-        elif method == 'fast':
-            self.store_db_to_disk_fast(sqlite_db_filename,table_names_mapping)
-        else:
-            raise ValueError('Unknown store-db-to-disk method %s' % method)
 
     def add_user_functions(self):
         for udf in user_functions:
@@ -1895,7 +1865,6 @@ class QTextAsData(object):
             if effective_read_caching and disk_db_file_exists:
                 # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
                 #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-                xprint("replacing....")
                 table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
                 del self.databases[db_id]
                 db_id = 'disk_%s' % db_id
@@ -1981,7 +1950,7 @@ class QTextAsData(object):
 
         return table_name_mapping
 
-    def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None,save_db_to_disk_method=None):
+    def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None):
         warnings = []
         error = None
         data_loads = []
@@ -2093,8 +2062,8 @@ class QTextAsData(object):
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
 
-    def execute(self,query_str,input_params=None,save_db_to_disk_filename=None,save_db_to_disk_method=None):
-        r = self._execute(query_str,input_params,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename,save_db_to_disk_method=save_db_to_disk_method)
+    def execute(self,query_str,input_params=None,save_db_to_disk_filename=None):
+        r = self._execute(query_str,input_params,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename)
         return r
 
     def unload(self):
@@ -2364,7 +2333,6 @@ def run_standalone():
     try:
         default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
         default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk_filename', None)
-        default_save_db_to_disk_method = get_option_with_default(p, 'string', 'save_db_to_disk_method', 'fast')
         default_caching_mode = get_option_with_default(p, 'string', 'caching_mode', 'none')
 
         default_skip_header = get_option_with_default(p, 'boolean', 'skip_header', False)
@@ -2439,8 +2407,8 @@ def run_standalone():
                       help="Print debug info in case of problems")
     parser.add_option("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=default_save_db_to_disk,
                       help="Save database to an sqlite database file")
-    parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default=default_save_db_to_disk_method,
-                      help="Method to use to save db to disk. 'standard' does not require any deps, 'fast' currenty requires manually running `pip install sqlitebck` on your python installation. Once packing issues are solved, the fast method will be the default.")
+    parser.add_option("", "--save-db-to-disk-method", dest="save_db_to_disk_method", default=None,
+                      help="Deprecated, no need to use it anymore")
     parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
     parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False,action="store_true",
@@ -2657,6 +2625,7 @@ def run_standalone():
             print("Disk database file %s already exists." % options.save_db_to_disk_filename, file=sys.stderr)
             sys.exit(77)
 
+    # Deprecated - Just for backward compatibility
     if options.save_db_to_disk_method is not None:
         if options.save_db_to_disk_method not in ['standard','fast']:
             print("save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method, file=sys.stderr)
@@ -2705,7 +2674,7 @@ def run_standalone():
             q_output = q_engine.analyze(query_str)
             q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
         else:
-            q_output = q_engine.execute(query_str,save_db_to_disk_filename=options.save_db_to_disk_filename,save_db_to_disk_method=options.save_db_to_disk_method)
+            q_output = q_engine.execute(query_str,save_db_to_disk_filename=options.save_db_to_disk_filename)
             q_output_printer.print_output(STDOUT,sys.stderr,q_output)
 
         if q_output.status == 'error':

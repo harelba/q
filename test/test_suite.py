@@ -192,7 +192,6 @@ class AbstractQTestCase(unittest.TestCase):
         path = '/var/tmp'
         return '%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix)
 
-
 class SaveDbToDiskTests(AbstractQTestCase):
 
     def test_join_with_stdin_and_save(self):
@@ -1631,7 +1630,6 @@ pipe_delimited_output=True
 query_encoding=ascii
 query_filename=query-filename
 save_db_to_disk_filename=save-db-to-disk-filename
-save_db_to_disk_method=standard
 skip_header=True
 tab_delimited=True
 tab_delimited_output=true
@@ -1681,7 +1679,6 @@ with_universal_newlines=True
         self.assertEqual(m[six.b('query_encoding')],six.b('ascii'))
         self.assertEqual(m[six.b('query_filename')],six.b('query-filename'))
         self.assertEqual(m[six.b('save_db_to_disk_filename')],six.b('save-db-to-disk-filename'))
-        self.assertEqual(m[six.b('save_db_to_disk_method')],six.b('standard'))
         self.assertEqual(m[six.b('skip_header')],six.b('True'))
         self.assertEqual(m[six.b('tab_delimited')],six.b('True'))
         self.assertEqual(m[six.b('tab_delimited_output')],six.b('True'))

@@ -336,7 +336,6 @@ class Sqlite3DB(object):
         xprint("X Query from metaq %s" % q)
         r = self.execute_and_fetch(q,(content_signature_key,))
 
-        # TODO RLRL Check
         if r is None:
             return None
 
@@ -355,7 +354,6 @@ class Sqlite3DB(object):
         xprint("Query from metaq %s" % q)
         r = self.execute_and_fetch(q,(temp_table_name,))
 
-        # TODO RLRL Check
         if r is None:
             return None
 
@@ -393,7 +391,6 @@ class Sqlite3DB(object):
                 print(sql, " params: " + str(params))
             self.cursor.executemany(sql, params)
             _ = self.cursor.fetchall()
-            # TODO RLRL transaction commits
         finally:
             pass  # cursor.close()
 
@@ -418,8 +415,6 @@ class Sqlite3DB(object):
             finally:
                 pass  # cursor.close()
         except OperationalError as e:
-            # TODO RLRL Check
-            xprint("YYYYY")
             raise SqliteOperationalErrorException("Failed executing sqlite query %s with params %s . error: %s" % (q,params,str(e)),e)
         return Sqlite3DBResults(query_column_names,result)
 
@@ -1055,8 +1050,6 @@ class TableCreatorState(object):
     INITIALIZED = 'INITIALIZED'
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
-    # TODO RLRL take into account in TableCreator state management
-    LOADED = 'LOADED'
 
 class MaterializedFileState(object):
     def __init__(self,filename,f,encoding,dialect,data_stream=None):
@@ -1379,9 +1372,15 @@ class TableCreator(object):
         self.sqlite_db.done()
         self.sqlite_db = new_db
 
+    # TODO RLRL - Read directly from ".qsql" files when provided as the table name. Requires inference from sqlite itself
+    # TODO RLRL - Add qsql versioning table + check
+    # TODO RLRL - Rename metaq table to a better name
     def get_table_name_for_querying(self):
         xprint("getting table name for querying")
         d = self.sqlite_db.get_from_metaq(self.content_signature)
+        if d is None:
+            raise Exception('Bug - metaq file with content signature was not found')
+
         table_name_in_disk_db = d['temp_table_name']
         xprint("table name for querying is %s" % table_name_in_disk_db)
         return table_name_in_disk_db

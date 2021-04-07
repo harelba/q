@@ -259,7 +259,8 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         os.remove(db_filename)
 
-
+# TODO RLRL - Test filename concatenation behaviour when using qsql
+# TODO RLRL - Fix source filename in metaq when concatenating files
 class BasicTests(AbstractQTestCase):
 
     def test_basic_aggregation(self):
@@ -272,73 +273,6 @@ class BasicTests(AbstractQTestCase):
         s = sum(range(1, 11))
         self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
         self.assertTrue(one_column_warning(e))
-
-    def test_gzipped_file(self):
-        tmpfile = self.create_file_with_data(
-            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
-
-        cmd = Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
-
-        retcode, o, e = run_command(cmd)
-        self.assertTrue(retcode == 0)
-        self.assertTrue(len(o) == 1)
-        self.assertTrue(len(e) == 1)
-
-        s = sum(range(1, 11))
-        self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
-        self.assertTrue(one_column_warning(e))
-
-        self.cleanup(tmpfile)
-
-    def test_attempt_to_unzip_stdin(self):
-        tmpfile = self.create_file_with_data(
-            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
-
-        cmd = 'cat %s | ' % tmpfile.name + Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from -"'
-
-        retcode, o, e = run_command(cmd)
-        self.assertTrue(retcode != 0)
-        self.assertTrue(len(o) == 0)
-        self.assertTrue(len(e) == 1)
-
-        self.assertEqual(e[0],six.b('Cannot decompress standard input. Pipe the input through zcat in order to decompress.'))
-
-        self.cleanup(tmpfile)
-
-    def test_delimition_mistake_with_header(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-
-        cmd = Q_EXECUTABLE + ' -d " " "select * from %s" -H' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertNotEqual(retcode, 0)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 3)
-
-        self.assertTrue(e[0].startswith(
-            six.b("Warning: column count is one - did you provide the correct delimiter")))
-        self.assertTrue(e[1].startswith(six.b("Bad header row")))
-        self.assertTrue(six.b("Column name cannot contain commas") in e[2])
-
-        self.cleanup(tmpfile)
-
-    def test_analyze_result(self):
-        d = "\n".join(['%s\t%s\t%s' % (x+1,x+1,x+1) for x in range(100)])
-        tmpfile = self.create_file_with_data(six.b(d))
-
-        cmd = Q_EXECUTABLE + ' -c 1 "select count(*) from %s" -A' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 2)
-        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
-        # an error when accessing the table
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1], six.b('  `c1` - text'))
-
-        self.cleanup(tmpfile)
 
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -354,157 +288,6 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_tab_delimition_parameter(self):
-        tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(six.b(","), six.b("\t")))
-        cmd = Q_EXECUTABLE + ' -t "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
-
-        self.cleanup(tmpfile)
-
-    def test_pipe_delimition_parameter(self):
-        tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(six.b(","), six.b("|")))
-        cmd = Q_EXECUTABLE + ' -p "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
-
-        self.cleanup(tmpfile)
-
-    def test_tab_delimition_parameter__with_manual_override_attempt(self):
-        tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(six.b(","), six.b("\t")))
-        cmd = Q_EXECUTABLE + ' -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 1)
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
-        self.assertEqual(e[0],six.b('Warning: -t parameter overrides -d parameter (,)'))
-
-        self.cleanup(tmpfile)
-
-    def test_pipe_delimition_parameter__with_manual_override_attempt(self):
-        tmpfile = self.create_file_with_data(
-            sample_data_no_header.replace(six.b(","), six.b("|")))
-        cmd = Q_EXECUTABLE + ' -p -d , "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 1)
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
-        self.assertEqual(e[0],six.b('Warning: -p parameter overrides -d parameter (,)'))
-
-        self.cleanup(tmpfile)
-
-    def test_output_delimiter(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
-
-        self.cleanup(tmpfile)
-
-    def test_output_delimiter_tab_parameter(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
-
-        self.cleanup(tmpfile)
-
-    def test_output_delimiter_pipe_parameter(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , -P "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
-
-        self.cleanup(tmpfile)
-
-    def test_output_delimiter_tab_parameter__with_manual_override_attempt(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 1)
-
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
-        self.assertEqual(e[0], six.b('Warning: -T parameter overrides -D parameter (|)'))
-
-        self.cleanup(tmpfile)
-
-    def test_output_delimiter_pipe_parameter__with_manual_override_attempt(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , -P -D ":" "select c1,c2,c3 from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 1)
-
-        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
-        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
-        self.assertEqual(e[0],six.b('Warning: -P parameter overrides -D parameter (:)'))
-
-        self.cleanup(tmpfile)
-
-    def test_stdin_input(self):
-        cmd = six.b('printf "%s" | ' + Q_EXECUTABLE + ' -d , "select c1,c2,c3 from -"') % sample_data_no_header
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 3)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0], sample_data_rows[0])
-        self.assertEqual(o[1], sample_data_rows[1])
-        self.assertEqual(o[2], sample_data_rows[2])
-
     def test_column_separation(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
         cmd = Q_EXECUTABLE + ' -d , "select c1,c2,c3 from %s"' % tmpfile.name
@@ -519,32 +302,6 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[2], sample_data_rows[2])
 
         self.cleanup(tmpfile)
-
-    def test_column_analysis(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-
-        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
-
-        self.cleanup(tmpfile)
-
-    def test_column_analysis_no_header(self):
-        tmpfile = self.create_file_with_data(sample_data_no_header)
-
-        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
 
     def test_header_exception_on_numeric_header_data(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -615,25 +372,6 @@ class BasicTests(AbstractQTestCase):
         self.assertTrue(six.b('no such column: c3') in e[0])
         self.assertTrue(
             e[1].startswith(six.b('Warning - There seems to be a "no such column" error, and -H (header line) exists. Please make sure that you are using the column names from the header line and not the default (cXX) column names')))
-
-        self.cleanup(tmpfile)
-
-    def test_column_analysis_with_unexpected_header(self):
-        tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 4)
-        self.assertEqual(len(e), 1)
-
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - text'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - text'))
-
-        self.assertEqual(
-            e[0], six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
 
         self.cleanup(tmpfile)
 
@@ -749,23 +487,6 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[0], six.b('a,1'))
         self.assertEqual(o[1], six.b('b,2'))
         self.assertEqual(o[2], six.b('c,'))
-
-        self.cleanup(tmpfile)
-
-    def test_column_analysis_for_spaces_in_header_row(self):
-        tmpfile = self.create_file_with_data(
-            header_row_with_spaces + six.b("\n") + sample_data_no_header)
-        cmd = Q_EXECUTABLE + ' -d , "select name,\\`value 1\\` from %s" -H -A' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 4)
-
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1].strip(), six.b('`name` - text'))
-        self.assertEqual(o[2].strip(), six.b('`value 1` - int'))
-        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -979,6 +700,426 @@ class BasicTests(AbstractQTestCase):
 
         self.assertTrue(e[0].startswith(six.b("Could not read query from file")))
 
+    def test_nonexistent_file(self):
+        cmd = Q_EXECUTABLE + ' "select * from non-existent-file"'
+
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEqual(retcode,0)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+
+        self.assertEqual(e[0],six.b("No files matching 'non-existent-file' have been found"))
+
+    def test_default_column_max_length_parameter__short_enough(self):
+        huge_text = six.b("x" * 131000)
+
+        file_data = six.b("a,b,c\n1,{},3\n".format(huge_text))
+
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b('1'))
+
+        self.cleanup(tmpfile)
+
+    def test_default_column_max_length_parameter__too_long(self):
+        huge_text = six.b("x") * 132000
+
+        file_data = six.b("a,b,c\n1,{},3\n".format(huge_text))
+
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+
+        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
+        self.assertTrue(six.b("Offending file is '{}'".format(tmpfile.name)) in e[0])
+        self.assertTrue(six.b('Line is 2') in e[0])
+
+        self.cleanup(tmpfile)
+
+    def test_column_max_length_parameter(self):
+        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = Q_EXECUTABLE + ' -H -d , -M 3 "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+
+        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
+        self.assertTrue((six.b("Offending file is '%s'" % tmpfile.name)) in e[0])
+        self.assertTrue(six.b('Line is 2') in e[0])
+
+        cmd2 = Q_EXECUTABLE + ' -H -d , -M 300 -H "select a from %s"' % tmpfile.name
+        retcode2, o2, e2 = run_command(cmd2)
+
+        self.assertEqual(retcode2, 0)
+        self.assertEqual(len(o2), 1)
+        self.assertEqual(len(e2), 0)
+
+        self.assertEqual(o2[0],six.b('very-long-text'))
+
+        self.cleanup(tmpfile)
+
+    def test_invalid_column_max_length_parameter(self):
+        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = Q_EXECUTABLE + ' -H -d , -M 0 "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 31)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+
+        self.assertTrue(e[0].startswith(six.b('Max column length limit must be a positive integer')))
+
+
+        self.cleanup(tmpfile)
+
+    def test_duplicate_column_name_detection(self):
+        file_data = six.b("a,b,a\n10,20,30\n30,40,50")
+        tmpfile = self.create_file_with_data(file_data)
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 2)
+
+        self.assertTrue(e[0].startswith(six.b('Bad header row:')))
+        self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
+
+        self.cleanup(tmpfile)
+
+    def test_join_with_stdin(self):
+        x = [six.b(a) for a in map(str,range(1,101))]
+        large_file_data = six.b("val\n") + six.b("\n").join(x)
+        tmpfile = self.create_file_with_data(large_file_data)
+
+        cmd = '(echo id ; seq 1 2 10) | bin/q.py -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 6)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b('id val'))
+        self.assertEqual(o[1],six.b('1 10'))
+        self.assertEqual(o[2],six.b('3 30'))
+        self.assertEqual(o[3],six.b('5 50'))
+        self.assertEqual(o[4],six.b('7 70'))
+        self.assertEqual(o[5],six.b('9 90'))
+
+        self.cleanup(tmpfile)
+
+class GzippingTests(AbstractQTestCase):
+
+    def test_gzipped_file(self):
+        tmpfile = self.create_file_with_data(
+            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
+
+        cmd = Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from %s"' % tmpfile.name
+
+        retcode, o, e = run_command(cmd)
+        self.assertTrue(retcode == 0)
+        self.assertTrue(len(o) == 1)
+        self.assertTrue(len(e) == 1)
+
+        s = sum(range(1, 11))
+        self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
+        self.assertTrue(one_column_warning(e))
+
+        self.cleanup(tmpfile)
+
+
+class DelimiterTests(AbstractQTestCase):
+
+    def test_delimition_mistake_with_header(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = Q_EXECUTABLE + ' -d " " "select * from %s" -H' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 3)
+
+        self.assertTrue(e[0].startswith(
+            six.b("Warning: column count is one - did you provide the correct delimiter")))
+        self.assertTrue(e[1].startswith(six.b("Bad header row")))
+        self.assertTrue(six.b("Column name cannot contain commas") in e[2])
+
+        self.cleanup(tmpfile)
+
+    def test_tab_delimition_parameter(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("\t")))
+        cmd = Q_EXECUTABLE + ' -t "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+
+        self.cleanup(tmpfile)
+
+    def test_pipe_delimition_parameter(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("|")))
+        cmd = Q_EXECUTABLE + ' -p "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+
+        self.cleanup(tmpfile)
+
+    def test_tab_delimition_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("\t")))
+        cmd = Q_EXECUTABLE + ' -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(e[0],six.b('Warning: -t parameter overrides -d parameter (,)'))
+
+        self.cleanup(tmpfile)
+
+    def test_pipe_delimition_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(
+            sample_data_no_header.replace(six.b(","), six.b("|")))
+        cmd = Q_EXECUTABLE + ' -p -d , "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+        self.assertEqual(e[0],six.b('Warning: -p parameter overrides -d parameter (,)'))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_tab_parameter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -T "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_pipe_parameter(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -P "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_tab_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -T -D "|" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 1)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("\t")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("\t")))
+        self.assertEqual(e[0], six.b('Warning: -T parameter overrides -D parameter (|)'))
+
+        self.cleanup(tmpfile)
+
+    def test_output_delimiter_pipe_parameter__with_manual_override_attempt(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , -P -D ":" "select c1,c2,c3 from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 1)
+
+        self.assertEqual(o[0], sample_data_rows[0].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[1], sample_data_rows[1].replace(six.b(","), six.b("|")))
+        self.assertEqual(o[2], sample_data_rows[2].replace(six.b(","), six.b("|")))
+        self.assertEqual(e[0],six.b('Warning: -P parameter overrides -D parameter (:)'))
+
+        self.cleanup(tmpfile)
+
+
+class AnalysisTests(AbstractQTestCase):
+
+    def test_analyze_result(self):
+        d = "\n".join(['%s\t%s\t%s' % (x+1,x+1,x+1) for x in range(100)])
+        tmpfile = self.create_file_with_data(six.b(d))
+
+        cmd = Q_EXECUTABLE + ' -c 1 "select count(*) from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
+        # an error when accessing the table
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1], six.b('  `c1` - text'))
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_no_header(self):
+        tmpfile = self.create_file_with_data(sample_data_no_header)
+
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+
+    def test_column_analysis_with_unexpected_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 4)
+        self.assertEqual(len(e), 1)
+
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
+        self.assertEqual(o[2].strip(), six.b('`c2` - text'))
+        self.assertEqual(o[3].strip(), six.b('`c3` - text'))
+
+        self.assertEqual(
+            e[0], six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_for_spaces_in_header_row(self):
+        tmpfile = self.create_file_with_data(
+            header_row_with_spaces + six.b("\n") + sample_data_no_header)
+        cmd = Q_EXECUTABLE + ' -d , "select name,\\`value 1\\` from %s" -H -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(len(o), 4)
+
+        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[1].strip(), six.b('`name` - text'))
+        self.assertEqual(o[2].strip(), six.b('`value 1` - int'))
+        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
+
+        self.cleanup(tmpfile)
+
+
+class StdInTests(AbstractQTestCase):
+
+    def test_stdin_input(self):
+        cmd = six.b('printf "%s" | ' + Q_EXECUTABLE + ' -d , "select c1,c2,c3 from -"') % sample_data_no_header
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 3)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], sample_data_rows[0])
+        self.assertEqual(o[1], sample_data_rows[1])
+        self.assertEqual(o[2], sample_data_rows[2])
+
+    def test_attempt_to_unzip_stdin(self):
+        tmpfile = self.create_file_with_data(
+            six.b('\x1f\x8b\x08\x08\xf2\x18\x12S\x00\x03xxxxxx\x003\xe42\xe22\xe62\xe12\xe52\xe32\xe7\xb2\xe0\xb2\xe424\xe0\x02\x00\xeb\xbf\x8a\x13\x15\x00\x00\x00'))
+
+        cmd = 'cat %s | ' % tmpfile.name + Q_EXECUTABLE + ' -z "select sum(c1),avg(c1) from -"'
+
+        retcode, o, e = run_command(cmd)
+        self.assertTrue(retcode != 0)
+        self.assertTrue(len(o) == 0)
+        self.assertTrue(len(e) == 1)
+
+        self.assertEqual(e[0],six.b('Cannot decompress standard input. Pipe the input through zcat in order to decompress.'))
+
+        self.cleanup(tmpfile)
+
+class QuotingTests(AbstractQTestCase):
     def test_non_quoted_values_in_quoted_data(self):
         tmp_data_file = self.create_file_with_data(sample_quoted_data)
 
@@ -1241,23 +1382,6 @@ class BasicTests(AbstractQTestCase):
         input_data = six.b('"quoted data" "23"\n"unquoted-data" "54"')
         self._internal_test_consistency_of_chaining_output_to_input(input_data,'all','all')
 
-    def test_utf8_with_bom_encoding(self):
-        utf_8_data_with_bom = six.b('\xef\xbb\xbf"typeid","limit","apcost","date","checkpointId"\n"1","2","5","1,2,3,4,5,6,7","3000,3001,3002"\n"2","2","5","1,2,3,4,5,6,7","3003,3004,3005"\n')
-        tmp_data_file = self.create_file_with_data(utf_8_data_with_bom,encoding=None)
-
-        cmd = Q_EXECUTABLE + ' -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode,0)
-        self.assertEqual(len(e),0)
-        self.assertEqual(len(o),3)
-
-        self.assertEqual(o[0],six.b('typeid,limit,apcost,date,checkpointId'))
-        self.assertEqual(o[1],six.b('1,2,5,"1,2,3,4,5,6,7","3000,3001,3002"'))
-        self.assertEqual(o[2],six.b('2,2,5,"1,2,3,4,5,6,7","3003,3004,3005"'))
-
-        self.cleanup(tmp_data_file)
-
     def test_input_field_quoting_and_data_types_with_encoding(self):
         # Checks combination of minimal input field quoting, with special characters that need to be decoded -
         # Both content and proper data types are verified
@@ -1445,133 +1569,25 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmp_data_file)
 
-    def test_nonexistent_file(self):
-        cmd = Q_EXECUTABLE + ' "select * from non-existent-file"'
 
+class EncodingTests(AbstractQTestCase):
+
+    def test_utf8_with_bom_encoding(self):
+        utf_8_data_with_bom = six.b('\xef\xbb\xbf"typeid","limit","apcost","date","checkpointId"\n"1","2","5","1,2,3,4,5,6,7","3000,3001,3002"\n"2","2","5","1,2,3,4,5,6,7","3003,3004,3005"\n')
+        tmp_data_file = self.create_file_with_data(utf_8_data_with_bom,encoding=None)
+
+        cmd = Q_EXECUTABLE + ' -d , -H -O -e utf-8-sig "select * from %s"' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
 
-        self.assertNotEqual(retcode,0)
-        self.assertEqual(len(o),0)
-        self.assertEqual(len(e),1)
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(e),0)
+        self.assertEqual(len(o),3)
 
-        self.assertEqual(e[0],six.b("No files matching 'non-existent-file' have been found"))
+        self.assertEqual(o[0],six.b('typeid,limit,apcost,date,checkpointId'))
+        self.assertEqual(o[1],six.b('1,2,5,"1,2,3,4,5,6,7","3000,3001,3002"'))
+        self.assertEqual(o[2],six.b('2,2,5,"1,2,3,4,5,6,7","3003,3004,3005"'))
 
-    def test_default_column_max_length_parameter__short_enough(self):
-        huge_text = six.b("x" * 131000)
-
-        file_data = six.b("a,b,c\n1,{},3\n".format(huge_text))
-
-        tmpfile = self.create_file_with_data(file_data)
-
-        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 1)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0],six.b('1'))
-
-        self.cleanup(tmpfile)
-
-    def test_default_column_max_length_parameter__too_long(self):
-        huge_text = six.b("x") * 132000
-
-        file_data = six.b("a,b,c\n1,{},3\n".format(huge_text))
-
-        tmpfile = self.create_file_with_data(file_data)
-
-        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 31)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 1)
-
-        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
-        self.assertTrue(six.b("Offending file is '{}'".format(tmpfile.name)) in e[0])
-        self.assertTrue(six.b('Line is 2') in e[0])
-
-        self.cleanup(tmpfile)
-
-    def test_column_max_length_parameter(self):
-        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
-        tmpfile = self.create_file_with_data(file_data)
-
-        cmd = Q_EXECUTABLE + ' -H -d , -M 3 "select a from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 31)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 1)
-
-        self.assertTrue(e[0].startswith(six.b("Column length is larger than the maximum")))
-        self.assertTrue((six.b("Offending file is '%s'" % tmpfile.name)) in e[0])
-        self.assertTrue(six.b('Line is 2') in e[0])
-
-        cmd2 = Q_EXECUTABLE + ' -H -d , -M 300 -H "select a from %s"' % tmpfile.name
-        retcode2, o2, e2 = run_command(cmd2)
-
-        self.assertEqual(retcode2, 0)
-        self.assertEqual(len(o2), 1)
-        self.assertEqual(len(e2), 0)
-
-        self.assertEqual(o2[0],six.b('very-long-text'))
-
-        self.cleanup(tmpfile)
-
-    def test_invalid_column_max_length_parameter(self):
-        file_data = six.b("a,b,c\nvery-long-text,2,3\n")
-        tmpfile = self.create_file_with_data(file_data)
-
-        cmd = Q_EXECUTABLE + ' -H -d , -M 0 "select a from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 31)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 1)
-
-        self.assertTrue(e[0].startswith(six.b('Max column length limit must be a positive integer')))
-
-
-        self.cleanup(tmpfile)
-
-    def test_duplicate_column_name_detection(self):
-        file_data = six.b("a,b,a\n10,20,30\n30,40,50")
-        tmpfile = self.create_file_with_data(file_data)
-
-        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 35)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 2)
-
-        self.assertTrue(e[0].startswith(six.b('Bad header row:')))
-        self.assertEqual(e[1],six.b("'a': Column name is duplicated"))
-
-        self.cleanup(tmpfile)
-
-    def test_join_with_stdin(self):
-        x = [six.b(a) for a in map(str,range(1,101))]
-        large_file_data = six.b("val\n") + six.b("\n").join(x)
-        tmpfile = self.create_file_with_data(large_file_data)
-
-        cmd = '(echo id ; seq 1 2 10) | bin/q.py -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)"' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 6)
-        self.assertEqual(len(e), 0)
-
-        self.assertEqual(o[0],six.b('id val'))
-        self.assertEqual(o[1],six.b('1 10'))
-        self.assertEqual(o[2],six.b('3 30'))
-        self.assertEqual(o[3],six.b('5 50'))
-        self.assertEqual(o[4],six.b('7 70'))
-        self.assertEqual(o[5],six.b('9 90'))
-
-        self.cleanup(tmpfile)
+        self.cleanup(tmp_data_file)
 
 
 class QrcTests(AbstractQTestCase):

@@ -327,8 +327,8 @@ class Sqlite3DB(object):
         self.conn.commit()
 
     def get_from_metaq(self, content_signature):
-        xprint("getting from metaq")
         content_signature_key = self.calculate_content_signature_key(content_signature)
+        xprint("Finding table in db_id %s that matches content signature key %s" % (self.db_id,content_signature_key))
 
         field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_type","source_filenames_str"]
 
@@ -363,8 +363,10 @@ class Sqlite3DB(object):
         d = dict(zip(field_names,r.results[0]))
         return d
 
+    # TODO RLRL - Escape/Guard question marks in filenames
+
     def done(self):
-        xprint("Inside done - Closing database %s" % self.db_id)
+        xprint("Closing database %s" % self.db_id)
         try:
             self.conn.commit()
             self.conn.close()
@@ -1040,10 +1042,7 @@ else:
     encoded_csv_reader = py3_encoded_csv_reader
 
 def normalized_filename(filename):
-    if filename == '-':
-        return 'stdin'
-    else:
-        return filename
+    return filename
 
 class TableCreatorState(object):
     NEW = 'NEW'
@@ -1140,8 +1139,10 @@ class TableCreator(object):
         self.content_signature = None
 
     def get_source(self):
-        if self.data_stream is not None:
-            return self.get_absolute_filenames_str()
+        return self.source
+
+    def get_source_type(self):
+        return self.source_type
 
     # TODO RLRL Add -A source and test
 
@@ -1365,9 +1366,9 @@ class TableCreator(object):
     # TODO RLRL - "qsql db version" should be managed at the db layer as well, and compared pre-signature validation
     def load_qsql(self, db_id, disk_db_filename, expected_content_signature):
         x = 'file:%s?immutable=1' % disk_db_filename
-        xprint("PPP Loading sqlite_db %s from %s" % (db_id, disk_db_filename))
+        xprint("Loading sqlite_db %s from %s" % (db_id, disk_db_filename))
         new_db = Sqlite3DB(db_id, x, create_metaq=False)
-        xprint("PPP into %s" % new_db)
+        xprint("Loaded sqlite_db %s into %s" % (db_id,new_db))
 
         self.sqlite_db.done()
         self.sqlite_db = new_db
@@ -1376,7 +1377,7 @@ class TableCreator(object):
     # TODO RLRL - Add qsql versioning table + check
     # TODO RLRL - Rename metaq table to a better name
     def get_table_name_for_querying(self):
-        xprint("getting table name for querying")
+        xprint("getting table name for querying inside db_id %s" % self.sqlite_db.db_id)
         d = self.sqlite_db.get_from_metaq(self.content_signature)
         if d is None:
             raise Exception('Bug - metaq file with content signature was not found')
@@ -1587,11 +1588,13 @@ class QError(object):
     __repr__ = __str__
 
 class QDataLoad(object):
-    def __init__(self,filename,start_time,end_time,data_stream=None):
+    def __init__(self,filename,start_time,end_time,data_stream=None,source_type=None,source=None):
         self.filename = filename
         self.start_time = start_time
         self.end_time = end_time
         self.data_stream = data_stream
+        self.source_type = source_type
+        self.source = source
 
     def duration(self):
         return self.end_time - self.start_time
@@ -1610,16 +1613,15 @@ class QMaterializedFile(object):
     __repr__ = __str__
 
 class QTableStructure(object):
-    def __init__(self,filenames_str,materialized_files,column_names,column_types,source):
+    def __init__(self,filenames_str,materialized_files,column_names,column_types):
         self.filenames_str = filenames_str
         self.materialized_files = materialized_files
         self.column_names = column_names
         self.column_types = column_types
-        self.source = source
 
     def __str__(self):
-        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s,source=%s>" % (
-            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types,self.source)
+        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
+            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types)
     __repr__ = __str__
 
 class QMetadata(object):
@@ -1750,7 +1752,7 @@ class QTextAsData(object):
             self.data_streams = DataStreams({})
 
         # Create DB object
-        self.query_level_db_id = 'qldb_%s' % self.engine_id
+        self.query_level_db_id = 'query_%s' % self.engine_id
         self.query_level_db = Sqlite3DB(self.query_level_db_id,
                                         'file:%s?mode=memory&cache=shared' % self.query_level_db_id,create_metaq=True)
         self.adhoc_db_id = 'adhoc_%s' % self.engine_id
@@ -1765,8 +1767,9 @@ class QTextAsData(object):
         for db_id in reversed(self.databases.keys()):
             database_info = self.databases[db_id]
             if database_info.needs_closing:
-                xprint("Closing database %s" % db_id)
+                xprint("Gonna close database %s - %s" % (db_id,self.databases[db_id]))
                 self.databases[db_id].sqlite_db.done()
+                xprint("Database %s has been closed" % db_id)
             else:
                 xprint("No need to close database %s" % db_id)
         xprint("Closed all databases")
@@ -1807,7 +1810,7 @@ class QTextAsData(object):
         return fn
 
     def _load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
-        xprint("loading data for filename %s" % filename)
+        xprint("Attempting to load data for filename %s" % filename)
 
         start_time = time.time()
 
@@ -1833,12 +1836,16 @@ class QTextAsData(object):
             effective_read_caching = False
             effective_write_caching = False
             db_to_use = self.adhoc_db
+            source_type = 'data-stream'
+            source = data_stream.stream_id
         else:
             effective_read_caching = input_params.read_caching
             effective_write_caching = input_params.write_caching
             db_id = '%s' % self._generate_db_name(filename)
             db_to_use = Sqlite3DB(db_id,'file:%s?mode=memory&cache=shared' % db_id,create_metaq=True)
             self.databases[db_id] = DatabaseInfo(db_to_use,needs_closing=True)
+            source_type = 'file'
+            source = filename
 
         target_sqlite_table_name = db_to_use.generate_temp_table_name()
 
@@ -1860,26 +1867,29 @@ class QTextAsData(object):
 
         content_signature = table_creator.content_signature
 
-        if not stop_after_analysis:
-            if effective_read_caching and disk_db_file_exists:
-                # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-                #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+        if effective_read_caching and disk_db_file_exists:
+            # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
+            #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+            if not stop_after_analysis:
                 table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
-                del self.databases[db_id]
-                db_id = 'disk_%s' % db_id
-                self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
-            else:
-                table_creator.perform_read_fully(dialect_id)
+            xprint("QQQ",self.databases[db_id])
+            del self.databases[db_id]
+            db_id = 'disk_%s' % db_id
+            self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
+            source_type = 'disk-file'
+            source = disk_db_filename
+        else:
+            table_creator.perform_read_fully(dialect_id)
 
-                if effective_write_caching:
-                    self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+            if effective_write_caching:
+                self.store_qsql(table_creator.sqlite_db, disk_db_filename)
 
         if db_to_use.db_id != self.adhoc_db_id:
             self.attach_to_query_level_db(table_creator.sqlite_db,self.query_level_db)
 
         self.table_creators[filename] = table_creator
 
-        return QDataLoad(filename,start_time,time.time(),data_stream=data_stream)
+        return QDataLoad(filename,start_time,time.time(),data_stream=data_stream,source_type=source_type,source=source)
 
     def attach_to_query_level_db(self,target_db,source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
@@ -1892,12 +1902,11 @@ class QTextAsData(object):
         return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
     def _ensure_data_is_loaded(self,sql_object,input_params,data_streams=None,stop_after_analysis=False):
-        xprint("Data load")
+        xprint("Ensuring Data load")
         data_loads = []
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            xprint("XXX",filename)
             data_load = self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
             if data_load is not None:
                 data_loads.append(data_load)
@@ -1977,10 +1986,6 @@ class QTextAsData(object):
 
             table_structures = self._create_table_structures_list()
 
-            xprint("QQQ",self.query_level_db.execute_and_fetch('pragma database_list').results)
-            xprint("WWW",{ x:self.table_creators[x] for x in self.table_creators})
-
-
             self.materialize_sql_object(sql_object)
 
             # TODO RLRL - Breaking change - save to db needs another approach?
@@ -1997,7 +2002,7 @@ class QTextAsData(object):
             # Ensure that adhoc db is not in the middle of a transaction
             self.adhoc_db.conn.commit()
 
-            xprint("--- query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
+            xprint("Query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.query_level_db)
 
@@ -2089,8 +2094,7 @@ class QTextAsData(object):
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
             materialized_files = self._create_materialized_files(table_creator)
-            source = table_creator.get_source()
-            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types,source)
+            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types)
             table_structures.append(table_structure)
         return table_structures
 
@@ -2187,10 +2191,10 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
-        for table_structure in results.metadata.table_structures:
-            #print("Table for file: %s (source: %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
-            #print("Table for file: %s (source %s)" % (normalized_filename(table_structure.filenames_str),table_structure.source), file=f_out)
-            print("Table for file: %s" % normalized_filename(table_structure.filenames_str), file=f_out)
+        for data_load,table_structure in zip(results.metadata.data_loads,results.metadata.table_structures):
+            print("Table for file: %s source-type: %s source: %s" %
+                  (normalized_filename(table_structure.filenames_str),data_load.source_type,data_load.source),
+                  file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
                 print("  `%s` - %s" % (n,t), file=f_out)
 

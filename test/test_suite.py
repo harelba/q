@@ -318,23 +318,6 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_column_analysis_with_header(self):
-        tmpfile = self.create_file_with_data(sample_data_with_header)
-        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A -H' % tmpfile.name
-        retcode, o, e = run_command(cmd)
-
-        self.assertNotEqual(retcode, 0)
-        self.assertEqual(len(o),4)
-        self.assertEqual(len(e),2)
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
-        self.assertEqual(o[1].strip(), six.b('`name` - text'))
-        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
-        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
-        self.assertEqual(e[0].strip(),six.b('query error: no such column: c1'))
-        self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
-
-        self.cleanup(tmpfile)
-
     def test_data_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
         cmd = Q_EXECUTABLE + ' -d , "select name from %s" -H' % tmpfile.name
@@ -467,7 +450,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o), 4)
 
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`c1` - text'))
         self.assertEqual(o[2].strip(), six.b('`c2` - int'))
         self.assertEqual(o[3].strip(), six.b('`c3` - int'))
@@ -828,6 +811,35 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_concatenated_files(self):
+        file_data1 = six.b("a,b,c\n10,11,12\n20,21,22")
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        file_data2 = six.b("a,b,c\n30,31,32\n40,41,42")
+        tmpfile2 = self.create_file_with_data(file_data2)
+        tmpfile2_folder = os.path.dirname(tmpfile2.name)
+        tmpfile2_filename = os.path.basename(tmpfile2.name)
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from %s+%s" -C none' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 5)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('a,b,c'))
+        self.assertEqual(o[1],six.b('10,11,12'))
+        self.assertEqual(o[2],six.b('20,21,22'))
+        self.assertEqual(o[3],six.b('30,31,32'))
+        self.assertEqual(o[4],six.b('40,41,42'))
+
+        self.cleanup(tmpfile1.name)
+        self.cleanup(tmpfile2.name)
+
+
 class GzippingTests(AbstractQTestCase):
 
     def test_gzipped_file(self):
@@ -1022,7 +1034,25 @@ class AnalysisTests(AbstractQTestCase):
         # an error when accessing the table
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
+        self.assertEqual(o[1], six.b('  `c1` - text'))
+
+        self.cleanup(tmpfile)
+
+    def test_analyze_result_with_data_stream(self):
+        d = "\n".join(['%s\t%s\t%s' % (x+1,x+1,x+1) for x in range(100)])
+        tmpfile = self.create_file_with_data(six.b(d))
+
+        cmd = 'cat %s | %s  -c 1 "select count(*) from -" -A' % (tmpfile.name,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
+        # an error when accessing the table
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], six.b('Table for file: - source-type: data-stream source: stdin'))
         self.assertEqual(o[1], six.b('  `c1` - text'))
 
         self.cleanup(tmpfile)
@@ -1034,7 +1064,7 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`c1` - text'))
         self.assertEqual(o[2].strip(), six.b('`c2` - int'))
         self.assertEqual(o[3].strip(), six.b('`c3` - int'))
@@ -1048,7 +1078,7 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`c1` - text'))
         self.assertEqual(o[2].strip(), six.b('`c2` - int'))
         self.assertEqual(o[3].strip(), six.b('`c3` - int'))
@@ -1062,7 +1092,7 @@ class AnalysisTests(AbstractQTestCase):
         self.assertEqual(len(o), 4)
         self.assertEqual(len(e), 1)
 
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`c1` - text'))
         self.assertEqual(o[2].strip(), six.b('`c2` - text'))
         self.assertEqual(o[3].strip(), six.b('`c3` - text'))
@@ -1082,12 +1112,30 @@ class AnalysisTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o), 4)
 
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`name` - text'))
         self.assertEqual(o[2].strip(), six.b('`value 1` - int'))
         self.assertEqual(o[3].strip(), six.b('`value2` - int'))
 
         self.cleanup(tmpfile)
+
+    def test_column_analysis_with_header(self):
+        tmpfile = self.create_file_with_data(sample_data_with_header)
+        cmd = Q_EXECUTABLE + ' -d , "select c1 from %s" -A -H' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertNotEqual(retcode, 0)
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),2)
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: file source: %s' % (tmpfile.name,tmpfile.name)))
+        self.assertEqual(o[1].strip(), six.b('`name` - text'))
+        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
+        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
+        self.assertEqual(e[0].strip(),six.b('query error: no such column: c1'))
+        self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
+
+        self.cleanup(tmpfile)
+
 
 
 class StdInTests(AbstractQTestCase):
@@ -1848,6 +1896,93 @@ class CachingTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_cache_full_flow_with_concatenated_files(self):
+        file_data1 = six.b("a,b,c\n10,11,12\n20,21,22")
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        file_data2 = six.b("a,b,c\n30,31,32\n40,41,42")
+        tmpfile2 = self.create_file_with_data(file_data2)
+        tmpfile2_folder = os.path.dirname(tmpfile2.name)
+        tmpfile2_filename = os.path.basename(tmpfile2.name)
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from %s+%s" -C readwrite' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 5)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('a,b,c'))
+        self.assertEqual(o[1],six.b('10,11,12'))
+        self.assertEqual(o[2],six.b('20,21,22'))
+        self.assertEqual(o[3],six.b('30,31,32'))
+        self.assertEqual(o[4],six.b('40,41,42'))
+
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+
+        self.cleanup(tmpfile1.name)
+        self.cleanup(tmpfile2.name)
+
+
+    # TODO RLRL - add a test - -A should ignore read/write caching
+
+    def test_analyze_result_with_cache_file(self):
+        file_data = six.b("a,b,c\n10,20,30\n30,40,50")
+        tmpfile = self.create_file_with_data(file_data)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        # Ensure cache has not been created yet
+        self.assertTrue(not os.path.exists(expected_cache_filename))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0],six.b('10'))
+        self.assertEqual(o[1],six.b('30'))
+
+        # Ensure cache is now created
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),0)
+
+        self.assertEqual(o[0],six.b('Table for file: %s source-type: disk-file source: %s.qsql' % (tmpfile.name,tmpfile.name)))
+        self.assertEqual(o[1],six.b('  `a` - int'))
+        self.assertEqual(o[2],six.b('  `b` - int'))
+        self.assertEqual(o[3],six.b('  `c` - int'))
+
+        # delete the newly created cache
+        os.remove(expected_cache_filename)
+
+        # Now rerun the analysis without the cache file
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),4)
+        self.assertEqual(len(e),0)
+
+        self.assertEqual(o[0],six.b('Table for file: %s source-type: file source: %s' % (tmpfile.name,tmpfile.name)))
+        self.assertEqual(o[1],six.b('  `a` - int'))
+        self.assertEqual(o[2],six.b('  `b` - int'))
+        self.assertEqual(o[3],six.b('  `c` - int'))
+
+        self.cleanup(tmpfile)
+
     def test_partial_caching_exists(self):
         file1_data = six.b("a,b,c\n10,20,30\n30,40,50\n60,70,80")
         tmpfile1 = self.create_file_with_data(file1_data)
@@ -2146,7 +2281,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 4)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1].strip(), six.b('`name` - text'))
         self.assertEqual(o[2].strip(), six.b('`value1` - int'))
         self.assertEqual(o[3].strip(), six.b('`c3` - int'))
@@ -2588,7 +2723,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o), 3)
 
-        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1],six.b('  `c1` - int'))
         self.assertEqual(o[2],six.b('  `c2` - int'))
 
@@ -2633,7 +2768,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(len(o), 5)
 
 
-        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1],six.b('  `regular_text` - text'))
         self.assertEqual(o[2],six.b('  `text_with_digits1` - int'))
         self.assertEqual(o[3],six.b('  `text_with_digits2` - int'))
@@ -2648,7 +2783,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o), 5)
 
-        self.assertEqual(o[0],six.b('Table for file: %s' % tmpfile.name))
+        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
         self.assertEqual(o[1],six.b('  `regular_text` - text'))
         self.assertEqual(o[2],six.b('  `text_with_digits1` - text'))
         self.assertEqual(o[3],six.b('  `text_with_digits2` - text'))

@@ -3164,11 +3164,12 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(metadata.data_loads),1)
         self.assertEqual(len(metadata.table_structures),1)
 
-        table_structure = metadata.table_structures[0]
+        table_structure = metadata.table_structures[tmpfile.name]
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
         self.assertEqual(table_structure.column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.filenames_str,tmpfile.name)
+        print("WW",table_structure.materialized_files)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)

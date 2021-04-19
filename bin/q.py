@@ -110,6 +110,16 @@ def regexp(regular_expression, data):
     else:
         return False
 
+def regexp_extract(regular_expression, data,group_number):
+    if data is not None:
+        if not isinstance(data, str) and not isinstance(data, unicode):
+            data = str(data)
+        m = re.search(regular_expression, data)
+        if m is not None:
+            return m.groups()[group_number]
+    else:
+        return False
+
 def md5(data,encoding):
     m = hashlib.md5()
     m.update(six.text_type(data).encode(encoding))
@@ -137,6 +147,7 @@ class StrictPercentile(object):
     def __init__(self):
         self.values = []
         self.p = None
+
     def step(self,value,p):
         if self.p is None:
           self.p = p
@@ -219,6 +230,11 @@ user_functions = [
                     "Find regexp in string expression. Returns 1 if found or 0 if not",
                     regexp,
                     2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "regexp_extract","regexp_extract(<regular_expression>,<expr>,group_number) = <substring|null>",
+                    "Get regexp capture group content",
+                    regexp_extract,
+                    3),
     UserFunctionDef(FunctionType.REGULAR,
                     "sha","sha(<expr>,<encoding>,<algorithm>) = <hex-string-of-sha>",
                     "Calculate sha of some expression. Algorithm can be one of 1,224,256,384,512. For now encoding must be manually provided. Will use the input encoding automatically in the future.",
@@ -498,6 +514,7 @@ class IncorrectDefaultValueException(Exception):
         self.actual_value = actual_value
 
     def __str(self):
+        # TODO RLRL - Fix
         return repr(self.msg)
 
 class ColumnMaxLengthLimitExceededException(Exception):
@@ -1045,13 +1062,16 @@ def normalized_filename(filename):
     return filename
 
 class TableCreatorState(object):
-    NEW = 'NEW'
     INITIALIZED = 'INITIALIZED'
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
 class MaterializedFileState(object):
     def __init__(self,filename,f,encoding,dialect,data_stream=None):
+        xprint("DDDDD",type(filename))
+        xprint("DDDDD1",filename)
+        if type(filename) != str:
+            raise Exception("DDDDDD")
         self.filename = filename
         self.lines_read = 0
         self.f = f
@@ -1059,6 +1079,14 @@ class MaterializedFileState(object):
         self.dialect = dialect
         self.data_stream = data_stream
         self.skipped_bom = False
+
+    def __str__(self):
+        return "MaterializedFileState<filename=%s,lines_read=%s,f=%s,encoding=%s,data_stream=%s" % (self.filename,
+                                                                                                    self.lines_read,
+                                                                                                    self.f,
+                                                                                                    self.encoding,
+                                                                                                    self.data_stream)
+    __repr__ = __str__
 
     def read_file_using_csv(self):
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
@@ -1098,12 +1126,13 @@ class TableCreator(object):
         return "TableCreator<db=%s>" % str(self.sqlite_db)
     __repr__ = __str__
 
-    def __init__(self, filenames_str, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
+    def __init__(self, mfs, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
                  encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
                  disable_column_type_detection=False,data_stream=None,
                  read_caching=False,sqlite_db=None,target_sqlite_table_name=None):
-        xprint("in table creator init for filename %s" % filenames_str)
-        self.filenames_str = filenames_str
+        xprint("in table creator init for filename %s" % mfs)
+
+        self.mfs = mfs
 
         self.sqlite_db = sqlite_db
         self.target_sqlite_table_name = target_sqlite_table_name
@@ -1130,19 +1159,10 @@ class TableCreator(object):
         # so column inferer can do its work before this information is needed
         self.numeric_column_indices = None
 
-        self.materialized_file_list = self.materialize_file_list()
-        self.materialized_file_dict = {}
-
-        self.state = TableCreatorState.NEW
+        self.state = TableCreatorState.INITIALIZED
 
         self.read_caching = read_caching
         self.content_signature = None
-
-    def get_source(self):
-        return self.source
-
-    def get_source_type(self):
-        return self.source_type
 
     # TODO RLRL Add -A source and test
 
@@ -1164,12 +1184,12 @@ class TableCreator(object):
         #             and the cache doesn't, then it's possible to create it after reading the source file.
         if self.data_stream is None:
             xprint("DD",self.data_stream)
-            parts = self.filenames_str.split("+")
-            sizes = [os.stat(x).st_size for x in parts]
-            last_modification_times = [os.stat(x).st_mtime_ns for x in parts]
+            size = os.stat(self.mfs.filename).st_size
+            last_modification_time = os.stat(self.mfs.filename).st_mtime_ns
         else:
-            sizes = [0]
-            last_modification_times = [0]
+            # TODO RLRL - Need to prevent generating content signature once it's a data-stream
+            size = 0
+            last_modification_time = 0
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1182,72 +1202,15 @@ class TableCreator(object):
             "expected_column_count": self.expected_column_count,
             "input_delimiter": self.input_delimiter,
             "inferer": self.column_inferer._generate_content_signature(),
-            "original_file_size": sizes,
-            "last_modification_time": last_modification_times
+            "original_file_size": size,
+            "last_modification_time": last_modification_time
         })
 
         # TODO RLRL - Solve multi table caching
         return m
 
-    def materialize_file_list(self):
-        materialized_file_list = []
-
-        # Get the list of filenames
-        filenames = self.filenames_str.split("+")
-
-        # for each filename (or pattern)
-        for fileglob in filenames:
-            # Allow either a stream or a glob match
-            if self.data_stream is not None:
-                materialized_file_list.append(self.data_stream.filename)
-            else:
-                materialized_file_list += glob.glob(fileglob)
-
-        # If there are no files to go over,
-        if len(materialized_file_list) == 0:
-            raise FileNotFoundException(
-                "No files matching '%s' have been found" % self.filenames_str)
-
-        return materialized_file_list
-
     def get_table_name(self):
         return self.target_sqlite_table_name
-
-    def open_file(self,filename):
-        # TODO Support universal newlines for gzipped and stdin data as well
-
-        # Check if it's a data stream
-        if self.data_stream is not None:
-            f = self.data_stream.stream
-            if self.gzipped:
-                raise CannotUnzipDataStreamException()
-        else:
-            if self.gzipped or filename.endswith('.gz'):
-                f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(filename,'rb')),encoding=self.encoding)
-            else:
-                if six.PY3:
-                    if self.with_universal_newlines:
-                        f = io.open(filename, 'rU',newline=None,encoding=self.encoding)
-                    else:
-                        f = io.open(filename, 'r', newline=None, encoding=self.encoding)
-                else:
-                    if self.with_universal_newlines:
-                        file_opening_mode = 'rbU'
-                    else:
-                        file_opening_mode = 'rb'
-                    f = open(filename, file_opening_mode)
-        return f
-
-    def _pre_populate(self,dialect):
-        # For each match
-        for filename in self.materialized_file_list:
-            if filename in self.materialized_file_dict.keys():
-                continue
-
-            f = self.open_file(filename)
-
-            mfs = MaterializedFileState(filename,f,self.encoding,dialect,self.data_stream)
-            self.materialized_file_dict[filename] = mfs
 
     def _should_skip_extra_headers(self, filenumber, filename, mfs, col_vals):
         if not self.skip_header:
@@ -1262,47 +1225,50 @@ class TableCreator(object):
 
         if is_extra_header:
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
-                raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(",".join(col_vals),mfs.filename,",".join(self.column_inferer.header_row),self.column_inferer.header_row_filename,self.filenames_str))
+                raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
+                    ",".join(col_vals),mfs.filename,
+                    ",".join(self.column_inferer.header_row),
+                    self.column_inferer.header_row_filename,
+                    self.mfs.filename))
 
         return is_extra_header
 
     def _populate(self,dialect,stop_after_analysis=False):
         total_data_lines_read = 0
 
-        # For each match
-        for filenumber,filename in enumerate(self.materialized_file_list):
-            mfs = self.materialized_file_dict[filename]
-
+        try:
             try:
-                try:
-                    for col_vals in mfs.read_file_using_csv():
-                        if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
-                            continue
-                        self._insert_row(filename, col_vals)
-                        if stop_after_analysis and self.column_inferer.inferred:
-                            return
-                    if mfs.lines_read == 0 and self.skip_header:
-                        raise MissingHeaderException("Header line is expected but missing in file %s" % filename)
+                for col_vals in self.mfs.read_file_using_csv():
+                    #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
+                    if self._should_skip_extra_headers(0,self.mfs.filename,self.mfs,col_vals):
+                        continue
+                    self._insert_row(self.mfs.filename, col_vals)
+                    if stop_after_analysis and self.column_inferer.inferred:
+                        return
+                if self.mfs.lines_read == 0 and self.skip_header:
+                    raise MissingHeaderException("Header line is expected but missing in file %s" % self.mfs.filename)
 
-                    total_data_lines_read += mfs.lines_read - (1 if self.skip_header else 0)
-                except StrictModeColumnCountMismatchException as e:
-                    raise ColumnCountMismatchException(
-                        'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                        e.expected_col_count, e.actual_col_count, normalized_filename(mfs.filename), mfs.lines_read))
-                except FluffyModeColumnCountMismatchException as e:
-                    raise ColumnCountMismatchException(
-                        'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                        normalized_filename(mfs.filename), mfs.lines_read, e.actual_col_count, e.expected_col_count))
-            finally:
-                if not stop_after_analysis:
-                    mfs.close()
-                self._flush_inserts()
+                total_data_lines_read += self.mfs.lines_read - (1 if self.skip_header else 0)
+            except StrictModeColumnCountMismatchException as e:
+                raise ColumnCountMismatchException(
+                    'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
+                    e.expected_col_count, e.actual_col_count, normalized_filename(self.mfs.filename), self.mfs.lines_read))
+            except FluffyModeColumnCountMismatchException as e:
+                raise ColumnCountMismatchException(
+                    'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
+                    normalized_filename(self.mfs.filename), self.mfs.lines_read, e.actual_col_count, e.expected_col_count))
+        finally:
+            # TODO RLRL mfs closing should be pushed up the stack
+            if not stop_after_analysis:
+                self.mfs.close()
+            self._flush_inserts()
 
-            if not self.table_created:
-                self.column_inferer.force_analysis()
-                self._do_create_table(filename)
+        # TODO RLRL - Not sure if this needs to pushed up the stack
+        if not self.table_created:
+            self.column_inferer.force_analysis()
+            self._do_create_table(self.mfs.filename)
 
-            self.sqlite_db.conn.commit()
+        self.sqlite_db.conn.commit()
 
 
         # # TODO RLRL - move this to be a non-execption at this layer. Also related to a github issue that was opened a while ago
@@ -1310,16 +1276,10 @@ class TableCreator(object):
         #     raise EmptyDataException()
 
     def get_absolute_filenames_str(self):
-        files = self.filenames_str.split("+")
-        abs_files = [os.path.abspath(x) for x in files]
-        return "+".join(abs_files)
-
-    def perform_pre_populate(self,dialect):
-        if self.state == TableCreatorState.NEW:
-            self._pre_populate(dialect)
-            self.state = TableCreatorState.INITIALIZED
-        else:
-            raise Exception('Bug - Wrong state %s' % self.state)
+        xprint("RRR",self.mfs)
+        xprint("TTT",self.mfs.filename)
+        return self.mfs.filename
+        # TODO RLRL make sure that MFS class makes the filename absolute
 
     def perform_analyze(self, dialect,data_stream):
         xprint("Analyzing... %s" % dialect)
@@ -1339,6 +1299,7 @@ class TableCreator(object):
             else:
                 source_type = 'file'
 
+            xprint("PPP",self.get_absolute_filenames_str())
             self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
                                               self.content_signature,
                                               now,
@@ -1548,7 +1509,8 @@ class TableCreator(object):
                     if k == 'rows':
                         raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
                     else:
-                        raise ContentSignatureDiffersException(self.filenames_str,".".join(scope + [k]),source_signature[k],content_signature[k])
+                        # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
+                        raise ContentSignatureDiffersException(self.mfs.filename,".".join(scope + [k]),source_signature[k],content_signature[k])
 
 
 
@@ -1809,6 +1771,62 @@ class QTextAsData(object):
         fn = '%s.qsql' % (os.path.abspath(filenames_str).replace("+","__"))
         return fn
 
+    def materialize_file_list(self,filenames_str):
+        materialized_file_list = []
+
+        # Get the list of filenames
+        filenames = filenames_str.split("+")
+
+        # for each filename (or pattern)
+        for fileglob in filenames:
+            materialized_file_list += glob.glob(fileglob)
+
+        # If there are no files to go over,
+        if len(materialized_file_list) == 0:
+            raise FileNotFoundException(
+                "No files matching '%s' have been found" % filenames_str)
+
+        return materialized_file_list
+
+    def open_file(self,filename, data_stream, encoding, gzipped, with_universal_newlines):
+        # TODO Support universal newlines for gzipped and stdin data as well
+
+        # Check if it's a data stream
+        if data_stream is not None:
+            f = data_stream.stream
+            if gzipped:
+                raise CannotUnzipDataStreamException()
+        else:
+            if gzipped or filename.endswith('.gz'):
+                f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(filename,'rb')),encoding=encoding)
+            else:
+                if six.PY3:
+                    if with_universal_newlines:
+                        f = io.open(filename, 'rU',newline=None,encoding=encoding)
+                    else:
+                        f = io.open(filename, 'r', newline=None, encoding=encoding)
+                else:
+                    if with_universal_newlines:
+                        file_opening_mode = 'rbU'
+                    else:
+                        file_opening_mode = 'rb'
+                    f = open(filename, file_opening_mode)
+        return f
+
+    def _open_files_and_get_mfss(self,materialized_file_list,data_stream, encoding,gzipped,with_universal_newlines,dialect):
+        materialized_file_dict = OrderedDict()
+        # For each match
+        for filename in materialized_file_list:
+            # if filename in materialized_file_dict.keys():
+            #     continue
+
+            f = self.open_file(filename,data_stream,encoding,gzipped,with_universal_newlines)
+
+            mfs = MaterializedFileState(filename,f,encoding,dialect,data_stream)
+            materialized_file_dict[filename] = mfs
+
+        return materialized_file_dict
+
     def _load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         xprint("Attempting to load data for filename %s" % filename)
 
@@ -1826,7 +1844,7 @@ class QTextAsData(object):
         # reuse already loaded data, except for data streams
         xprint("checking",self.table_creators.keys())
         if filename in self.table_creators.keys():
-            return None
+            return []
         xprint("%s not found - loading" % filename)
 
         data_stream = self.data_streams.get_for_filename(filename)
@@ -1847,49 +1865,70 @@ class QTextAsData(object):
             source_type = 'file'
             source = filename
 
-        target_sqlite_table_name = db_to_use.generate_temp_table_name()
-
         disk_db_filename = self._generate_disk_db_filename(filename)
         disk_db_file_exists = os.path.exists(disk_db_filename)
 
-        # Create the matching database table and populate it
-        table_creator = TableCreator(
-            filename, line_splitter, input_params.skip_header, input_params.gzipped_input, input_params.with_universal_newlines,input_params.input_encoding,
-            mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
-            input_delimiter=input_params.delimiter,disable_column_type_detection=input_params.disable_column_type_detection,
-            data_stream=data_stream,
-            read_caching=effective_read_caching,
-            sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
-
-        table_creator.perform_pre_populate(dialect_id)
-
-        table_creator.perform_analyze(dialect_id,table_creator.data_stream)
-
-        content_signature = table_creator.content_signature
-
-        if effective_read_caching and disk_db_file_exists:
-            # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-            #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-            if not stop_after_analysis:
-                table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
-            xprint("QQQ",self.databases[db_id])
-            del self.databases[db_id]
-            db_id = 'disk_%s' % db_id
-            self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
-            source_type = 'disk-file'
-            source = disk_db_filename
+        if not data_stream:
+            materialized_file_list = self.materialize_file_list(filename)
+            mfss = self._open_files_and_get_mfss(materialized_file_list,
+                                                 data_stream,
+                                                 input_params.input_encoding,
+                                                 input_params.gzipped_input,
+                                                 input_params.with_universal_newlines,
+                                                 dialect_id)
         else:
-            table_creator.perform_read_fully(dialect_id)
+            materialized_file_list = []
+            mfss = OrderedDict(filename=MaterializedFileState(filename,data_stream.stream,input_params.input_encoding,dialect_id,data_stream))
 
-            if effective_write_caching:
-                self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+        xprint("MFSs to load: %s" % mfss)
+        data_loads = []
 
-        if db_to_use.db_id != self.adhoc_db_id:
-            self.attach_to_query_level_db(table_creator.sqlite_db,self.query_level_db)
+        for fn in mfss.keys():
+            mfs = mfss[fn]
+            xprint("QQ",mfs)
 
-        self.table_creators[filename] = table_creator
+            target_sqlite_table_name = db_to_use.generate_temp_table_name()
 
-        return QDataLoad(filename,start_time,time.time(),data_stream=data_stream,source_type=source_type,source=source)
+            # Create the matching database table and populate it
+            table_creator = TableCreator(
+                mfs, line_splitter, input_params.skip_header, input_params.gzipped_input,
+                input_params.with_universal_newlines, input_params.input_encoding,
+                mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
+                input_delimiter=input_params.delimiter,
+                disable_column_type_detection=input_params.disable_column_type_detection,
+                data_stream=data_stream,
+                read_caching=effective_read_caching,
+                sqlite_db=db_to_use, target_sqlite_table_name=target_sqlite_table_name)
+
+            table_creator.perform_analyze(dialect_id,table_creator.data_stream)
+
+            content_signature = table_creator.content_signature
+
+            if effective_read_caching and disk_db_file_exists:
+                # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
+                #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+                if not stop_after_analysis:
+                    table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
+                xprint("QQQ",self.databases[db_id])
+                del self.databases[db_id]
+                db_id = 'disk_%s' % db_id
+                self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
+                source_type = 'disk-file'
+                source = disk_db_filename
+            else:
+                table_creator.perform_read_fully(dialect_id)
+
+                if effective_write_caching:
+                    self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+
+            if db_to_use.db_id != self.adhoc_db_id:
+                self.attach_to_query_level_db(table_creator.sqlite_db,self.query_level_db)
+
+            self.table_creators[filename] = table_creator
+
+            data_loads += [QDataLoad(filename,start_time,time.time(),data_stream=data_stream,source_type=source_type,source=source)]
+
+        return data_loads
 
     def attach_to_query_level_db(self,target_db,source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
@@ -1907,9 +1946,9 @@ class QTextAsData(object):
 
         # Get each "table name" which is actually the file name
         for filename in sql_object.qtable_names:
-            data_load = self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
-            if data_load is not None:
-                data_loads.append(data_load)
+            new_data_loads = self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
+            xprint("PPP",new_data_loads)
+            data_loads += new_data_loads
 
         return data_loads
 
@@ -2079,8 +2118,6 @@ class QTextAsData(object):
                 pass
         self.table_creators = {}
 
-
-
     def _create_materialized_files(self,table_creator):
         d = table_creator.materialized_file_dict
         m = {}
@@ -2088,13 +2125,16 @@ class QTextAsData(object):
             m[filename] = QMaterializedFile(filename,mfs.data_stream)
         return m
 
+    # TODO RLRL - This needs to happen iteratively during the load of each file into a coherent table
     def _create_table_structures_list(self):
         table_structures = []
         for filename,table_creator in six.iteritems(self.table_creators):
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
-            materialized_files = self._create_materialized_files(table_creator)
-            table_structure = QTableStructure(table_creator.filenames_str,materialized_files,column_names,column_types)
+            # TODO RLRL Reinstate properly so Q_DEBUG=true ./run-tests.sh -v -k test_analyze_response || would run
+            #materialized_files = self._create_materialized_files(table_creator)
+            materialized_files = {}
+            table_structure = QTableStructure(table_creator.mfs.filename,materialized_files,column_names,column_types)
             table_structures.append(table_structure)
         return table_structures
 
@@ -2316,6 +2356,7 @@ def dump_default_values_as_qrc(parser,exclusions):
             print("%s=%s" % (k,m[k]),file=sys.stdout)
 
 def run_standalone():
+    sqlite3.enable_callback_tracebacks(True)
     p = configparser.ConfigParser()
     if QRC_FILENAME_ENVVAR in os.environ:
         qrc_filename = os.environ[QRC_FILENAME_ENVVAR]

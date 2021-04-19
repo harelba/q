@@ -2162,6 +2162,25 @@ class UserFunctionTests(AbstractQTestCase):
         self.assertEqual(o[2],six.b('3,77de68daecd823babbb58edb1c8e14d7106e83bb'))
         self.assertEqual(o[3],six.b('4,1b6453892473a467d07372d45eb05abc2031647a'))
 
+    def test_regexp_extract_function(self):
+        query = """
+            select 
+              regexp_extract('was ([0-9]+) seconds and ([0-9]+) ms',c1,0),
+              regexp_extract('was ([0-9]+) seconds and ([0-9]+) ms',c1,1),
+              regexp_extract('non-existent-(regexp)',c1,0) 
+            from
+              -
+        """
+
+        cmd = 'echo "Duration was 322 seconds and 240 ms" | %s -c 1 -d , "%s"' % (Q_EXECUTABLE,query)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+
+        self.assertEqual(o[0],six.b('322,240,'))
+
     def test_sha_function(self):
         cmd = 'seq 1 4 | %s -c 1 -d , "select c1,sha(c1,1,\'utf-8\') as sha1,sha(c1,224,\'utf-8\') as sha224,sha(c1,256,\'utf-8\') as sha256 from -"' % Q_EXECUTABLE
         retcode, o, e = run_command(cmd)
@@ -3486,3 +3505,8 @@ if __name__ == '__main__':
     test_runner = unittest.TextTestRunner(verbosity=2)
     result = test_runner.run(suite)
     sys.exit(not result.wasSuccessful())
+
+# TODO RLRL - I thought it's just about file concatenation with +, but it's more generic than that - globs need to be supported
+#   this probably means that table_creator should be always on one file, and the concatenation of files needs to happen probably through
+#   SQL UNION in order to support multiple QSQLs seamlessly
+#   Essentially, this means pushing pre_populate up the stack, and the for-loop in populate as well

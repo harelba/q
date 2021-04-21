@@ -446,14 +446,25 @@ class BasicTests(AbstractQTestCase):
         cmd = Q_EXECUTABLE + ' -d , "select c2 from %s" -k -A' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
+        f = open("/var/tmp/XXX","wb")
+        f.write(six.b("\n").join(o))
+        f.write(six.b("STDERR:"))
+        f.write(six.b("\n").join(e))
+        f.close()
+
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 4)
+        self.assertEqual(len(o), 7)
 
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1], six.b('  Data Loads:'))
+        self.assertEqual(o[2], six.b('    source_type: file source: %s') % six.b(tmpfile.name))
+        self.assertEqual(o[3], six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `c1` - text'))
+        self.assertEqual(o[5], six.b('    `c2` - int'))
+        self.assertEqual(o[6], six.b('    `c3` - int'))
+
 
         self.cleanup(tmpfile)
 
@@ -1029,13 +1040,14 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 2)
-        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
-        # an error when accessing the table
+        self.assertEqual(len(o), 5)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1], six.b('  `c1` - text'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1], six.b('  Data Loads:'))
+        self.assertEqual(o[2], six.b('    source_type: file source: %s' %(tmpfile.name)))
+        self.assertEqual(o[3], six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `c1` - text'))
 
         self.cleanup(tmpfile)
 
@@ -1047,13 +1059,14 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 2)
-        # If add_to_metaq does not commit the transaction manually, the db remains locked and there's
-        # an error when accessing the table
+        self.assertEqual(len(o), 5)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('Table for file: - source-type: data-stream source: stdin'))
-        self.assertEqual(o[1], six.b('  `c1` - text'))
+        self.assertEqual(o[0], six.b('Table: -'))
+        self.assertEqual(o[1], six.b('  Data Loads:'))
+        self.assertEqual(o[2], six.b('    source_type: data-stream source: stdin'))
+        self.assertEqual(o[3], six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `c1` - text'))
 
         self.cleanup(tmpfile)
 
@@ -1078,10 +1091,13 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `c1` - text'))
+        self.assertEqual(o[5], six.b('    `c2` - int'))
+        self.assertEqual(o[6], six.b('    `c3` - int'))
 
     def test_column_analysis_with_unexpected_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
@@ -1089,13 +1105,16 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 4)
+        self.assertEqual(len(o), 7)
         self.assertEqual(len(e), 1)
 
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - text'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - text'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `c1` - text'))
+        self.assertEqual(o[5],six.b('    `c2` - text'))
+        self.assertEqual(o[6],six.b('    `c3` - text'))
 
         self.assertEqual(
             e[0], six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
@@ -1110,12 +1129,15 @@ class AnalysisTests(AbstractQTestCase):
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 4)
+        self.assertEqual(len(o), 7)
 
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`name` - text'))
-        self.assertEqual(o[2].strip(), six.b('`value 1` - int'))
-        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `name` - text'))
+        self.assertEqual(o[5], six.b('    `value 1` - int'))
+        self.assertEqual(o[6], six.b('    `value2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -1125,13 +1147,17 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertNotEqual(retcode, 0)
-        self.assertEqual(len(o),4)
+        self.assertEqual(len(o),7)
         self.assertEqual(len(e),2)
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: file source: %s' % (tmpfile.name,tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`name` - text'))
-        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
-        self.assertEqual(o[3].strip(), six.b('`value2` - int'))
-        self.assertEqual(e[0].strip(),six.b('query error: no such column: c1'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('`name` - text'))
+        self.assertEqual(o[5], six.b('`value1` - int'))
+        self.assertEqual(o[6], six.b('`value2` - int'))
+
+        self.assertEqual(e[0],six.b('query error: no such column: c1'))
         self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
 
         self.cleanup(tmpfile)
@@ -1450,15 +1476,18 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        self.assertEqual(len(o),7)
+        self.assertEqual(len(o),10)
 
-        self.assertTrue(o[0].startswith(six.b('Table for file')))
-        self.assertEqual(o[1].strip(),six.b('`c1` - int'))
-        self.assertEqual(o[2].strip(),six.b('`c2` - float'))
-        self.assertEqual(o[3].strip(),six.b('`c3` - text'))
-        self.assertEqual(o[4].strip(),six.b('`c4` - text'))
-        self.assertEqual(o[5].strip(),six.b('`c5` - text'))
-        self.assertEqual(o[6].strip(),six.b('`c6` - float'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmp_data_file.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmp_data_file.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `c1` - int'))
+        self.assertEqual(o[5],six.b('    `c2` - float'))
+        self.assertEqual(o[6],six.b('    `c3` - text'))
+        self.assertEqual(o[7],six.b('    `c4` - text'))
+        self.assertEqual(o[8],six.b('    `c5` - text'))
+        self.assertEqual(o[9],six.b('    `c6` - float'))
 
         self.cleanup(tmp_data_file)
 
@@ -1957,13 +1986,16 @@ class CachingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),4)
+        self.assertEqual(len(o),7)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0],six.b('Table for file: %s source-type: disk-file source: %s.qsql' % (tmpfile.name,tmpfile.name)))
-        self.assertEqual(o[1],six.b('  `a` - int'))
-        self.assertEqual(o[2],six.b('  `b` - int'))
-        self.assertEqual(o[3],six.b('  `c` - int'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: disk-file source: %s.qsql' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `a` - int'))
+        self.assertEqual(o[5],six.b('    `b` - int'))
+        self.assertEqual(o[6],six.b('    `c` - int'))
 
         # delete the newly created cache
         os.remove(expected_cache_filename)
@@ -1973,13 +2005,16 @@ class CachingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),4)
+        self.assertEqual(len(o),7)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0],six.b('Table for file: %s source-type: file source: %s' % (tmpfile.name,tmpfile.name)))
-        self.assertEqual(o[1],six.b('  `a` - int'))
-        self.assertEqual(o[2],six.b('  `b` - int'))
-        self.assertEqual(o[3],six.b('  `c` - int'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `a` - int'))
+        self.assertEqual(o[5],six.b('    `b` - int'))
+        self.assertEqual(o[6],six.b('    `c` - int'))
 
         self.cleanup(tmpfile)
 
@@ -2941,8 +2976,9 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),2)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r.metadata.data_loads),1)
-        self.assertEqual(r.metadata.data_loads[0].filename,'-')
+        self.assertEqual(len(r.metadata.table_structures['-'].data_loads),1)
+        self.assertEqual(r.metadata.table_structures['-'].data_loads[0].filename,'-')
+        # TODO RLRL - More tests
 
         q.done()
         self.cleanup(tmpfile)
@@ -3168,7 +3204,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
         self.assertEqual(table_structure.column_types,[ 'int','int','int'])
-        self.assertEqual(table_structure.filenames_str,tmpfile.name)
+        self.assertEqual(table_structure.qtable_name, tmpfile.name)
         print("WW",table_structure.materialized_files)
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
@@ -3194,17 +3230,17 @@ class BasicModuleTests(AbstractQTestCase):
         metadata = q_output.metadata
 
         self.assertEqual(metadata.output_column_name_list, [ 'a','c'])
-        self.assertEqual(len(metadata.data_loads),1)
-        self.assertEqual(len(metadata.table_structures),1)
+        self.assertEqual(len(metadata.table_structures.keys()),1)
+        self.assertEqual(len(metadata.table_structures[tmpfile.name].data_loads),1)
 
-        table_structure = metadata.table_structures[0]
+        table_structure = metadata.table_structures[tmpfile.name]
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
         self.assertEqual(table_structure.column_types,[ 'int','int','int'])
-        self.assertEqual(table_structure.filenames_str,tmpfile.name)
-        self.assertTrue(len(table_structure.materialized_files.keys()),1)
-        self.assertTrue(table_structure.materialized_files[tmpfile.name].filename,tmpfile.name)
-        self.assertTrue(table_structure.materialized_files[tmpfile.name].data_stream is None)
+        self.assertEqual(table_structure.qtable_name, tmpfile.name)
+        self.assertTrue(len(table_structure.materialized_files),1)
+        self.assertTrue(table_structure.materialized_files[0],tmpfile.name)
+        # TODO RLRL - Check complete table structure
 
         q.done()
         self.cleanup(tmpfile)
@@ -3237,7 +3273,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
         self.assertEqual(table_structure.column_types,['text','float','text'])
-        self.assertEqual(table_structure.filenames_str,'my_data')
+        self.assertEqual(table_structure.qtable_name, 'my_data')
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])
@@ -3273,7 +3309,7 @@ class BasicModuleTests(AbstractQTestCase):
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
         self.assertEqual(table_structure.column_types,['text','float','text'])
-        self.assertEqual(table_structure.filenames_str,'my_data')
+        self.assertEqual(table_structure.qtable_name, 'my_data')
         self.assertTrue(len(table_structure.materialized_files.keys()),1)
         self.assertTrue(table_structure.materialized_files['my_data'].filename,'my_data')
         self.assertTrue(table_structure.materialized_files['my_data'].data_stream,data_streams_dict['my_data'])

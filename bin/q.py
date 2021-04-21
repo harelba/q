@@ -1633,7 +1633,10 @@ class QDataLoad(object):
         return self.end_time - self.start_time
 
     def __str__(self):
-        return "DataLoad<'%s' at %s (took %4.3f seconds),data_stream=%s>" % (self.filename,self.start_time,self.duration(),self.data_stream)
+        if self.data_stream is not None:
+            return "QDataLoad<source_type=%s,source=%s,data_stream=%s>" % (self.source_type,self.source,self.data_stream)
+        else:
+            return "QDataLoad<source_type=%s,source=%s,filename=%s>" % (self.source_type,self.source,self.filename)
     __repr__ = __str__
 
 class QMaterializedFile(object):
@@ -1646,26 +1649,26 @@ class QMaterializedFile(object):
     __repr__ = __str__
 
 class QTableStructure(object):
-    def __init__(self,filenames_str,materialized_files,column_names,column_types):
-        self.filenames_str = filenames_str
+    def __init__(self, qtable_name, materialized_files, column_names, column_types, data_loads):
+        self.qtable_name = qtable_name
         self.materialized_files = materialized_files
         self.column_names = column_names
         self.column_types = column_types
-
-    def __str__(self):
-        return "QTableStructure<filenames_str=%s,materialized_file_count=%s,column_names=%s,column_types=%s>" % (
-            self.filenames_str,len(self.materialized_files.keys()),self.column_names,self.column_types)
-    __repr__ = __str__
-
-class QMetadata(object):
-    def __init__(self,table_structures={},output_column_name_list=None,data_loads=[]):
-        self.table_structures = table_structures
-        self.output_column_name_list = output_column_name_list
         self.data_loads = data_loads
 
     def __str__(self):
-        return "QMetadata<table_count=%s,output_column_name_list=%s,data_load_count=%s" % (
-            len(self.table_structures),self.output_column_name_list,len(self.data_loads))
+        return "QTableStructure<qtable_name=%s,materialized_file_count=%s,column_names=%s,column_types=%s,data_loads=%s>" % (
+            self.qtable_name, len(self.materialized_files), self.column_names, self.column_types,self.data_loads)
+    __repr__ = __str__
+
+class QMetadata(object):
+    def __init__(self,table_structures={},output_column_name_list=None):
+        self.table_structures = table_structures
+        self.output_column_name_list = output_column_name_list
+
+    def __str__(self):
+        return "QMetadata<table_count=%s,output_column_name_list=%s" % (
+            len(self.table_structures),self.output_column_name_list)
     __repr__ = __str__
 
 class QOutput(object):
@@ -1742,6 +1745,11 @@ class DataStream(object):
         self.stream_id = stream_id
         self.filename = filename
         self.stream = stream
+
+    def __str__(self):
+        return "QDataStream<stream_id=%s,filename=%s,stream=%s>" % (self.stream_id,self.filename,self.stream)
+    __repr__ = __str__
+
 
 class DataStreams(object):
     def __init__(self, data_streams_dict):
@@ -2024,13 +2032,16 @@ class QTextAsData(object):
 
     def _ensure_data_is_loaded_for_sql(self,sql_object,input_params,data_streams=None,stop_after_analysis=False):
         xprint("Ensuring Data load")
-        data_loads = []
+        data_loads = OrderedDict()
 
         # Get each "table name" which is actually the file name
         for qtable_name in sql_object.qtable_names:
             new_data_loads = self._load_data(qtable_name,input_params,stop_after_analysis=stop_after_analysis)
             xprint("PPP",new_data_loads)
-            data_loads += new_data_loads
+            if qtable_name not in data_loads:
+                data_loads[qtable_name] = new_data_loads
+            else:
+                data_loads[qtable_name] = data_loads[qtable_name] + new_data_loads
 
         return data_loads
 
@@ -2125,7 +2136,6 @@ class QTextAsData(object):
     def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None):
         warnings = []
         error = None
-        data_loads = []
         table_structures = []
 
         db_results_obj = None
@@ -2146,9 +2156,9 @@ class QTextAsData(object):
         try:
             load_start_time = time.time()
             xprint("going to ensure data is loaded")
-            data_loads += self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
+            data_loads_dict = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
 
-            table_structures = self._create_table_structures_list()
+            table_structures = self._create_table_structures_list(data_loads_dict)
 
             self.materialize_sql_object(sql_object)
 
@@ -2179,8 +2189,7 @@ class QTextAsData(object):
                 data = db_results_obj.results,
                 metadata = QMetadata(
                     table_structures=table_structures,
-                    output_column_name_list=db_results_obj.query_column_names,
-                    data_loads=data_loads),
+                    output_column_name_list=db_results_obj.query_column_names),
                 warnings = warnings,
                 error = error)
 
@@ -2228,7 +2237,7 @@ class QTextAsData(object):
             xprint(traceback.format_exc())
             error = QError(e,repr(e),199)
 
-        return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures,data_loads = data_loads))
+        return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures))
 
     def execute(self,query_str,input_params=None,save_db_to_disk_filename=None):
         r = self._execute(query_str,input_params,stop_after_analysis=False,save_db_to_disk_filename=save_db_to_disk_filename)
@@ -2251,10 +2260,11 @@ class QTextAsData(object):
         return m
 
     # TODO RLRL - This needs to happen iteratively during the load of each file into a coherent table
-    def _create_table_structures_list(self):
-        table_structures = []
+    def _create_table_structures_list(self,data_loads_dict):
+        xprint("Creating Table Structure List %s" % data_loads_dict)
         table_creators_by_qtable_name = OrderedDict()
-        for _,table_creator in six.iteritems(self.table_creators):
+        for atomic_fn,table_creator in six.iteritems(self.table_creators):
+            xprint("Iterating atomic filename %s" % atomic_fn)
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
 
@@ -2262,13 +2272,19 @@ class QTextAsData(object):
             filename = table_creator.mfs.filename
 
             if qtable_name not in table_creators_by_qtable_name:
-                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types)
+                xprint("Data load is %s" % data_loads_dict[qtable_name])
+                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types,
+                                                                             data_loads_dict[qtable_name])
             else:
                 current = table_creators_by_qtable_name[qtable_name]
+                xprint("Merging Data load is %s" % current.data_loads)
+                # TODO RLRL - Check column_names/types validity during aggregation
                 table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.materialized_files + [filename],
                                                                              column_names,
-                                                                             column_types)
+                                                                             column_types,
+                                                                             current.data_loads)
 
+        xprint("table creators by qtable name: %s" % table_creators_by_qtable_name)
         return table_creators_by_qtable_name
 
     def analyze(self,query_str,input_params=None,data_streams=None):
@@ -2364,12 +2380,17 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
-        for data_load,table_structure in zip(results.metadata.data_loads,results.metadata.table_structures):
-            print("Table for file: %s source-type: %s source: %s" %
-                  (normalized_filename(table_structure.filenames_str),data_load.source_type,data_load.source),
+        for qtable_name in results.metadata.table_structures:
+            table_structure = results.metadata.table_structures[qtable_name]
+            print("Table: %s" %
+                  table_structure.qtable_name,
                   file=f_out)
+            print("  Data Loads:",file=f_out)
+            for dl in table_structure.data_loads:
+                print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
+            print("  Fields:",file=f_out)
             for n,t in zip(table_structure.column_names,table_structure.column_types):
-                print("  `%s` - %s" % (n,t), file=f_out)
+                print("    `%s` - %s" % (n,t), file=f_out)
 
     def print_output(self,f_out,f_err,results):
         try:

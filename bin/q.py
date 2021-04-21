@@ -1658,7 +1658,7 @@ class QTableStructure(object):
     __repr__ = __str__
 
 class QMetadata(object):
-    def __init__(self,table_structures=[],output_column_name_list=None,data_loads=[]):
+    def __init__(self,table_structures={},output_column_name_list=None,data_loads=[]):
         self.table_structures = table_structures
         self.output_column_name_list = output_column_name_list
         self.data_loads = data_loads
@@ -1872,7 +1872,7 @@ class QTextAsData(object):
             if gzipped:
                 raise CannotUnzipDataStreamException()
 
-            mfs = MaterializedFileState(qtable_name, f, encoding, dialect, data_stream)
+            mfs = MaterializedFileState(qtable_name, None,f, encoding, dialect, data_stream)
             materialized_file_dict[qtable_name] = mfs
         else:
             materialized_file_list = self.materialize_file_list(qtable_name)
@@ -2265,7 +2265,7 @@ class QTextAsData(object):
                 table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types)
             else:
                 current = table_creators_by_qtable_name[qtable_name]
-                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.filename + [filename],
+                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.materialized_files + [filename],
                                                                              column_names,
                                                                              column_types)
 

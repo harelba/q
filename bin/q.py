@@ -67,7 +67,7 @@ DEBUG = os.environ.get('Q_DEBUG', None) or '-V' in sys.argv
 
 if DEBUG:
     def xprint(*args,**kwargs):
-        print("DEBUG",*args,file=sys.stderr,**kwargs)
+        print(time.time()," DEBUG ",*args,file=sys.stderr,**kwargs)
 else:
     def xprint(*args,**kwargs): pass
 
@@ -2155,8 +2155,9 @@ class QTextAsData(object):
 
         try:
             load_start_time = time.time()
-            xprint("going to ensure data is loaded")
+            xprint("going to ensure data is loaded. Current table creators: %s" % str(self.table_creators))
             data_loads_dict = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
+            xprint("ensured data is loaded. New table creators: %s" % self.table_creators)
 
             table_structures = self._create_table_structures_list(data_loads_dict)
 
@@ -2262,6 +2263,7 @@ class QTextAsData(object):
     # TODO RLRL - This needs to happen iteratively during the load of each file into a coherent table
     def _create_table_structures_list(self,data_loads_dict):
         xprint("Creating Table Structure List %s" % data_loads_dict)
+        xprint("When creating TSL - table creators is %s" % str(self.table_creators))
         table_creators_by_qtable_name = OrderedDict()
         for atomic_fn,table_creator in six.iteritems(self.table_creators):
             xprint("Iterating atomic filename %s" % atomic_fn)
@@ -2269,12 +2271,18 @@ class QTextAsData(object):
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
 
             qtable_name = table_creator.mfs.qtable_name
+            # TODO RLRL Need to add support for data streams
             filename = table_creator.mfs.filename
 
             if qtable_name not in table_creators_by_qtable_name:
-                xprint("Data load is %s" % data_loads_dict[qtable_name])
+                if qtable_name in data_loads_dict:
+                    xprint("Relevant Data loads are %s" % data_loads_dict[qtable_name])
+                    data_loads_for_qtable_name = data_loads_dict[qtable_name]
+                else:
+                    xprint("No data load was needed for qtable name %s" % qtable_name)
+                    data_loads_for_qtable_name = None
                 table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types,
-                                                                             data_loads_dict[qtable_name])
+                                                                             data_loads_for_qtable_name)
             else:
                 current = table_creators_by_qtable_name[qtable_name]
                 xprint("Merging Data load is %s" % current.data_loads)

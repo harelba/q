@@ -1649,16 +1649,17 @@ class QMaterializedFile(object):
     __repr__ = __str__
 
 class QTableStructure(object):
-    def __init__(self, qtable_name, materialized_files, column_names, column_types, data_loads):
+    def __init__(self, qtable_name, materialized_files, column_names, column_types, data_loads,data_streams):
         self.qtable_name = qtable_name
         self.materialized_files = materialized_files
         self.column_names = column_names
         self.column_types = column_types
         self.data_loads = data_loads
+        self.data_streams = data_streams
 
     def __str__(self):
-        return "QTableStructure<qtable_name=%s,materialized_file_count=%s,column_names=%s,column_types=%s,data_loads=%s>" % (
-            self.qtable_name, len(self.materialized_files), self.column_names, self.column_types,self.data_loads)
+        return "QTableStructure<qtable_name=%s,materialized_file=%s,column_names=%s,column_types=%s,data_loads=%s,data_streams=%s>" % (
+            self.qtable_name, self.materialized_files, self.column_names, self.column_types,self.data_loads,self.data_streams)
     __repr__ = __str__
 
 class QMetadata(object):
@@ -2260,8 +2261,9 @@ class QTextAsData(object):
             m[filename] = QMaterializedFile(filename,mfs.data_stream)
         return m
 
-    # TODO RLRL - This needs to happen iteratively during the load of each file into a coherent table
     def _create_table_structures_list(self,data_loads_dict):
+        # TODO RLRL - should add data_streams_dict here as well PXPX
+        
         xprint("Creating Table Structure List %s" % data_loads_dict)
         xprint("When creating TSL - table creators is %s" % str(self.table_creators))
         table_creators_by_qtable_name = OrderedDict()
@@ -2272,25 +2274,48 @@ class QTextAsData(object):
 
             qtable_name = table_creator.mfs.qtable_name
             # TODO RLRL Need to add support for data streams
-            filename = table_creator.mfs.filename
 
-            if qtable_name not in table_creators_by_qtable_name:
-                if qtable_name in data_loads_dict:
-                    xprint("Relevant Data loads are %s" % data_loads_dict[qtable_name])
-                    data_loads_for_qtable_name = data_loads_dict[qtable_name]
+            # TODO RLRL - Some order here
+
+            if table_creator.mfs.filename is not None:
+                filename = table_creator.mfs.filename
+
+                if qtable_name not in table_creators_by_qtable_name:
+                    if qtable_name in data_loads_dict:
+                        xprint("Relevant Data loads are %s" % data_loads_dict[qtable_name])
+                        data_loads_for_qtable_name = data_loads_dict[qtable_name]
+                    else:
+                        xprint("No data load was needed for qtable name %s" % qtable_name)
+                        data_loads_for_qtable_name = []
+                    table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types,
+                                                                                 data_loads_for_qtable_name,[])
                 else:
-                    xprint("No data load was needed for qtable name %s" % qtable_name)
-                    data_loads_for_qtable_name = None
-                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,[filename],column_names,column_types,
-                                                                             data_loads_for_qtable_name)
+                    current = table_creators_by_qtable_name[qtable_name]
+                    xprint("Merging Data load is %s" % current.data_loads)
+                    # TODO RLRL - Check column_names/types validity during aggregation
+                    table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.materialized_files + [filename],
+                                                                                 column_names,
+                                                                                 column_types,
+                                                                                 current.data_loads,[])
             else:
-                current = table_creators_by_qtable_name[qtable_name]
-                xprint("Merging Data load is %s" % current.data_loads)
-                # TODO RLRL - Check column_names/types validity during aggregation
-                table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.materialized_files + [filename],
-                                                                             column_names,
-                                                                             column_types,
-                                                                             current.data_loads)
+                data_stream = table_creator.mfs.data_stream
+
+                if qtable_name not in table_creators_by_qtable_name:
+                    data_loads_for_qtable_name = []  # no data load for data streams
+                    table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, [], column_names,
+                                                                                 column_types,
+                                                                                 data_loads_for_qtable_name,
+                                                                                 [data_stream])
+                else:
+                    current = table_creators_by_qtable_name[qtable_name]
+                    xprint("Merging Data Stream %s" % data_stream)
+                    # TODO RLRL - Check column_names/types validity during aggregation
+                    table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name,
+                                                                                 [],
+                                                                                 column_names,
+                                                                                 column_types,
+                                                                                 current.data_loads,
+                                                                                 current.data_streams + [data_stream])
 
         xprint("table creators by qtable name: %s" % table_creators_by_qtable_name)
         return table_creators_by_qtable_name

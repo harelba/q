@@ -1077,10 +1077,13 @@ class AnalysisTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`c1` - text'))
-        self.assertEqual(o[2].strip(), six.b('`c2` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `c1` - text'))
+        self.assertEqual(o[5], six.b('    `c2` - int'))
+        self.assertEqual(o[6], six.b('    `c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -1153,9 +1156,9 @@ class AnalysisTests(AbstractQTestCase):
         self.assertEqual(o[1],six.b('  Data Loads:'))
         self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
         self.assertEqual(o[3],six.b('  Fields:'))
-        self.assertEqual(o[4], six.b('`name` - text'))
-        self.assertEqual(o[5], six.b('`value1` - int'))
-        self.assertEqual(o[6], six.b('`value2` - int'))
+        self.assertEqual(o[4], six.b('    `name` - text'))
+        self.assertEqual(o[5], six.b('    `value1` - int'))
+        self.assertEqual(o[6], six.b('    `value2` - int'))
 
         self.assertEqual(e[0],six.b('query error: no such column: c1'))
         self.assertTrue(e[1].startswith(six.b('Warning - There seems to be a ')))
@@ -1613,7 +1616,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[1:]   # remove the first "Table for file..." line in the output
+        o = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(o),7) # found 7 fields
 
@@ -1622,7 +1625,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[1:]   # remove the first "Table for file..." line in the output
+        o = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(o),5) # found 5 fields
 
@@ -1631,7 +1634,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[1:]   # remove the first "Table for file..." line in the output
+        o = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(o),5) # found 5 fields
 
@@ -1640,7 +1643,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[1:]   # remove the first "Table for file..." line in the output
+        o = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(o),3) # found only 3 fields, which is the correct amount
 
@@ -2332,13 +2335,16 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 4)
+        self.assertEqual(len(o), 7)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1].strip(), six.b('`name` - text'))
-        self.assertEqual(o[2].strip(), six.b('`value1` - int'))
-        self.assertEqual(o[3].strip(), six.b('`c3` - int'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s') % six.b(tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `name` - text'))
+        self.assertEqual(o[5],six.b('    `value1` - int'))
+        self.assertEqual(o[6],six.b('    `c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -2421,8 +2427,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
 
-        table_name_row = o[0]
-        column_rows = o[1:]
+        column_rows = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(column_rows), 11)
 
@@ -2445,8 +2450,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
 
-        table_name_row = o[0]
-        column_rows = o[1:]
+        column_rows = o[o.index(six.b('  Fields:'))+1:]
 
         self.assertEqual(len(column_rows), 9)
 
@@ -2775,11 +2779,14 @@ class SqlTests(AbstractQTestCase):
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 3)
+        self.assertEqual(len(o), 6)
 
-        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1],six.b('  `c1` - int'))
-        self.assertEqual(o[2],six.b('  `c2` - int'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s') % six.b(tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `c1` - int'))
+        self.assertEqual(o[5],six.b('    `c2` - int'))
 
         self.cleanup(tmpfile)
 
@@ -2819,14 +2826,16 @@ class SqlTests(AbstractQTestCase):
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 5)
+        self.assertEqual(len(o), 8)
 
-
-        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1],six.b('  `regular_text` - text'))
-        self.assertEqual(o[2],six.b('  `text_with_digits1` - int'))
-        self.assertEqual(o[3],six.b('  `text_with_digits2` - int'))
-        self.assertEqual(o[4],six.b('  `float_number` - float'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1], six.b('  Data Loads:'))
+        self.assertEqual(o[2], six.b('    source_type: file source: %s') % six.b(tmpfile.name))
+        self.assertEqual(o[3], six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `regular_text` - text'))
+        self.assertEqual(o[5], six.b('    `text_with_digits1` - int'))
+        self.assertEqual(o[6], six.b('    `text_with_digits2` - int'))
+        self.assertEqual(o[7], six.b('    `float_number` - float'))
 
         # Check column types detected when actual detection is disabled
         cmd = Q_EXECUTABLE + ' -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
@@ -2835,13 +2844,16 @@ class SqlTests(AbstractQTestCase):
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
-        self.assertEqual(len(o), 5)
+        self.assertEqual(len(o), 8)
 
-        self.assertEqual(o[0],six.b('Table for file: %s source-type: %s source: %s' % (tmpfile.name,'file',tmpfile.name)))
-        self.assertEqual(o[1],six.b('  `regular_text` - text'))
-        self.assertEqual(o[2],six.b('  `text_with_digits1` - text'))
-        self.assertEqual(o[3],six.b('  `text_with_digits2` - text'))
-        self.assertEqual(o[4],six.b('  `float_number` - text'))
+        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Data Loads:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s') % six.b(tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4],six.b('    `regular_text` - text'))
+        self.assertEqual(o[5],six.b('    `text_with_digits1` - text'))
+        self.assertEqual(o[6],six.b('    `text_with_digits2` - text'))
+        self.assertEqual(o[7],six.b('    `float_number` - text'))
 
         # Get actual data with regular detection
         cmd = Q_EXECUTABLE + ' -d , -H "select * from %s"' % (tmpfile.name)

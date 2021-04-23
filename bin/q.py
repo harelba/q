@@ -1068,7 +1068,7 @@ class TableColumnInferer(object):
                 print('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data', file=sys.stderr)
 
     def get_column_dict(self):
-        return dict(zip(self.column_names, self.column_types))
+        return OrderedDict(zip(self.column_names, self.column_types))
 
     def get_column_count(self):
         return self.column_count
@@ -1655,6 +1655,7 @@ class QTableStructure(object):
         self.column_names = column_names
         self.column_types = column_types
         self.data_loads = data_loads
+        # TODO RLRL - Remove data_streams, no longer needed as it's baked into data_loads
         self.data_streams = data_streams
 
     def __str__(self):
@@ -2133,6 +2134,34 @@ class QTextAsData(object):
 
         return table_name_mapping
 
+    # def validate_query(self,sql_object,table_structures):
+    #     relevant_table_structures = []
+    #     for qtable_name in sql_object.qtable_names:
+    #         relevant_table_structures += [table_structures[qtable_name]]
+    #
+    #     column_names = None
+    #     column_types = None
+    #     for ts in relevant_table_structures:
+    #         names = ts.column_names
+    #         types = ts.column_types
+    #         xprint("Comparing column names: %s with %s" % (column_names,names))
+    #         if column_names is None:
+    #             column_names = names
+    #         else:
+    #             if column_names != names:
+    #                 raise BadHeaderException("bad header column names %s vs %s" % (column_names,names))
+    #
+    #         xprint("Comparing column types: %s with %s" % (column_types,types))
+    #         if column_types is None:
+    #             column_types = types
+    #         else:
+    #             if column_types != types:
+    #                 raise BadHeaderException("bad header column types %s vs %s" % (column_types,types))
+    #
+    #         xprint("All column names match for qtable name %s: column names: %s column types: %s" % (ts.qtable_name,column_names,column_types))
+    #
+    #     xprint("Query validated")
+
     def _execute(self,query_str,input_params=None,data_streams=None,stop_after_analysis=False,save_db_to_disk_filename=None):
         warnings = []
         error = None
@@ -2157,13 +2186,13 @@ class QTextAsData(object):
             load_start_time = time.time()
             xprint("going to ensure data is loaded. Current table creators: %s" % str(self.table_creators))
             data_loads_dict = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
-            xprint("ensured data is loaded. New table creators: %s" % self.table_creators)
+            xprint("ensured data is loaded. table creators: %s" % self.table_creators)
 
             table_structures = self._create_table_structures_list(data_loads_dict)
 
             self.materialize_sql_object(sql_object)
 
-            # TODO RLRL - Breaking change - save to db needs another approach?
+            # TODO RLRL - Breaking change - save to db needs another approach? UPDATE: Not really, changed everything so save would work
             if save_db_to_disk_filename is not None:
                 xprint("Saving query data to disk...")
                 dump_start_time = time.time()
@@ -2269,6 +2298,7 @@ class QTextAsData(object):
         for atomic_fn,table_creator in six.iteritems(self.table_creators):
             xprint("Iterating atomic filename %s" % atomic_fn)
             column_names = table_creator.column_inferer.get_column_names()
+            # TODO RLRL - Move type_names to be global instead of in Sqlite3DB
             column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
 
             qtable_name = table_creator.mfs.qtable_name
@@ -2296,12 +2326,17 @@ class QTextAsData(object):
             else:
                 current = table_creators_by_qtable_name[qtable_name]
                 xprint("Merging Data load is %s" % current.data_loads)
-                # TODO RLRL - Check column_names/types validity during aggregation
+
+                if current.column_names != column_names:
+                    raise BadHeaderException("Column names differ for table %s: %s vs %s" % (qtable_name,",".join(current.column_names),",".join(column_names)))
+                if current.column_types != column_types:
+                    raise BadHeaderException("Column types differ for table %s: %s vs %s" % (qtable_name,",".join(current.column_types),",".join(column_types)))
 
                 if table_creator.mfs.filename:
                     x = [filename]
                 else:
                     x = []
+
                 table_creators_by_qtable_name[qtable_name] = QTableStructure(qtable_name, current.materialized_files + x,
                                                                              column_names,
                                                                              column_types,

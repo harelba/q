@@ -11,6 +11,9 @@
 #
 
 from __future__ import print_function
+
+import collections
+import tempfile
 import unittest
 import random
 import json
@@ -31,6 +34,8 @@ from gzip import GzipFile
 import pytest
 import uuid
 import sqlite3
+import re
+import collections
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream, Sqlite3DB
@@ -41,7 +46,7 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
-Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', './bin/q.py')
+Q_EXECUTABLE = os.path.abspath(os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py')))
 
 if not os.path.exists(Q_EXECUTABLE):
     raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
@@ -181,6 +186,28 @@ class AbstractQTestCase(unittest.TestCase):
         tmpfile.write(data)
         tmpfile.close()
         return tmpfile
+
+    def write_file(self,filename,data):
+        f = open(filename,'wb')
+        f.write(data)
+        f.close()
+
+    def create_folder_with_files(self,filename_to_content_dict,prefix, suffix):
+        name = self.random_tmp_filename(prefix,suffix)
+        os.mkdir(name)
+        for filename,content in six.iteritems(filename_to_content_dict):
+            f = open(os.path.join(name,filename),'wb')
+            f.write(content)
+            f.close()
+        return name
+
+    def cleanup_folder(self,tmpfolder):
+        if not tmpfolder.startswith('/var/tmp/'):
+            raise Exception('Guard against accidental folder deletions: %s' % tmpfolder)
+        global DEBUG
+        if not DEBUG:
+            print("should have removed tmpfolder %s TODO RLRL" % tmpfolder)
+            pass # os.remove(tmpfolder)
 
     def cleanup(self, tmpfile):
         global DEBUG
@@ -850,6 +877,121 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile1.name)
         self.cleanup(tmpfile2.name)
 
+    def batch(self,iterable, n=1):
+        r = []
+        l = len(iterable)
+        for ndx in range(0, l, n):
+            r += [iterable[ndx:min(ndx + n, l)]]
+        return r
+
+    def test_maxing_out_sqlite_attached_database_limits(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 40
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        cmd = 'cd %s && %s -c 1 "select count(*) from *" -C none' % (tmpfolder,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_too_many_open_files_for_one_table(self):
+        # Previously file opening was parallel, causing too-many-open-files
+
+        MAX_ALLOWED_FILES = 500
+
+        BATCH_SIZE = 2
+        FILE_COUNT = MAX_ALLOWED_FILES + 1
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+
+        cmd = 'cd %s && %s -c 1 "select count(*) from * where 1 = 1 or c1 != 2" -C none' % (tmpfolder,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 82)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0].startswith(six.b('Maximum source files for table must be %s. Table is name is * (current folder' % MAX_ALLOWED_FILES)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_many_open_files_for_one_table(self):
+        # Previously file opening was parallel, causing too-many-open-files
+
+        BATCH_SIZE = 2
+        FILE_COUNT = 500
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        cmd = 'cd %s && %s -c 1 "select count(*) from * where 1 = 1 or c1 != 2" -C none' % (tmpfolder,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_many_open_files_for_two_tables(self):
+        BATCH_SIZE = 2
+        FILE_COUNT = 500
+
+        numbers_as_text = self.batch([str(x) for x in range(1, 1 + BATCH_SIZE * FILE_COUNT)], n=BATCH_SIZE)
+
+        content_list = map(six.b, ["\n".join(x) for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x, range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder1 = self.create_folder_with_files(d, 'split-files1', 'blah')
+        tmpfolder2 = self.create_folder_with_files(d, 'split-files1', 'blah')
+
+        cmd = '%s -c 1 "select count(*) from %s/* a left join %s/* b on (a.c1 = b.c1)" -C none' % (
+            Q_EXECUTABLE,
+            tmpfolder1,
+            tmpfolder2)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0], six.b(str(BATCH_SIZE * FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder1)
+        self.cleanup_folder(tmpfolder2)
+
 
 class GzippingTests(AbstractQTestCase):
 
@@ -1063,7 +1205,6 @@ class AnalysisTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
 
         self.assertEqual(o[0], six.b('Table: -'))
-        # TODO RLRL - Data Loads/Streams
         self.assertEqual(o[1], six.b('  Data Loads:'))
         self.assertEqual(o[2], six.b('    source_type: data-stream source: stdin'))
         self.assertEqual(o[3], six.b('  Fields:'))
@@ -1862,6 +2003,50 @@ class CachingTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_reading_the_wrong_cache(self):
+        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        CONTENT_SIGNATURE_KEY = '745cce4f58d334eda6b878cdbb4cf2ffc91f9976' # Precalculated
+
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        # Overwrite the original file
+        file_data2 = six.b("a,b,c\n10,20,30\n30,40,50\n40,50,60")
+        self.write_file(tmpfile1.name,file_data2)
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 83)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertTrue(e[0], six.b('qsql file %s contains no table with a matching content signature key %s' % (expected_cache_filename,CONTENT_SIGNATURE_KEY)))
+
+
+
+
+
+
+    # TODO RLRL - Test moving the cache around (with original, without original)
+    # TODO RLRL - Add original hostname/ip in metaq
+    # TODO RLRL - Add running on a wrong cache file (for cases of overwriting the original file after the cache already exists)
+
+    # TODO RLRL - Add caching flow when maxing out the sqlite db limit
+
     def test_cache_full_flow(self):
         file_data = six.b("a,b,c\n10,20,30\n30,40,50")
         tmpfile = self.create_file_with_data(file_data)
@@ -1906,7 +2091,6 @@ class CachingTests(AbstractQTestCase):
         self.assertTrue(os.path.exists(expected_cache_filename))
 
         # Read the cache file directly, to make sure it's a valid sqlite file
-        import sqlite3
         db = sqlite3.connect(expected_cache_filename)
         table_list = db.execute("select * from metaq where temp_table_name == 'temp_table_10001'").fetchall()
         self.assertTrue(len(table_list) == 1)
@@ -3520,7 +3704,6 @@ class BenchmarkTests(AbstractQTestCase):
             raise Exception("Could not find octosql")
         if len(e) != 0:
             raise Exception("Errors while getting octosql version")
-        import re
         version = re.findall('v[0-9]+\\.[0-9]+\\.[0-9]+',str(o[0],encoding='utf-8'))[0]
         return version
 

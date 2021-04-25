@@ -206,7 +206,7 @@ class AbstractQTestCase(unittest.TestCase):
             raise Exception('Guard against accidental folder deletions: %s' % tmpfolder)
         global DEBUG
         if not DEBUG:
-            print("should have removed tmpfolder %s TODO RLRL" % tmpfolder)
+            print("should have removed tmpfolder %s. Not doing it for the sake of safety. TODO RLRL" % tmpfolder)
             pass # os.remove(tmpfolder)
 
     def cleanup(self, tmpfile):
@@ -2025,7 +2025,7 @@ class CachingTests(AbstractQTestCase):
         self.assertTrue(os.path.exists(expected_cache_filename))
 
         # Overwrite the original file
-        file_data2 = six.b("a,b,c\n10,20,30\n30,40,50\n40,50,60")
+        file_data2 = six.b("a,b,c\n10,20,30\n30,40,50\n50,60,70")
         self.write_file(tmpfile1.name,file_data2)
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
@@ -2037,8 +2037,13 @@ class CachingTests(AbstractQTestCase):
         self.assertTrue(e[0], six.b('qsql file %s contains no table with a matching content signature key %s' % (expected_cache_filename,CONTENT_SIGNATURE_KEY)))
 
 
-
-
+    # TODO RLRL - table name interpretation cases:
+    #   select from original-file: read cache, compare signatures
+    #   select file.qsql: read cache, use existing table if there's one. Otherwise, fail
+    #   select from file.qsql.<table_name>: read cache, use table as the data.
+    #   select from original-file, with original file missing:
+    #     Option 1 - Fail - only explicitly use qsql when stated in the SELECT query table name
+    #     Option 2 - read cache file, use existing table if there's one (no signature checking). Otherwise fail
 
 
     # TODO RLRL - Test moving the cache around (with original, without original)
@@ -2263,7 +2268,6 @@ class CachingTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     # TODO RLRL prevent writing to metaq if data stream
-    # TODO RLRL reimplement --save-to-file
 
 
 class UserFunctionTests(AbstractQTestCase):
@@ -3424,10 +3428,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
         self.assertEqual(table_structure.column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        print("WW",table_structure.materialized_files)
-        self.assertTrue(len(table_structure.materialized_files),1)
-        self.assertTrue(table_structure.materialized_files[0],tmpfile.name)
-        # TODO RLRL Add test for data_stream being None
+        self.assertEqual(len(table_structure.materialized_files),1)
+        self.assertEqual(table_structure.materialized_files[0],tmpfile.name)
+        self.assertEqual(table_structure.data_loads[0].source_type,'file')
+        self.assertEqual(table_structure.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(table_structure.data_loads[0].data_stream,None)
 
         q.done()
         self.cleanup(tmpfile)
@@ -3457,9 +3462,12 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
         self.assertEqual(table_structure.column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        self.assertTrue(len(table_structure.materialized_files),1)
-        self.assertTrue(table_structure.materialized_files[0],tmpfile.name)
-        # TODO RLRL - Check complete table structure
+        self.assertEqual(len(table_structure.materialized_files),1)
+        self.assertEqual(table_structure.materialized_files[0],tmpfile.name)
+        self.assertEqual(table_structure.data_loads[0].source_type,'file')
+        self.assertEqual(table_structure.data_loads[0].source,tmpfile.name)
+        self.assertEqual(table_structure.data_loads[0].data_stream,None)
+        self.assertEqual(table_structure.data_loads[0].filename,tmpfile.name)
 
         q.done()
         self.cleanup(tmpfile)
@@ -3761,8 +3769,3 @@ if __name__ == '__main__':
     test_runner = unittest.TextTestRunner(verbosity=2)
     result = test_runner.run(suite)
     sys.exit(not result.wasSuccessful())
-
-# TODO RLRL - I thought it's just about file concatenation with +, but it's more generic than that - globs need to be supported
-#   this probably means that table_creator should be always on one file, and the concatenation of files needs to happen probably through
-#   SQL UNION in order to support multiple QSQLs seamlessly
-#   Essentially, this means pushing pre_populate up the stack, and the for-loop in populate as well

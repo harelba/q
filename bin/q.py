@@ -68,7 +68,7 @@ DEBUG = os.environ.get('Q_DEBUG', None) or '-V' in sys.argv
 
 if DEBUG:
     def xprint(*args,**kwargs):
-        print(time.time()," DEBUG ",*args,file=sys.stderr,**kwargs)
+        print(datetime.datetime.utcnow().isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
 else:
     def xprint(*args,**kwargs): pass
 
@@ -296,6 +296,8 @@ class Sqlite3DBResults(object):
     __repr__ = __str__
 
 class Sqlite3DB(object):
+    METADATA_TABLE_NAME = 'metaq'
+
     def __str__(self):
         return "Sqlite3DB<url=%s>" % self.sqlite_db_url
     __repr__ = __str__
@@ -325,7 +327,7 @@ class Sqlite3DB(object):
 
     def create_metaq_table(self):
         with self.conn as cursor:
-            r = cursor.execute('CREATE TABLE if not exists metaq ( \
+            r = cursor.execute('CREATE TABLE metaq ( \
                                content_signature_key text not null primary key, \
                                temp_table_name text, \
                                content_signature text, \
@@ -2468,7 +2470,6 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
-        xprint("QW",results.metadata.table_structures)
         for qtable_name in results.metadata.table_structures:
             table_structure = results.metadata.table_structures[qtable_name]
             print("Table: %s" %

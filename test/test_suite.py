@@ -874,8 +874,8 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(o[3],six.b('30,31,32'))
         self.assertEqual(o[4],six.b('40,41,42'))
 
-        self.cleanup(tmpfile1.name)
-        self.cleanup(tmpfile2.name)
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
     def batch(self,iterable, n=1):
         r = []
@@ -2141,9 +2141,8 @@ class CachingTests(AbstractQTestCase):
         self.assertTrue(os.path.exists(expected_cache_filename1))
         self.assertTrue(os.path.exists(expected_cache_filename2))
 
-
-        self.cleanup(tmpfile1.name)
-        self.cleanup(tmpfile2.name)
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
 
     # TODO RLRL - add a test - -A should ignore read/write caching

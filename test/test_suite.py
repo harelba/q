@@ -2037,13 +2037,44 @@ class CachingTests(AbstractQTestCase):
         self.assertTrue(e[0], six.b('qsql file %s contains no table with a matching content signature key %s' % (expected_cache_filename,CONTENT_SIGNATURE_KEY)))
 
 
+    # def test_read_directly_from_cache_with_one_table(self):
+    #     file_data = six.b("a,b,c\n10,20,30\n30,40,50")
+    #     tmpfile = self.create_file_with_data(file_data)
+    #     tmpfile_folder = os.path.dirname(tmpfile.name)
+    #     tmpfile_filename = os.path.basename(tmpfile.name)
+    #     expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+    #
+    #     cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile.name
+    #     retcode, o, e = run_command(cmd)
+    #
+    #     self.assertEqual(retcode, 0)
+    #     self.assertEqual(len(o), 2)
+    #     self.assertEqual(len(e), 0)
+    #     self.assertTrue(o[0],six.b('10'))
+    #     self.assertEqual(o[1],six.b('30'))
+    #
+    #     self.assertTrue(os.path.exists(expected_cache_filename))
+    #
+    #     self.cleanup(tmpfile)
+    #     # Only cache remains now
+    #
+    #     cmd = Q_EXECUTABLE + ' -H -d , "select a from %s.qsql" -C readwrite' % tmpfile.name
+    #     retcode, o, e = run_command(cmd)
+    #
+    #     self.assertEqual(retcode, 0)
+    #     self.assertEqual(len(o), 2)
+    #     self.assertEqual(len(e), 0)
+    #     self.assertTrue(o[0],six.b('10'))
+    #     self.assertEqual(o[1],six.b('30'))
+
+
     # TODO RLRL - table name interpretation cases:
     #   select from original-file: read cache, compare signatures
     #   select file.qsql: read cache, use existing table if there's one. Otherwise, fail
-    #   select from file.qsql.<table_name>: read cache, use table as the data.
+    #   select from file.qsql::<table_name> : read cache, use table as the data.
     #   select from original-file, with original file missing:
     #     Option 1 - Fail - only explicitly use qsql when stated in the SELECT query table name
-    #     Option 2 - read cache file, use existing table if there's one (no signature checking). Otherwise fail
+    #     Option 2 (too vague it seems) - read cache file, use existing table if there's one (no signature checking). Otherwise fail
 
 
     # TODO RLRL - Test moving the cache around (with original, without original)

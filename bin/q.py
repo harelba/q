@@ -841,16 +841,16 @@ class LineSplitter(object):
 
 class TableColumnInferer(object):
 
-    def __init__(self, mode, expected_column_count, input_delimiter, skip_header=False,disable_column_type_detection=False):
+    def __init__(self, input_params):
         self.inferred = False
-        self.mode = mode
+        self.mode = input_params.parsing_mode
         self.rows = []
-        self.skip_header = skip_header
+        self.skip_header = input_params.skip_header
         self.header_row = None
         self.header_row_filename = None
-        self.expected_column_count = expected_column_count
-        self.input_delimiter = input_delimiter
-        self.disable_column_type_detection = disable_column_type_detection
+        self.expected_column_count = input_params.expected_column_count
+        self.input_delimiter = input_params.delimiter
+        self.disable_column_type_detection = input_params.disable_column_type_detection
 
     def _generate_content_signature(self):
         return OrderedDict({
@@ -1249,30 +1249,26 @@ class TableCreator(object):
         return "TableCreator<db=%s>" % str(self.sqlite_db)
     __repr__ = __str__
 
-    def __init__(self, mfs, line_splitter, skip_header=False, gzipped=False, with_universal_newlines=False,
-                 encoding='UTF-8', mode='fluffy', expected_column_count=None, input_delimiter=None,
-                 disable_column_type_detection=False,data_stream=None,
-                 read_caching=False,sqlite_db=None,target_sqlite_table_name=None):
-        xprint("in table creator init for filename %s" % mfs)
+    def __init__(self, mfs, input_params,sqlite_db=None,target_sqlite_table_name=None):
+        xprint("Initializing table creator for %s" % mfs)
 
         self.mfs = mfs
 
         self.sqlite_db = sqlite_db
         self.target_sqlite_table_name = target_sqlite_table_name
 
-        self.skip_header = skip_header
-        self.gzipped = gzipped
+        self.skip_header = input_params.skip_header
+        self.gzipped = input_params.gzipped_input
         self.table_created = False
-        self.line_splitter = line_splitter
-        self.encoding = encoding
-        self.mode = mode
-        self.expected_column_count = expected_column_count
-        self.input_delimiter = input_delimiter
-        self.data_stream = data_stream
-        self.with_universal_newlines = with_universal_newlines
+        self.line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
+        self.encoding = input_params.input_encoding
+        self.mode = input_params.parsing_mode
+        self.expected_column_count = input_params.expected_column_count
+        self.input_delimiter = input_params.delimiter
+        self.data_stream = mfs.data_stream
+        self.with_universal_newlines = input_params.with_universal_newlines
 
-        self.column_inferer = TableColumnInferer(
-            mode, expected_column_count, input_delimiter, skip_header,disable_column_type_detection)
+        self.column_inferer = TableColumnInferer(input_params)
 
         self.pre_creation_rows = []
         self.buffered_inserts = []
@@ -1284,7 +1280,6 @@ class TableCreator(object):
 
         self.state = TableCreatorState.INITIALIZED
 
-        self.read_caching = read_caching
         self.content_signature = None
 
     def _generate_content_signature(self):
@@ -1419,11 +1414,10 @@ class TableCreator(object):
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
-    def perform_load_data_from_disk(self, disk_db_filename, content_signature=None):
+    def perform_load_data_from_disk(self, disk_db_filename):
         if self.state == TableCreatorState.ANALYZED:
-            if self.read_caching:
-                self.load_qsql(self.sqlite_db.db_id, disk_db_filename, content_signature)
-                self.state = TableCreatorState.FULLY_READ
+            self.load_qsql(self.sqlite_db.db_id, disk_db_filename, self.content_signature)
+            self.state = TableCreatorState.FULLY_READ
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
@@ -1920,20 +1914,129 @@ class QTextAsData(object):
         xprint("MFS dict: %s" % str(materialized_file_dict))
         return materialized_file_dict
 
+    def _load_mfs_as_table_creator(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
+        xprint("Loading MFS:", mfs)
+        mfs.open_file()
+
+        if atomic_fn in self.table_creators.keys():
+            xprint("Atomic filename %s found. no need to load" % atomic_fn)
+            return (None,None,None)
+
+        xprint("Atomic Filename %s not found - loading" % atomic_fn)
+
+        source,source_type, db_id, db_to_use = self.choose_db_to_use(mfs,atomic_fn)
+
+        disk_db_filename = self._generate_disk_db_filename(atomic_fn)
+
+        should_read_from_cache = self.get_should_read_from_cache(mfs, input_params, atomic_fn, disk_db_filename)
+        xprint("should read from cache %s" % should_read_from_cache)
+
+        if mfs.data_stream is None:
+            self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=True)
+
+        target_sqlite_table_name = db_to_use.generate_temp_table_name()
+        xprint("Target sqlite table name is %s" % target_sqlite_table_name)
+
+        # Create the matching database table and populate it
+        table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
+
+        table_creator.perform_analyze(dialect_id, table_creator.data_stream)
+
+        if should_read_from_cache:
+            # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
+            #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+
+            # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
+            if not stop_after_analysis:
+                table_creator.perform_load_data_from_disk(disk_db_filename)
+            del self.databases[db_id]
+            db_id = 'disk_%s' % db_id
+            self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
+            source_type = 'disk-file'
+            source = disk_db_filename
+        else:
+            table_creator.perform_read_fully(dialect_id)
+
+            effective_write_caching = (mfs.data_stream is None) and input_params.write_caching
+            xprint("ewc",effective_write_caching)
+
+            if effective_write_caching:
+                self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+
+        self.attach_to_adhoc_db(atomic_fn, table_creator, db_to_use)
+
+        mfs.close_file()
+
+        return (source,source_type,table_creator)
+
+    def get_should_read_from_cache(self, mfs, input_params, atomic_fn, disk_db_filename):
+        disk_db_file_exists = os.path.exists(disk_db_filename)
+
+        if mfs.data_stream is not None:
+            should_read_from_cache = False
+        else:
+            should_read_from_cache = input_params.read_caching and disk_db_file_exists
+
+        return should_read_from_cache
+
+    def choose_db_to_use(self, mfs, atomic_fn):
+        db_id = None
+        if mfs.data_stream is not None:
+            db_to_use = self.adhoc_db
+            source_type = 'data-stream'
+            source = mfs.data_stream.stream_id
+        else:
+            db_id = '%s' % self._generate_db_name(atomic_fn)
+            xprint("Database id is %s" % db_id)
+            db_to_use = Sqlite3DB(db_id, 'file:%s?mode=memory&cache=shared' % db_id, 'memory<%s>' % db_id,create_metaq=True)
+            source_type = 'file'
+            source = atomic_fn
+        return source,source_type, db_id, db_to_use
+
+    def attach_to_adhoc_db(self, atomic_fn, table_creator, db_to_use):
+        content_signature = table_creator.content_signature
+        content_signature_key = self.adhoc_db.calculate_content_signature_key(content_signature)
+        xprint("Atomic fn %s signature key %s" % (atomic_fn, content_signature_key))
+
+        if db_to_use.db_id != self.adhoc_db_id:
+            attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
+            if attached_database_count < MAX_ALLOWED_ATTACHED_SQLITE_DATABASES:
+                self.attach_to_db(table_creator.sqlite_db, self.query_level_db)
+            else:
+                xprint("table creator signature: %s" % table_creator.content_signature)
+                # data copy is needed. attach, copy into adhoc_db and detach
+                new_tables = self.adhoc_db.attach_and_copy_tables(table_creator.sqlite_db)
+                relevant_table = new_tables[content_signature_key]
+                xxx = json.loads(self.adhoc_db.execute_and_fetch(
+                    "select content_signature from metaq where content_signature_key='%s'" % content_signature_key).results[
+                                     0][0])
+                table_creator.validate_content_signature(content_signature, xxx)
+                db_to_use.done()
+                del self.databases[db_to_use.db_id]
+                table_creator.sqlite_db = self.adhoc_db
+                table_creator.target_sqlite_table_name = relevant_table
+
+    def _load_atomic_fn(self,mfss_in_qtable,atomic_fn,input_params,dialect_id,stop_after_analysis):
+        dls = []
+
+        for mfs in mfss_in_qtable:
+            start_time = time.time()
+
+            source,source_type,table_creator = self._load_mfs_as_table_creator(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
+
+            if table_creator is not None:
+                self.table_creators[atomic_fn] = table_creator
+                dls += [QDataLoad(atomic_fn, start_time, time.time(), data_stream=mfs.data_stream, source_type=source_type,source=source)]
+
+        return dls
+
+
     def _load_data(self,qtable_name,input_params=QInputParams(),stop_after_analysis=False):
         xprint("Attempting to load data for materialized file names %s" % qtable_name)
-
-        start_time = time.time()
 
         q_dialect = self.determine_proper_dialect(input_params)
         dialect_id = self.get_dialect_id(qtable_name)
         csv.register_dialect(dialect_id, **q_dialect)
-
-        csv.field_size_limit(input_params.max_column_length_limit)
-        xprint("Max column length limit is %s" % input_params.max_column_length_limit)
-
-        # Create a line splitter
-        line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
 
         xprint("qtable metadata for loading is %s" % qtable_name)
         mfss = self._open_files_and_get_mfss(qtable_name,
@@ -1946,100 +2049,11 @@ class QTextAsData(object):
         for atomic_fn in mfss.keys():
             mfss_in_qtable = mfss[atomic_fn]
             xprint("Loading file %s. MFSs: %s" % (atomic_fn,mfss_in_qtable))
-            for mfs in mfss_in_qtable:
-                mfs.open_file()
-                xprint("Loading MFS:",mfs)
-
-                if atomic_fn in self.table_creators.keys():
-                    xprint("Atomic filename %s found. no need to load" % atomic_fn)
-                    continue
-                xprint("Atomic Filename %s not found - loading" % atomic_fn)
-
-                # Skip caching for streams input
-                db_id = None
-                if mfs.data_stream is not None:
-                    effective_read_caching = False
-                    effective_write_caching = False
-                    db_to_use = self.adhoc_db
-                    source_type = 'data-stream'
-                    source = mfs.data_stream.stream_id
-                else:
-                    effective_read_caching = input_params.read_caching
-                    effective_write_caching = input_params.write_caching
-                    db_id = '%s' % self._generate_db_name(atomic_fn)
-                    xprint("Database id is %s" % db_id)
-                    db_to_use = Sqlite3DB(db_id, 'file:%s?mode=memory&cache=shared' % db_id, 'memory<%s>' % db_id,create_metaq=True)
-                    self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=True)
-                    source_type = 'file'
-                    source = atomic_fn
-
-                xprint("Total number of databases: %s" % len(self.databases))
-                disk_db_filename = self._generate_disk_db_filename(atomic_fn)
-                disk_db_file_exists = os.path.exists(disk_db_filename)
-
-                target_sqlite_table_name = db_to_use.generate_temp_table_name()
-                xprint("Target sqlite table name is %s" % target_sqlite_table_name)
-
-                # Create the matching database table and populate it
-                table_creator = TableCreator(
-                    mfs, line_splitter, input_params.skip_header, input_params.gzipped_input,
-                    input_params.with_universal_newlines, input_params.input_encoding,
-                    mode=input_params.parsing_mode, expected_column_count=input_params.expected_column_count,
-                    input_delimiter=input_params.delimiter,
-                    disable_column_type_detection=input_params.disable_column_type_detection,
-                    # TODO RLRL - Encspaulte inside TableCreator
-                    data_stream=mfs.data_stream,
-                    read_caching=effective_read_caching,
-                    sqlite_db=db_to_use, target_sqlite_table_name=target_sqlite_table_name)
-
-                table_creator.perform_analyze(dialect_id,table_creator.data_stream)
-
-                content_signature = table_creator.content_signature
-                content_signature_key = self.adhoc_db.calculate_content_signature_key(content_signature)
-                xprint("Atomic fn %s signature key %s" % (atomic_fn,content_signature_key))
-
-                if effective_read_caching and disk_db_file_exists:
-                    # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-                    #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-                    if not stop_after_analysis:
-                        table_creator.perform_load_data_from_disk(disk_db_filename,content_signature)
-                    del self.databases[db_id]
-                    db_id = 'disk_%s' % db_id
-                    self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db,needs_closing=True)
-                    source_type = 'disk-file'
-                    source = disk_db_filename
-                else:
-                    table_creator.perform_read_fully(dialect_id)
-
-                    if effective_write_caching:
-                        self.store_qsql(table_creator.sqlite_db, disk_db_filename)
-
-                if db_to_use.db_id != self.adhoc_db_id:
-                    attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
-                    if attached_database_count < MAX_ALLOWED_ATTACHED_SQLITE_DATABASES:
-                        self.attach_to_query_level_db(table_creator.sqlite_db,self.query_level_db)
-                    else:
-                        xprint("table creator signature: %s" % table_creator.content_signature)
-                        # data copy is needed. attach, copy into adhoc_db and detach
-                        new_tables = self.adhoc_db.attach_and_copy_tables(table_creator.sqlite_db)
-                        relevant_table = new_tables[content_signature_key]
-                        xxx = json.loads(self.adhoc_db.execute_and_fetch("select content_signature from metaq where content_signature_key='%s'" % content_signature_key).results[0][0])
-                        table_creator.validate_content_signature(content_signature,xxx)
-                        db_to_use.done()
-                        del self.databases[db_to_use.db_id]
-                        table_creator.sqlite_db = self.adhoc_db
-                        table_creator.target_sqlite_table_name = relevant_table
-
-                self.table_creators[atomic_fn] = table_creator
-
-                data_loads += [QDataLoad(atomic_fn,start_time,time.time(),data_stream=mfs.data_stream,source_type=source_type,source=source)]
-
-                mfs.close_file()
+            data_loads += self._load_atomic_fn(mfss_in_qtable, atomic_fn, input_params, dialect_id, stop_after_analysis)
 
         return data_loads
 
-    # TODO RLRL Requires function rename
-    def attach_to_query_level_db(self,target_db,source_db):
+    def attach_to_db(self, target_db, source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
         xprint("Attach query: %s" % q)
         c = source_db.execute_and_fetch(q)
@@ -2131,7 +2145,7 @@ class QTextAsData(object):
         # Attach all databases
         for db_id in self.databases.keys():
             if db_id != self.query_level_db_id:
-                self.attach_to_query_level_db(self.databases[db_id].sqlite_db, materialized_db)
+                self.attach_to_db(self.databases[db_id].sqlite_db, materialized_db)
 
         # For each table in the query
         effective_table_names = sql_object.get_qtable_name_effective_table_names()
@@ -2767,6 +2781,7 @@ def run_standalone():
 
     (options, args) = parser.parse_args()
 
+    xprint(options)
     if options.dump_defaults:
         dump_default_values_as_qrc(parser,['dump-defaults','version'])
         sys.exit(0)
@@ -2877,8 +2892,10 @@ def run_standalone():
         max_column_length_limit = int(options.max_column_length_limit)
         if max_column_length_limit < 1:
             raise Exception()
+        csv.field_size_limit(max_column_length_limit)
+        xprint("Max column length limit is %s" % options.max_column_length_limit)
     except:
-        print("Max column length limit must be a positive integer (%s)" % max_column_length_limit, file=sys.stderr)
+        print("Max column length limit must be a positive integer (%s)" % options.max_column_length_limit, file=sys.stderr)
         sys.exit(31)
 
 

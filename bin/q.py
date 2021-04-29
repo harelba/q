@@ -298,6 +298,7 @@ class Sqlite3DBResults(object):
 class Sqlite3DB(object):
     METADATA_TABLE_NAME = 'metaq'
     NUMERIC_COLUMN_TYPES =  {int, long, float}
+    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT' }
 
     def __str__(self):
         return "Sqlite3DB<url=%s>" % self.sqlite_db_url
@@ -316,8 +317,7 @@ class Sqlite3DB(object):
             self.conn = sqlite3.connect(self.sqlite_db_url, uri=True)
         self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
-        self.type_names = {
-            str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
+        self.type_names = 1 #PXPX
         self.add_user_functions()
 
         if create_metaq:
@@ -485,7 +485,7 @@ class Sqlite3DB(object):
     def generate_create_table(self, table_name, column_names, column_dict):
         # Convert dict from python types to db types
         column_name_to_db_type = dict(
-            (n, self.type_names[t]) for n, t in six.iteritems(column_dict))
+            (n, Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t]) for n, t in six.iteritems(column_dict))
         column_defs = ','.join(['"%s" %s' % (
             n.replace('"', '""'), column_name_to_db_type[n]) for n in column_names])
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
@@ -1148,10 +1148,10 @@ class TableCreatorState(object):
     FULLY_READ = 'FULLY_READ'
 
 class MaterializedFileState(object):
-    def __init__(self,qtable_name,filename,input_params,dialect,data_stream=None):
+    def __init__(self, qtable_name, atomic_fn, input_params, dialect, data_stream=None):
         xprint("Creating new MFS: %s %s" % (id(self),qtable_name))
         self.qtable_name = qtable_name
-        self.filename = filename
+        self.atomic_fn = atomic_fn
         self.input_params = input_params
         self.dialect = dialect
         self.data_stream = data_stream
@@ -1163,9 +1163,9 @@ class MaterializedFileState(object):
         self.is_open = False
 
     def __str__(self):
-        return "MaterializedFileState<qtable_name=%s,filename=%s,lines_read=%s,input_params=%s,f=%s,data_stream=%s,is_open=%s" % (
+        return "MaterializedFileState<qtable_name=%s,atomic_fn=%s,lines_read=%s,input_params=%s,f=%s,data_stream=%s,is_open=%s" % (
             self.qtable_name,
-            self.filename,
+            self.atomic_fn,
             self.lines_read,
             self.input_params,
             self.f,
@@ -1185,20 +1185,20 @@ class MaterializedFileState(object):
 
         # Otherwise, it's a file, open the file
 
-        if self.input_params.gzipped_input or self.filename.endswith('.gz'):
-            f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(self.filename,'rb')),encoding=self.input_params.input_encoding)
+        if self.input_params.gzipped_input or self.atomic_fn.endswith('.gz'):
+            f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(self.atomic_fn,'rb')),encoding=self.input_params.input_encoding)
         else:
             if six.PY3:
                 if self.input_params.with_universal_newlines:
-                    f = io.open(self.filename, 'rU',newline=None,encoding=self.input_params.input_encoding)
+                    f = io.open(self.atomic_fn, 'rU',newline=None,encoding=self.input_params.input_encoding)
                 else:
-                    f = io.open(self.filename, 'r', newline=None, encoding=self.input_params.input_encoding)
+                    f = io.open(self.atomic_fn, 'r', newline=None, encoding=self.input_params.input_encoding)
             else:
                 if self.input_params.with_universal_newlines:
                     file_opening_mode = 'rbU'
                 else:
                     file_opening_mode = 'rb'
-                f = open(self.filename, file_opening_mode)
+                f = open(self.atomic_fn, file_opening_mode)
 
         self.f = f
         self.is_open = True
@@ -1208,7 +1208,7 @@ class MaterializedFileState(object):
 
     def read_file_using_csv(self):
         if not self.is_open:
-            raise Exception('bug - not open: %s' % self.filename)
+            raise Exception('bug - not open: %s' % self.atomic_fn)
         # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
         # has a bug which prevents fixing it using the proper encoding, and it has been encountered by 
         # multiple people.
@@ -1229,7 +1229,7 @@ class MaterializedFileState(object):
                 self.lines_read += 1
                 yield col_vals
         except ColumnMaxLengthLimitExceededException as e:
-            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.filename,self.lines_read + 1,self.input_params.input_encoding)
+            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.atomic_fn,self.lines_read + 1,self.input_params.input_encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
         except UniversalNewlinesExistException as e2:
             # No need to translate the exception, but we want it to be explicitly defined here for clarity
@@ -1237,7 +1237,7 @@ class MaterializedFileState(object):
 
     def close_file(self):
         if not self.is_open:
-            raise Exception("Bug - file should already be open")
+            raise Exception("Bug - file should already be open: %s" % self.atomic_fn)
 
         if not self.data_stream:
             self.f.close()
@@ -1297,8 +1297,8 @@ class TableCreator(object):
         #             file and just use it (without comparing signatures to the source file).  If the source file exists
         #             and the cache doesn't, then it's possible to create it after reading the source file.
         if self.data_stream is None:
-            size = os.stat(self.mfs.filename).st_size
-            last_modification_time = os.stat(self.mfs.filename).st_mtime_ns
+            size = os.stat(self.mfs.atomic_fn).st_size
+            last_modification_time = os.stat(self.mfs.atomic_fn).st_mtime_ns
         else:
             # TODO RLRL - Need to prevent generating content signature once it's a data-stream
             size = 0
@@ -1338,10 +1338,10 @@ class TableCreator(object):
         if is_extra_header:
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
                 raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
-                    ",".join(col_vals),mfs.filename,
+                    ",".join(col_vals),mfs.atomic_fn,
                     ",".join(self.column_inferer.header_row),
                     self.column_inferer.header_row_filename,
-                    self.mfs.filename))
+                    self.mfs.atomic_fn))
 
         return is_extra_header
 
@@ -1352,35 +1352,36 @@ class TableCreator(object):
             try:
                 for col_vals in self.mfs.read_file_using_csv():
                     #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
-                    if self._should_skip_extra_headers(0,self.mfs.filename,self.mfs,col_vals):
+                    if self._should_skip_extra_headers(0,self.mfs.atomic_fn,self.mfs,col_vals):
                         continue
-                    self._insert_row(self.mfs.filename, col_vals)
+                    self._insert_row(self.mfs.atomic_fn, col_vals)
                     if stop_after_analysis and self.column_inferer.inferred:
                         return
                 if self.mfs.lines_read == 0 and self.skip_header:
-                    raise MissingHeaderException("Header line is expected but missing in file %s" % self.mfs.filename)
+                    raise MissingHeaderException("Header line is expected but missing in file %s" % self.mfs.atomic_fn)
 
                 total_data_lines_read += self.mfs.lines_read - (1 if self.skip_header else 0)
             except StrictModeColumnCountMismatchException as e:
                 raise ColumnCountMismatchException(
                     'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
-                    e.expected_col_count, e.actual_col_count, normalized_filename(self.mfs.filename), self.mfs.lines_read))
+                    e.expected_col_count, e.actual_col_count, normalized_filename(self.mfs.atomic_fn), self.mfs.lines_read))
             except FluffyModeColumnCountMismatchException as e:
                 raise ColumnCountMismatchException(
                     'Deprecated fluffy mode - Too many columns in file %s row %s (%s fields instead of %s fields). Consider moving to either relaxed or strict mode' % (
-                    normalized_filename(self.mfs.filename), self.mfs.lines_read, e.actual_col_count, e.expected_col_count))
+                    normalized_filename(self.mfs.atomic_fn), self.mfs.lines_read, e.actual_col_count, e.expected_col_count))
         finally:
             self._flush_inserts()
 
         # TODO RLRL - Not sure if this needs to pushed up the stack
         if not self.table_created:
             self.column_inferer.force_analysis()
-            self._do_create_table(self.mfs.filename)
+            self._do_create_table(self.mfs.atomic_fn)
 
         self.sqlite_db.conn.commit()
 
+    # TODO RLRL - Remove
     def get_absolute_filenames_str(self):
-        return self.mfs.filename
+        return self.mfs.atomic_fn
 
     def perform_analyze(self, dialect,data_stream):
         xprint("Analyzing... %s" % dialect)
@@ -1617,7 +1618,7 @@ class TableCreator(object):
                         raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
                     else:
                         # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(self.mfs.filename,".".join(scope + [k]),source_signature[k],content_signature[k])
+                        raise ContentSignatureDiffersException(self.mfs.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
 
 
 
@@ -1893,7 +1894,6 @@ class QTextAsData(object):
 
         data_stream = self.data_streams.get_for_filename(qtable_name)
 
-        mfs = None
         if data_stream is not None:
             if input_params.gzipped_input:
                 raise CannotUnzipDataStreamException()
@@ -1903,13 +1903,13 @@ class QTextAsData(object):
         else:
             materialized_file_list = self.materialize_file_list(qtable_name)
             # For each match
-            for filename in materialized_file_list:
-                mfs = MaterializedFileState(qtable_name,filename,input_params,dialect,None)
+            for atomic_fn in materialized_file_list:
+                mfs = MaterializedFileState(qtable_name,atomic_fn,input_params,dialect,None)
                 # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
-                if filename not in materialized_file_dict:
-                    materialized_file_dict[filename] = [mfs]
+                if atomic_fn not in materialized_file_dict:
+                    materialized_file_dict[atomic_fn] = [mfs]
                 else:
-                    materialized_file_dict[filename] = materialized_file_dict[filename] + [mfs]
+                    materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [mfs]
 
         xprint("MFS dict: %s" % str(materialized_file_dict))
         return materialized_file_dict
@@ -2357,23 +2357,17 @@ class QTextAsData(object):
         return m
 
     def _create_table_structures_list(self,data_loads_dict):
-        # TODO RLRL - should add data_streams_dict here as well PXPX
-
         xprint("Creating Table Structure List %s" % data_loads_dict)
         xprint("When creating TSL - table creators is %s" % str(self.table_creators))
         table_creators_by_qtable_name = OrderedDict()
         for atomic_fn,table_creator in six.iteritems(self.table_creators):
             xprint("Iterating atomic filename %s" % atomic_fn)
             column_names = table_creator.column_inferer.get_column_names()
-            # TODO RLRL - Move type_names to be global instead of in Sqlite3DB
-            column_types = [self.query_level_db.type_names[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
+            column_types = [Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
 
             qtable_name = table_creator.mfs.qtable_name
-            # TODO RLRL Need to add support for data streams
 
             # TODO RLRL - Some order here
-
-            filename = table_creator.mfs.filename
 
             if qtable_name not in table_creators_by_qtable_name:
                 if qtable_name in data_loads_dict:
@@ -2383,8 +2377,8 @@ class QTextAsData(object):
                     xprint("No data load was needed for qtable name %s" % qtable_name)
                     data_loads_for_qtable_name = []
 
-                if table_creator.mfs.filename:
-                    x = [filename]
+                if table_creator.mfs.atomic_fn:
+                    x = [table_creator.mfs.atomic_fn]
                 else:
                     x = []
 
@@ -2399,8 +2393,8 @@ class QTextAsData(object):
                 if current.column_types != column_types:
                     raise BadHeaderException("Column types differ for table %s: %s vs %s" % (qtable_name,",".join(current.column_types),",".join(column_types)))
 
-                if table_creator.mfs.filename:
-                    x = [filename]
+                if table_creator.mfs.atomic_fn:
+                    x = [table_creator.mfs.atomic_fn]
                 else:
                     x = []
 

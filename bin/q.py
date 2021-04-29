@@ -1932,7 +1932,13 @@ class QTextAsData(object):
         xprint("should read from cache %s" % should_read_from_cache)
 
         if mfs.data_stream is None:
-            self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=True)
+            if not should_read_from_cache:
+                self.add_db_to_database_list(db_id,db_to_use,needs_closing=True)
+                xprint("db %s (%s) has been added to the database list" % (db_id,db_to_use))
+            else:
+                xprint("No need to add the db, as it will be changed to work with the disk db file (and table_creator.perform_load_data_from_disk closes the original db anyway")
+        else:
+            xprint("No need to add the db_to_use to the database list, as it's the adhoc database, which is already there")
 
         target_sqlite_table_name = db_to_use.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
@@ -1949,18 +1955,20 @@ class QTextAsData(object):
             # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
             if not stop_after_analysis:
                 table_creator.perform_load_data_from_disk(disk_db_filename)
-            del self.databases[db_id]
+
             db_id = 'disk_%s' % db_id
             self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
+
             source_type = 'disk-file'
             source = disk_db_filename
+            xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (disk_db_filename,source_type,source))
         else:
             table_creator.perform_read_fully(dialect_id)
 
             effective_write_caching = (mfs.data_stream is None) and input_params.write_caching
-            xprint("ewc",effective_write_caching)
 
             if effective_write_caching:
+                xprint("Going to write file cache for %s. Disk filename is %s" % (atomic_fn,disk_db_filename))
                 self.store_qsql(table_creator.sqlite_db, disk_db_filename)
 
         self.attach_to_adhoc_db(atomic_fn, table_creator, db_to_use)
@@ -1968,6 +1976,9 @@ class QTextAsData(object):
         mfs.close_file()
 
         return (source,source_type,table_creator)
+
+    def add_db_to_database_list(self,db_id, db_to_use, needs_closing):
+        self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=needs_closing)
 
     def get_should_read_from_cache(self, mfs, input_params, atomic_fn, disk_db_filename):
         disk_db_file_exists = os.path.exists(disk_db_filename)
@@ -2400,7 +2411,7 @@ class QTextAsData(object):
         xprint("Storing data as disk db")
         disk_db_conn = sqlite3.connect(disk_db_filename)
         sqlitebck.copy(source_sqlite_db.conn,disk_db_conn)
-        xprint("--- Written db to disk: disk db filename %s metaq: %s" % (disk_db_filename,disk_db_conn.execute('select content_signature_key,temp_table_name from metaq').fetchall()))
+        xprint("Written db to disk: disk db filename %s" % (disk_db_filename))
         disk_db_conn.close()
 
 

@@ -234,11 +234,13 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 3)
+        self.assertEqual(len(e), 4)
 
         self.assertEqual(e[0],six.b('Going to save data into a disk database: %s' % disk_db_filename))
         self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken ' % disk_db_filename)))
         self.assertEqual(e[2],six.b('Query to run on the database: select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val);'))
+        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val)" | sqlite3 %s' % disk_db_filename))
+
         import re
         P = re.compile(six.b("^Query to run on the database: (?P<query_to_run_on_db>.*)$"))
         m = P.search(e[2])
@@ -1863,6 +1865,7 @@ output_delimiter=|
 output_encoding=utf-8
 output_header=True
 output_quoting_mode=all
+overwrite_qsql=False
 pipe_delimited=True
 pipe_delimited_output=True
 query_encoding=ascii
@@ -1881,7 +1884,7 @@ with_universal_newlines=True
         print("OO",o)
         print("EE",e)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 33)
+        self.assertEqual(len(o), 34)
         self.assertEqual(len(e), 0)
 
         self.assertEqual(o[0],six.b('[options]'))
@@ -1912,6 +1915,7 @@ with_universal_newlines=True
         self.assertEqual(m[six.b('output_encoding')],six.b('utf-8'))
         self.assertEqual(m[six.b('output_header')],six.b('True'))
         self.assertEqual(m[six.b('output_quoting_mode')],six.b('all'))
+        self.assertEqual(m[six.b('overwrite_qsql')],six.b('False'))
         self.assertEqual(m[six.b('pipe_delimited')],six.b('True'))
         self.assertEqual(m[six.b('pipe_delimited_output')],six.b('True'))
         self.assertEqual(m[six.b('query_encoding')],six.b('ascii'))

@@ -297,6 +297,7 @@ class Sqlite3DBResults(object):
 
 class Sqlite3DB(object):
     METADATA_TABLE_NAME = 'metaq'
+    NUMERIC_COLUMN_TYPES =  {int, long, float}
 
     def __str__(self):
         return "Sqlite3DB<url=%s>" % self.sqlite_db_url
@@ -317,7 +318,6 @@ class Sqlite3DB(object):
         self.cursor = self.conn.cursor()
         self.type_names = {
             str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
-        self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
 
         if create_metaq:
@@ -333,7 +333,7 @@ class Sqlite3DB(object):
                                content_signature text, \
                                creation_time text, \
                                source_type text, \
-                               source_filenames_str text)')
+                               source text)')
             _ = r.fetchall()
 
     def calculate_content_signature_key(self,content_signature):
@@ -343,12 +343,12 @@ class Sqlite3DB(object):
         xprint("Calculating content signature for:",pp,six.b(pp))
         return hashlib.sha1(six.b(pp)).hexdigest()
 
-    def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_type, source_filenames_str):
+    def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_type, source):
         content_signature_key = self.calculate_content_signature_key(content_signature)
         xprint("Adding to metaq table: %s. Calculated signature key %s" % (temp_table_name,content_signature_key))
         r = self.execute_and_fetch(
-            'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_type,source_filenames_str) VALUES (?,?,?,?,?,?)',
-                              (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_type,source_filenames_str))
+            'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_type,source) VALUES (?,?,?,?,?,?)',
+                              (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_type,source))
         # Ensure transaction is completed
         self.conn.commit()
 
@@ -356,7 +356,7 @@ class Sqlite3DB(object):
         content_signature_key = self.calculate_content_signature_key(content_signature)
         xprint("Finding table in db_id %s that matches content signature key %s" % (self.db_id,content_signature_key))
 
-        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_type","source_filenames_str"]
+        field_names = ["content_signature_key", "temp_table_name", "content_signature", "creation_time","source_type","source"]
 
         q = "SELECT %s FROM metaq where content_signature_key = ?" % ",".join(field_names)
         r = self.execute_and_fetch(q,(content_signature_key,))
@@ -376,7 +376,7 @@ class Sqlite3DB(object):
     def get_from_metaq_using_table_name(self, temp_table_name):
         xprint("getting from metaq using table name")
 
-        field_names = ["temp_table_name", "content_signature", "creation_time","source_type","source_filenames_str"]
+        field_names = ["temp_table_name", "content_signature", "creation_time","source_type","source"]
 
         q = "SELECT %s FROM metaq where temp_table_name = ?" % ",".join(field_names)
         xprint("Query from metaq %s" % q)
@@ -415,7 +415,7 @@ class Sqlite3DB(object):
                 raise Exception("Invalid user function definition %s" % str(udf))
 
     def is_numeric_type(self, column_type):
-        return column_type in self.numeric_column_types
+        return column_type in Sqlite3DB.NUMERIC_COLUMN_TYPES
 
     def update_many(self, sql, params):
         try:
@@ -524,7 +524,7 @@ class Sqlite3DB(object):
             xprint("CS",d['content_signature'])
             cs = OrderedDict(json.loads(d['content_signature']))
             self.add_to_metaq_table(new_temp_table_name, cs, d['creation_time'],
-                                    d['source_type'], d['source_filenames_str'])
+                                    d['source_type'], d['source'])
             new_database_tables[csk] = new_temp_table_name
             self.last_temp_table_id += 1
 
@@ -1949,33 +1949,42 @@ class QTextAsData(object):
         table_creator.perform_analyze(dialect_id, table_creator.data_stream)
 
         if should_read_from_cache:
-            # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-            #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-
-            # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
-            if not stop_after_analysis:
-                table_creator.perform_load_data_from_disk(disk_db_filename)
-
-            db_id = 'disk_%s' % db_id
-            self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
+            self.read_table_from_cache(db_id, disk_db_filename,stop_after_analysis, table_creator)
 
             source_type = 'disk-file'
             source = disk_db_filename
-            xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (disk_db_filename,source_type,source))
+            xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (
+                disk_db_filename, source_type, source))
         else:
-            table_creator.perform_read_fully(dialect_id)
+            self.read_table_from_file(dialect_id, table_creator)
 
-            effective_write_caching = (mfs.data_stream is None) and input_params.write_caching
-
-            if effective_write_caching:
-                xprint("Going to write file cache for %s. Disk filename is %s" % (atomic_fn,disk_db_filename))
-                self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+            self.save_cache_to_disk_if_needed(atomic_fn, disk_db_filename, input_params, mfs, table_creator)
 
         self.attach_to_adhoc_db(atomic_fn, table_creator, db_to_use)
 
         mfs.close_file()
 
+        xprint("MFS Loaded")
+
         return (source,source_type,table_creator)
+
+    def save_cache_to_disk_if_needed(self, atomic_fn, disk_db_filename, input_params, mfs, table_creator):
+        effective_write_caching = (mfs.data_stream is None) and input_params.write_caching
+        if effective_write_caching:
+            xprint("Going to write file cache for %s. Disk filename is %s" % (atomic_fn, disk_db_filename))
+            self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+
+    def read_table_from_file(self, dialect_id, table_creator):
+        table_creator.perform_read_fully(dialect_id)
+
+    def read_table_from_cache(self, db_id, disk_db_filename, stop_after_analysis, table_creator):
+        # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
+        #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
+        # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
+        if not stop_after_analysis:
+            table_creator.perform_load_data_from_disk(disk_db_filename)
+        db_id = 'disk_%s' % db_id
+        self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
 
     def add_db_to_database_list(self,db_id, db_to_use, needs_closing):
         self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=needs_closing)
@@ -2174,7 +2183,6 @@ class QTextAsData(object):
             xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
 
             # Add it to metaq
-            xprint("TTT",materialized_db.execute_and_fetch('select * from %s.metaq' % db_id))
             metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(table_name)
             if metaq_data is None:
                 raise Exception('Bug - must find table in metaq - %s' % v)
@@ -2182,7 +2190,7 @@ class QTextAsData(object):
             # TODO RLRL - Convert all content_signature reads/writes to dicts
             actual_content_signature = OrderedDict(json.loads(metaq_data['content_signature']))
             materialized_db.add_to_metaq_table(new_table_name,actual_content_signature,metaq_data['creation_time'],
-                                               metaq_data['source_type'],metaq_data['source_filenames_str'])
+                                               metaq_data['source_type'],metaq_data['source'])
             table_name_mapping[v] = new_table_name
 
         return table_name_mapping
@@ -2245,13 +2253,15 @@ class QTextAsData(object):
 
             self.materialize_sql_object(sql_object)
 
-            # TODO RLRL - Breaking change - save to db needs another approach? UPDATE: Not really, changed everything so save would work
             if save_db_to_disk_filename is not None:
-                xprint("Saving query data to disk...")
+                xprint("Saving query data to disk")
                 dump_start_time = time.time()
                 table_name_mapping = self.materialize_query_level_db(save_db_to_disk_filename,sql_object)
                 print("Data has been saved into %s . Saving has taken %4.3f seconds" % (save_db_to_disk_filename,time.time()-dump_start_time), file=sys.stderr)
-                print("Query to run on the database: %s;" % sql_object.get_effective_sql(table_name_mapping), file=sys.stderr)
+                effective_sql = sql_object.get_effective_sql(table_name_mapping)
+                print("Query to run on the database: %s;" % effective_sql, file=sys.stderr)
+                command_line = 'echo "%s" | sqlite3 %s' % (effective_sql,save_db_to_disk_filename)
+                print("You can run the query directly from the command line using the following command: %s" % command_line, file=sys.stderr)
 
                 # TODO Propagate dump results using a different output class instead of an empty one
                 return QOutput()
@@ -2624,25 +2634,85 @@ def dump_default_values_as_qrc(parser,exclusions):
         if k not in exclusions:
             print("%s=%s" % (k,m[k]),file=sys.stdout)
 
+USAGE_TEXT = """
+    q allows performing SQL-like statements on tabular text data.
+
+    Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+
+    Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
+        When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+
+    Column types are detected automatically. Use -A in order to see the column name/type analysis.
+
+    Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
+
+    All sqlite3 SQL constructs are supported.
+
+    Examples:
+
+      Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
+        This example would print a count of each unique permission string in the current folder.
+
+      Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
+        This example would provide the average and the sum of the numbers in the range 1 to 1000
+
+      Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
+        This example will output the total size in MB per user+group in the /tmp subtree
+
+
+    See the help or http://harelba.github.io/q/ for more details.
+"""
+
 def run_standalone():
     sqlite3.enable_callback_tracebacks(True)
-    p = configparser.ConfigParser()
-    if QRC_FILENAME_ENVVAR in os.environ:
-        qrc_filename = os.environ[QRC_FILENAME_ENVVAR]
-        if qrc_filename != 'None':
-            xprint("qrc filename is %s" % qrc_filename)
-            if os.path.exists(qrc_filename):
-                p.read([os.environ[QRC_FILENAME_ENVVAR]])
-            else:
-                print('QRC_FILENAME env var exists, but cannot find qrc file at %s' % qrc_filename,file=sys.stderr)
-                sys.exit(244)
+
+    p, qrc_filename = parse_qrc_file()
+
+    args, options, parser = initialize_command_line_parser(p, qrc_filename)
+
+    dump_defaults_and_stop__if_needed(options, parser)
+
+    dump_version_and_stop__if_needed(options)
+
+    STDOUT, default_input_params, q_output_printer, query_strs = parse_options(args, options)
+
+    data_streams_dict = initialize_default_data_streams()
+
+    q_engine = QTextAsData(default_input_params=default_input_params,data_streams_dict=data_streams_dict)
+
+    execute_queries(STDOUT, options, q_engine, q_output_printer, query_strs)
+
+    q_engine.done()
+
+    sys.exit(0)
+
+
+def dump_version_and_stop__if_needed(options):
+    if options.version:
+        print_credentials()
+        sys.exit(0)
+
+
+def dump_defaults_and_stop__if_needed(options, parser):
+    if options.dump_defaults:
+        dump_default_values_as_qrc(parser, ['dump-defaults', 'version'])
+        sys.exit(0)
+
+
+def execute_queries(STDOUT, options, q_engine, q_output_printer, query_strs):
+    for query_str in query_strs:
+        if options.analyze_only:
+            q_output = q_engine.analyze(query_str)
+            q_output_printer.print_analysis(STDOUT, sys.stderr, q_output)
         else:
-            pass # special handling of 'None' env var value for QRC_FILENAME. Allows to eliminate the default ~/.qrc reading
-    else:
-        qrc_filename = os.path.expanduser('~/.qrc')
-        p.read([qrc_filename, '.qrc'])
+            q_output = q_engine.execute(query_str, save_db_to_disk_filename=options.save_db_to_disk_filename)
+            q_output_printer.print_output(STDOUT, sys.stderr, q_output)
+
+        if q_output.status == 'error':
+            sys.exit(q_output.error.errorcode)
 
 
+def initialize_command_line_parser(p, qrc_filename):
     try:
         default_verbose = get_option_with_default(p, 'boolean', 'verbose', False)
         default_save_db_to_disk = get_option_with_default(p, 'string', 'save_db_to_disk_filename', None)
@@ -2659,7 +2729,8 @@ def run_standalone():
         default_column_count = get_option_with_default(p, 'string', 'column_count', None)
         default_keep_leading_whitespace_in_values = get_option_with_default(p, 'boolean',
                                                                             'keep_leading_whitespace_in_values', False)
-        default_disable_double_double_quoting = get_option_with_default(p, 'boolean', 'disable_double_double_quoting', True)
+        default_disable_double_double_quoting = get_option_with_default(p, 'boolean', 'disable_double_double_quoting',
+                                                                        True)
         default_disable_escaped_double_quoting = get_option_with_default(p, 'boolean', 'disable_escaped_double_quoting',
                                                                          True)
         default_disable_column_type_detection = get_option_with_default(p, 'boolean', 'disable_column_type_detection',
@@ -2677,43 +2748,15 @@ def run_standalone():
         default_output_encoding = get_option_with_default(p, 'string', 'output_encoding', 'none')
         default_output_quoting_mode = get_option_with_default(p, 'string', 'output_quoting_mode', 'minimal')
         default_list_user_functions = get_option_with_default(p, 'boolean', 'list_user_functions', False)
+        default_overwrite_qsql = get_option_with_default(p, 'boolean', 'overwrite_qsql', False)
 
         default_query_filename = get_option_with_default(p, 'string', 'query_filename', None)
         default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
     except IncorrectDefaultValueException as e:
-        print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (e.actual_value,e.option,qrc_filename,e.option_type))
+        print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (
+        e.actual_value, e.option, qrc_filename, e.option_type))
         sys.exit(199)
-
-    parser = OptionParser(usage="""
-        q allows performing SQL-like statements on tabular text data.
-
-        Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
-
-        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-            When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
-
-        Column types are detected automatically. Use -A in order to see the column name/type analysis.
-
-        Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
-
-        All sqlite3 SQL constructs are supported.
-
-        Examples:
-
-          Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-            This example would print a count of each unique permission string in the current folder.
-
-          Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-            This example would provide the average and the sum of the numbers in the range 1 to 1000
-
-          Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-            This example will output the total size in MB per user+group in the /tmp subtree
-
-
-        See the help or http://harelba.github.io/q/ for more details.
-    """)
-
-    #-----------------------------------------------
+    parser = OptionParser(usage=USAGE_TEXT)
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
     parser.add_option("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",
@@ -2724,100 +2767,138 @@ def run_standalone():
                       help="Deprecated, no need to use it anymore")
     parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
-    parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False,action="store_true",
+    parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False, action="store_true",
                       help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
-    #-----------------------------------------------
-    input_data_option_group = OptionGroup(parser,"Input Data Options")
-    input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header, action="store_true",
-                      help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
+    # -----------------------------------------------
+    input_data_option_group = OptionGroup(parser, "Input Data Options")
+    input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header,
+                                       action="store_true",
+                                       help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
     input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
-                      help="Field delimiter. If none specified, then space is used as the delimiter.")
-    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=default_pipe_delimited, action="store_true",
-                      help="Same as -d '|'. Added for convenience and readability")
-    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=default_tab_delimited, action="store_true",
-                      help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
+                                       help="Field delimiter. If none specified, then space is used as the delimiter.")
+    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=default_pipe_delimited,
+                                       action="store_true",
+                                       help="Same as -d '|'. Added for convenience and readability")
+    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=default_tab_delimited,
+                                       action="store_true",
+                                       help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
     input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
-                      help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
+                                       help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
     input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
-                      help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", default=default_analyze_only, action='store_true',
-                      help="Analyze sample input and provide information about data types")
+                                       help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
+    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", default=default_analyze_only,
+                                       action='store_true',
+                                       help="Analyze sample input and provide information about data types")
     input_data_option_group.add_option("-m", "--mode", dest="mode", default=default_mode,
-                      help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
+                                       help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
     input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=default_column_count,
-                      help="Specific column count when using relaxed or strict mode")
-    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values", default=default_keep_leading_whitespace_in_values, action="store_true",
-                      help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting", default=default_disable_double_double_quoting, action="store_false",
-                      help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting", default=default_disable_escaped_double_quoting, action="store_false",
-                      help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection", default=default_disable_column_type_detection, action="store_true",
-                      help="Don't detect column types - All columns will be treated as text columns")
-    input_data_option_group.add_option("-w","--input-quoting-mode",dest="input_quoting_mode",default=default_input_quoting_mode,
-                      help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
-    input_data_option_group.add_option("-M","--max-column-length-limit",dest="max_column_length_limit",default=default_max_column_length_limit,
-                      help="Sets the maximum column length.")
-    input_data_option_group.add_option("-U","--with-universal-newlines",dest="with_universal_newlines",default=default_with_universal_newlines,action="store_true",
-                      help="Expect universal newlines in the data. Limitation: -U works only with regular files for now, stdin or .gz files are not supported yet.")
+                                       help="Specific column count when using relaxed or strict mode")
+    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values",
+                                       default=default_keep_leading_whitespace_in_values, action="store_true",
+                                       help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
+    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting",
+                                       default=default_disable_double_double_quoting, action="store_false",
+                                       help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting",
+                                       default=default_disable_escaped_double_quoting, action="store_false",
+                                       help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
+    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection",
+                                       default=default_disable_column_type_detection, action="store_true",
+                                       help="Don't detect column types - All columns will be treated as text columns")
+    input_data_option_group.add_option("-w", "--input-quoting-mode", dest="input_quoting_mode",
+                                       default=default_input_quoting_mode,
+                                       help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
+    input_data_option_group.add_option("-M", "--max-column-length-limit", dest="max_column_length_limit",
+                                       default=default_max_column_length_limit,
+                                       help="Sets the maximum column length.")
+    input_data_option_group.add_option("-U", "--with-universal-newlines", dest="with_universal_newlines",
+                                       default=default_with_universal_newlines, action="store_true",
+                                       help="Expect universal newlines in the data. Limitation: -U works only with regular files for now, stdin or .gz files are not supported yet.")
     parser.add_option_group(input_data_option_group)
-    #-----------------------------------------------
-    output_data_option_group = OptionGroup(parser,"Output Options")
-    output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter", default=default_output_delimiter,
-                      help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output", default=default_pipe_delimited_output, action="store_true",
-                      help="Same as -D '|'. Added for convenience and readability.")
-    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output", default=default_tab_delimited_output, action="store_true",
-                      help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
-    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header, action="store_true",help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
-    output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify, action="store_true",
-                      help="Beautify output according to actual values. Might be slow...")
+    # -----------------------------------------------
+    output_data_option_group = OptionGroup(parser, "Output Options")
+    output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter",
+                                        default=default_output_delimiter,
+                                        help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
+    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output",
+                                        default=default_pipe_delimited_output, action="store_true",
+                                        help="Same as -D '|'. Added for convenience and readability.")
+    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output",
+                                        default=default_tab_delimited_output, action="store_true",
+                                        help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
+    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header,
+                                        action="store_true",
+                                        help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
+    output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify,
+                                        action="store_true",
+                                        help="Beautify output according to actual values. Might be slow...")
     output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
-                      help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-    output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding", default=default_output_encoding,
-                      help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-    output_data_option_group.add_option("-W","--output-quoting-mode",dest="output_quoting_mode",default=default_output_quoting_mode,
-                      help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
-    output_data_option_group.add_option("-L","--list-user-functions",dest="list_user_functions",default=default_list_user_functions,action="store_true",
-                      help="List all user functions")
+                                        help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
+    output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding",
+                                        default=default_output_encoding,
+                                        help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
+    output_data_option_group.add_option("-W", "--output-quoting-mode", dest="output_quoting_mode",
+                                        default=default_output_quoting_mode,
+                                        help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
+    output_data_option_group.add_option("-L", "--list-user-functions", dest="list_user_functions",
+                                        default=default_list_user_functions, action="store_true",
+                                        help="List all user functions")
+    parser.add_option("", "--overwrite-qsql", dest="overwrite_qsql", default=default_overwrite_qsql,
+                      help="When used, qsql files (both caches and store-to-db) will be overwritten if they already exist. Use with care.")
     parser.add_option_group(output_data_option_group)
-    #-----------------------------------------------
-    query_option_group = OptionGroup(parser,"Query Related Options")
+    # -----------------------------------------------
+    query_option_group = OptionGroup(parser, "Query Related Options")
     query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=default_query_filename,
-                      help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
+                                  help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
     query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
-                      help="query text encoding. Experimental. Please send your feedback on this")
+                                  help="query text encoding. Experimental. Please send your feedback on this")
     parser.add_option_group(query_option_group)
-    #-----------------------------------------------
-
+    # -----------------------------------------------
     (options, args) = parser.parse_args()
+    return args, options, parser
 
-    xprint(options)
-    if options.dump_defaults:
-        dump_default_values_as_qrc(parser,['dump-defaults','version'])
-        sys.exit(0)
 
-    if options.version:
-        print_credentials()
-        sys.exit(0)
+def parse_qrc_file():
+    p = configparser.ConfigParser()
+    if QRC_FILENAME_ENVVAR in os.environ:
+        qrc_filename = os.environ[QRC_FILENAME_ENVVAR]
+        if qrc_filename != 'None':
+            xprint("qrc filename is %s" % qrc_filename)
+            if os.path.exists(qrc_filename):
+                p.read([os.environ[QRC_FILENAME_ENVVAR]])
+            else:
+                print('QRC_FILENAME env var exists, but cannot find qrc file at %s' % qrc_filename, file=sys.stderr)
+                sys.exit(244)
+        else:
+            pass  # special handling of 'None' env var value for QRC_FILENAME. Allows to eliminate the default ~/.qrc reading
+    else:
+        qrc_filename = os.path.expanduser('~/.qrc')
+        p.read([qrc_filename, '.qrc'])
+    return p, qrc_filename
 
-###
 
+def initialize_default_data_streams():
+    data_streams_dict = {
+        '-': DataStream('stdin', '-', sys.stdin)
+    }
+    return data_streams_dict
+
+
+def parse_options(args, options):
     if options.list_user_functions:
         print_user_functions()
         sys.exit(0)
-
     if len(args) == 0 and options.query_filename is None:
         print_credentials()
-        print("Must provide at least one query in the command line, or through a file with the -q parameter", file=sys.stderr)
+        print("Must provide at least one query in the command line, or through a file with the -q parameter",
+              file=sys.stderr)
         sys.exit(1)
-
     if options.query_filename is not None:
         if len(args) != 0:
             print("Can't provide both a query file and a query on the command line", file=sys.stderr)
             sys.exit(1)
         try:
-            f = open(options.query_filename,'rb')
+            f = open(options.query_filename, 'rb')
             query_strs = [f.read()]
             f.close()
         except:
@@ -2828,25 +2909,23 @@ def run_standalone():
             query_strs = [x.encode(sys.stdin.encoding) for x in args]
         else:
             query_strs = args
-
     if options.query_encoding is not None and options.query_encoding != 'none':
         try:
             for idx in range(len(query_strs)):
                 query_strs[idx] = query_strs[idx].decode(options.query_encoding).strip()
 
                 if len(query_strs[idx]) == 0:
-                    print("Query cannot be empty (query number %s)" % (idx+1), file=sys.stderr)
+                    print("Query cannot be empty (query number %s)" % (idx + 1), file=sys.stderr)
                     sys.exit(1)
 
         except Exception as e:
-            print("Could not decode query number %s using the provided query encoding (%s)" % (idx+1,options.query_encoding), file=sys.stderr)
+            print("Could not decode query number %s using the provided query encoding (%s)" % (
+            idx + 1, options.query_encoding), file=sys.stderr)
             sys.exit(3)
-###
-
+    ###
     if options.mode not in ['fluffy', 'relaxed', 'strict']:
         print("Parsing mode can be one of fluffy, relaxed or strict", file=sys.stderr)
         sys.exit(13)
-
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
         if six.PY3:
@@ -2856,35 +2935,29 @@ def run_standalone():
     except:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
-
     # If the user flagged for a tab-delimited file then set the delimiter to tab
     if options.tab_delimited:
         if options.delimiter is not None and options.delimiter != '\t':
-            print("Warning: -t parameter overrides -d parameter (%s)" % options.delimiter,file=sys.stderr)
+            print("Warning: -t parameter overrides -d parameter (%s)" % options.delimiter, file=sys.stderr)
         options.delimiter = '\t'
-
     # If the user flagged for a pipe-delimited file then set the delimiter to pipe
     if options.pipe_delimited:
         if options.delimiter is not None and options.delimiter != '|':
-            print("Warning: -p parameter overrides -d parameter (%s)" % options.delimiter,file=sys.stderr)
+            print("Warning: -p parameter overrides -d parameter (%s)" % options.delimiter, file=sys.stderr)
         options.delimiter = '|'
-
     if options.delimiter is None:
         options.delimiter = ' '
     elif len(options.delimiter) != 1:
         print("Delimiter must be one character only", file=sys.stderr)
         sys.exit(5)
-
     if options.tab_delimited_output:
         if options.output_delimiter is not None and options.output_delimiter != '\t':
-            print("Warning: -T parameter overrides -D parameter (%s)" % options.output_delimiter,file=sys.stderr)
+            print("Warning: -T parameter overrides -D parameter (%s)" % options.output_delimiter, file=sys.stderr)
         options.output_delimiter = '\t'
-
     if options.pipe_delimited_output:
         if options.output_delimiter is not None and options.output_delimiter != '|':
-            print("Warning: -P parameter overrides -D parameter (%s)" % options.output_delimiter,file=sys.stderr)
+            print("Warning: -P parameter overrides -D parameter (%s)" % options.output_delimiter, file=sys.stderr)
         options.output_delimiter = '|'
-
     if options.output_delimiter:
         # If output delimiter is specified, then we use it
         options.output_delimiter = options.output_delimiter
@@ -2898,7 +2971,6 @@ def run_standalone():
             # if no input delimiter is specified, then we use space as the default
             # (since no input delimiter means any whitespace)
             options.output_delimiter = " "
-
     try:
         max_column_length_limit = int(options.max_column_length_limit)
         if max_column_length_limit < 1:
@@ -2906,31 +2978,28 @@ def run_standalone():
         csv.field_size_limit(max_column_length_limit)
         xprint("Max column length limit is %s" % options.max_column_length_limit)
     except:
-        print("Max column length limit must be a positive integer (%s)" % options.max_column_length_limit, file=sys.stderr)
+        print("Max column length limit must be a positive integer (%s)" % options.max_column_length_limit,
+              file=sys.stderr)
         sys.exit(31)
-
-
     if options.input_quoting_mode not in list(QTextAsData.input_quoting_modes.keys()):
-        print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(sorted(QTextAsData.input_quoting_modes.keys())),options.input_quoting_mode), file=sys.stderr)
+        print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (
+        ",".join(sorted(QTextAsData.input_quoting_modes.keys())), options.input_quoting_mode), file=sys.stderr)
         sys.exit(55)
-
     if options.output_quoting_mode not in list(QOutputPrinter.output_quoting_modes.keys()):
-        print("Output quoting mode can only be one of %s. It cannot be set to '%s'" % (",".join(QOutputPrinter.output_quoting_modes.keys()),options.input_quoting_mode), file=sys.stderr)
+        print("Output quoting mode can only be one of %s. It cannot be set to '%s'" % (
+        ",".join(QOutputPrinter.output_quoting_modes.keys()), options.input_quoting_mode), file=sys.stderr)
         sys.exit(56)
-
     if options.column_count is not None:
         expected_column_count = int(options.column_count)
     else:
         # infer automatically
         expected_column_count = None
-
     if options.encoding != 'none':
         try:
             codecs.lookup(options.encoding)
         except LookupError:
             print("Encoding %s could not be found" % options.encoding, file=sys.stderr)
             sys.exit(10)
-
     if options.save_db_to_disk_filename is not None:
         if options.analyze_only:
             print("Cannot save database to disk when running with -A (analyze-only) option.", file=sys.stderr)
@@ -2940,42 +3009,33 @@ def run_standalone():
         if os.path.exists(options.save_db_to_disk_filename):
             print("Disk database file %s already exists." % options.save_db_to_disk_filename, file=sys.stderr)
             sys.exit(77)
-
     # Deprecated - Just for backward compatibility
     if options.save_db_to_disk_method is not None:
-        if options.save_db_to_disk_method not in ['standard','fast']:
-            print("save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method, file=sys.stderr)
+        if options.save_db_to_disk_method not in ['standard', 'fast']:
+            print("save-db-to-disk method should be either standard or fast (%s)" % options.save_db_to_disk_method,
+                  file=sys.stderr)
             sys.exit(78)
-
-    if options.caching_mode not in ['none','read','readwrite']:
+    if options.caching_mode not in ['none', 'read', 'readwrite']:
         print("caching mode must be none,read or readwrite")
         sys.exit(85)
-
-    read_caching = options.caching_mode in ['read','readwrite']
+    read_caching = options.caching_mode in ['read', 'readwrite']
     write_caching = options.caching_mode in ['readwrite']
 
     default_input_params = QInputParams(skip_header=options.skip_header,
-        delimiter=options.delimiter,
-        input_encoding=options.encoding,
-        gzipped_input=options.gzipped,
-        with_universal_newlines=options.with_universal_newlines,
-        parsing_mode=options.mode,
-        expected_column_count=expected_column_count,
-        keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
-        disable_double_double_quoting=options.disable_double_double_quoting,
-        disable_escaped_double_quoting=options.disable_escaped_double_quoting,
-        input_quoting_mode=options.input_quoting_mode,
-        disable_column_type_detection=options.disable_column_type_detection,
-        max_column_length_limit=max_column_length_limit,
-        read_caching=read_caching,
-        write_caching=write_caching)
-
-    data_streams_dict = {
-        '-': DataStream('stdin','-',sys.stdin)
-        #'-': DataStream('stdin','-',open('/var/tmp/1to4','r'))
-    }
-
-    q_engine = QTextAsData(default_input_params=default_input_params,data_streams_dict=data_streams_dict)
+                                        delimiter=options.delimiter,
+                                        input_encoding=options.encoding,
+                                        gzipped_input=options.gzipped,
+                                        with_universal_newlines=options.with_universal_newlines,
+                                        parsing_mode=options.mode,
+                                        expected_column_count=expected_column_count,
+                                        keep_leading_whitespace_in_values=options.keep_leading_whitespace_in_values,
+                                        disable_double_double_quoting=options.disable_double_double_quoting,
+                                        disable_escaped_double_quoting=options.disable_escaped_double_quoting,
+                                        input_quoting_mode=options.input_quoting_mode,
+                                        disable_column_type_detection=options.disable_column_type_detection,
+                                        max_column_length_limit=max_column_length_limit,
+                                        read_caching=read_caching,
+                                        write_caching=write_caching)
 
     output_params = QOutputParams(
         delimiter=options.output_delimiter,
@@ -2984,22 +3044,9 @@ def run_standalone():
         formatting=options.formatting,
         output_header=options.output_header,
         encoding=output_encoding)
-    q_output_printer = QOutputPrinter(output_params,show_tracebacks=DEBUG)
+    q_output_printer = QOutputPrinter(output_params, show_tracebacks=DEBUG)
 
-    for query_str in query_strs:
-        if options.analyze_only:
-            q_output = q_engine.analyze(query_str)
-            q_output_printer.print_analysis(STDOUT,sys.stderr,q_output)
-        else:
-            q_output = q_engine.execute(query_str,save_db_to_disk_filename=options.save_db_to_disk_filename)
-            q_output_printer.print_output(STDOUT,sys.stderr,q_output)
-
-        if q_output.status == 'error':
-            sys.exit(q_output.error.errorcode)
-
-    q_engine.done()
-
-    sys.exit(0)
+    return STDOUT, default_input_params, q_output_printer, query_strs
 
 
 if __name__ == '__main__':

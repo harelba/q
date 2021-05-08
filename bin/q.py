@@ -299,6 +299,7 @@ class Sqlite3DB(object):
     METADATA_TABLE_NAME = 'metaq'
     NUMERIC_COLUMN_TYPES =  {int, long, float}
     PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT' }
+    SQLITE_TO_PYTHON_TYPE_NAMES = { 'TEXT' : unicode, 'INT' : long, 'FLOAT' : float } # TODO RLRL Add other types?
 
     def __str__(self):
         return "Sqlite3DB<url=%s>" % self.sqlite_db_url
@@ -317,7 +318,7 @@ class Sqlite3DB(object):
             self.conn = sqlite3.connect(self.sqlite_db_url, uri=True)
         self.last_temp_table_id = 10000
         self.cursor = self.conn.cursor()
-        self.type_names = 1 #PXPX
+        self.type_names = 1 # TODO Fix this?
         self.add_user_functions()
 
         if create_metaq:
@@ -1147,6 +1148,10 @@ class TableCreatorState(object):
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
+class TableType(object):
+    DELIMITED_FILE = 'delimited-file'
+    QSQL_FILE = 'qsql-file'
+
 class MaterializedFileState(object):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect, data_stream=None):
         xprint("Creating new MFS: %s %s" % (id(self),qtable_name))
@@ -1415,9 +1420,9 @@ class TableCreator(object):
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
-    def perform_load_data_from_disk(self, disk_db_filename):
-        if self.state == TableCreatorState.ANALYZED:
-            self.load_qsql(self.sqlite_db.db_id, disk_db_filename, self.content_signature)
+    def perform_load_data_from_disk(self, db_id, disk_db_filename,forced = False):
+        if self.state == TableCreatorState.ANALYZED or forced:
+            self.load_qsql(db_id, disk_db_filename, self.content_signature)
             self.state = TableCreatorState.FULLY_READ
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
@@ -1434,7 +1439,17 @@ class TableCreator(object):
         new_db = Sqlite3DB(db_id, x, disk_db_filename,create_metaq=False)
         xprint("Loaded sqlite_db %s into %s" % (db_id,new_db))
 
-        self.sqlite_db.done()
+        if expected_content_signature is not None:
+            self.sqlite_db.done()
+        else:
+            # metaq_info = self.sqlite_db.get_from_metaq_using_table_name('temp_table_10001')
+            table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % 'temp_table_10001').results
+            xprint('Table info is %s' % table_info)
+            self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
+            self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2]], table_info))
+            self.content_signature = OrderedDict(**json.loads(new_db.get_from_metaq_using_table_name('temp_table_10001')['content_signature']))
+            xprint('inferred column names and types: %s' % list(zip(self.column_inferer.column_names,self.column_inferer.column_types)))
+
         self.sqlite_db = new_db
 
     # TODO RLRL - Read directly from ".qsql" files when provided as the table name. Requires inference from sqlite itself
@@ -1914,9 +1929,23 @@ class QTextAsData(object):
         xprint("MFS dict: %s" % str(materialized_file_dict))
         return materialized_file_dict
 
+    def is_sqlite_file(self,filename):
+        f = open(filename,'rb')
+        magic = f.read(16)
+        f.close()
+        return magic == six.b("SQLite format 3\x00")
+
+    def get_table_type(self,filename,data_stream):
+        if data_stream is None:
+            if self.is_sqlite_file(filename):
+                return TableType.QSQL_FILE
+            else:
+                return TableType.DELIMITED_FILE
+        else:
+            return TableType.DELIMITED_FILE # TODO RLRL - Consolidate data stream as table type perhaps
+
     def _load_mfs_as_table_creator(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
-        mfs.open_file()
 
         if atomic_fn in self.table_creators.keys():
             xprint("Atomic filename %s found. no need to load" % atomic_fn)
@@ -1924,49 +1953,69 @@ class QTextAsData(object):
 
         xprint("Atomic Filename %s not found - loading" % atomic_fn)
 
-        source,source_type, db_id, db_to_use = self.choose_db_to_use(mfs,atomic_fn)
+        table_type = self.get_table_type(atomic_fn,mfs.data_stream)
+        if table_type == TableType.DELIMITED_FILE:
+            mfs.open_file()
 
-        disk_db_filename = self._generate_disk_db_filename(atomic_fn)
+            source,source_type, db_id, db_to_use = self.choose_db_to_use(mfs,atomic_fn)
 
-        should_read_from_cache = self.get_should_read_from_cache(mfs, input_params, atomic_fn, disk_db_filename)
-        xprint("should read from cache %s" % should_read_from_cache)
+            disk_db_filename = self._generate_disk_db_filename(atomic_fn)
+            should_read_from_cache = self.get_should_read_from_cache(mfs, input_params, atomic_fn, disk_db_filename)
+            xprint("should read from cache %s" % should_read_from_cache)
 
-        if mfs.data_stream is None:
-            if not should_read_from_cache:
-                self.add_db_to_database_list(db_id,db_to_use,needs_closing=True)
-                xprint("db %s (%s) has been added to the database list" % (db_id,db_to_use))
+            if not should_read_from_cache and mfs.data_stream is None:
+                self.add_db_to_database_list(db_id, db_to_use, needs_closing=True)
+                xprint("db %s (%s) has been added to the database list" % (db_id, db_to_use))
             else:
-                xprint("No need to add the db, as it will be changed to work with the disk db file (and table_creator.perform_load_data_from_disk closes the original db anyway")
+                xprint(
+                    "No need to add the db, as it will be changed to work with the disk db file (and table_creator.perform_load_data_from_disk closes the original db anyway")
+
+            source, source_type, table_creator = self.__analyze_delimited_file(atomic_fn, db_id, db_to_use,
+                                                                               dialect_id, input_params, mfs,
+                                                                               source, source_type)
+
+            if should_read_from_cache:
+                self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator)
+
+                source_type = 'disk-file'
+                source = disk_db_filename
+                xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (
+                    disk_db_filename, source_type, source))
+            else:
+                table_creator.perform_read_fully(dialect_id)
+
+                self.save_cache_to_disk_if_needed(atomic_fn, disk_db_filename, input_params, mfs, table_creator)
+
+            self.attach_to_adhoc_db(atomic_fn, table_creator, db_to_use)
+
+            mfs.close_file()
+
+            xprint("MFS Loaded")
+        elif table_type == TableType.QSQL_FILE:
+            source = '%s:::%s' % (atomic_fn,'TODO table name')
+            source_type = 'qsql-file'
+            target_sqlite_table_name = 'temp_table_10001'
+            db_id = '%s' % self._generate_db_name(atomic_fn)
+            db_to_use = None
+            table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
+            disk_db_filename = atomic_fn
+            self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator,forced = True)
+
+            self.attach_to_adhoc_db(atomic_fn, table_creator, table_creator.sqlite_db)
         else:
-            xprint("No need to add the db_to_use to the database list, as it's the adhoc database, which is already there")
-
-        target_sqlite_table_name = db_to_use.generate_temp_table_name()
-        xprint("Target sqlite table name is %s" % target_sqlite_table_name)
-
-        # Create the matching database table and populate it
-        table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
-
-        table_creator.perform_analyze(dialect_id, table_creator.data_stream)
-
-        if should_read_from_cache:
-            self.read_table_from_cache(db_id, disk_db_filename,stop_after_analysis, table_creator)
-
-            source_type = 'disk-file'
-            source = disk_db_filename
-            xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (
-                disk_db_filename, source_type, source))
-        else:
-            self.read_table_from_file(dialect_id, table_creator)
-
-            self.save_cache_to_disk_if_needed(atomic_fn, disk_db_filename, input_params, mfs, table_creator)
-
-        self.attach_to_adhoc_db(atomic_fn, table_creator, db_to_use)
-
-        mfs.close_file()
-
-        xprint("MFS Loaded")
+            raise Exception('bug - unknown table type')
 
         return (source,source_type,table_creator)
+
+    def __analyze_delimited_file(self, atomic_fn, db_id, db_to_use, dialect_id, input_params, mfs, source,
+                                 source_type):
+        target_sqlite_table_name = db_to_use.generate_temp_table_name()
+        xprint("Target sqlite table name is %s" % target_sqlite_table_name)
+        # Create the matching database table and populate it
+        table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,
+                                     target_sqlite_table_name=target_sqlite_table_name)
+        table_creator.perform_analyze(dialect_id, table_creator.data_stream)
+        return source, source_type, table_creator
 
     def save_cache_to_disk_if_needed(self, atomic_fn, disk_db_filename, input_params, mfs, table_creator):
         effective_write_caching = (mfs.data_stream is None) and input_params.write_caching
@@ -1974,15 +2023,12 @@ class QTextAsData(object):
             xprint("Going to write file cache for %s. Disk filename is %s" % (atomic_fn, disk_db_filename))
             self.store_qsql(table_creator.sqlite_db, disk_db_filename)
 
-    def read_table_from_file(self, dialect_id, table_creator):
-        table_creator.perform_read_fully(dialect_id)
-
-    def read_table_from_cache(self, db_id, disk_db_filename, stop_after_analysis, table_creator):
+    def read_table_from_cache(self, db_id, disk_db_filename, stop_after_analysis, table_creator, forced = False):
         # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
         #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
         # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
         if not stop_after_analysis:
-            table_creator.perform_load_data_from_disk(disk_db_filename)
+            table_creator.perform_load_data_from_disk(db_id, disk_db_filename,forced = forced)
         db_id = 'disk_%s' % db_id
         self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
 

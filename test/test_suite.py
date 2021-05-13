@@ -179,13 +179,32 @@ def sqlite_dict_factory(cursor, row):
 
 class AbstractQTestCase(unittest.TestCase):
 
-    def create_file_with_data(self, data, encoding=None):
+    def create_file_with_data(self, data, encoding=None,suffix=None):
         if encoding is not None:
             raise Exception('Deprecated: Encoding must be none')
-        tmpfile = NamedTemporaryFile(delete=False)
+        tmpfile = NamedTemporaryFile(delete=False,suffix=suffix)
         tmpfile.write(data)
         tmpfile.close()
         return tmpfile
+
+    def arrays_to_csv_file_content(self,delimiter,header_row_list,cell_list):
+        all_rows = [delimiter.join(row) for row in [header_row_list] + cell_list]
+        return six.b("\n").join(all_rows)
+
+    def arrays_to_qsql_file_content(self, header_row,cell_list):
+        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        tmpfile = self.create_file_with_data(csv_content)
+
+        cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
+        r, o, e = run_command(cmd)
+        self.assertEqual(r, 0)
+
+        matching_qsql_filename = '%s.qsql' % tmpfile.name
+        f = open(matching_qsql_filename,'rb')
+        qsql_file_bytes = f.read()
+        f.close()
+
+        return qsql_file_bytes
 
     def write_file(self,filename,data):
         f = open(filename,'wb')
@@ -1967,6 +1986,145 @@ caching_mode=readwrite
 
         self.cleanup(tmp_qrc_file)
         self.cleanup(tmpfile)
+
+
+class QsqlUsageTests(AbstractQTestCase):
+
+    def test_qsql_with_single_table_direct_use(self):
+        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+
+        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+
+        tmpfile = self.create_file_with_data(qsql_file_data)
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+
+    def test_qsql_with_single_table_direct_use(self):
+        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+
+        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+
+        tmpfile = self.create_file_with_data(qsql_file_data)
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+
+    def test_multi_qsql_with_single_table_direct_use(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')
+
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        qsql_file_data2 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(qsql_file_data2,suffix='.qsql')
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)"' % (tmpfile2.name,tmpfile1.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('55\t55\t55'))
+
+    # def test_direct_use_of_sqlite_db_with_one_table(self):
+    #     tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
+    #     os.remove(tmpfile.name)
+    #     c = sqlite3.connect(tmpfile.name)
+    #     c.execute(' create table temp_table_10001 (x int, y int)').fetchall()
+    #     c.execute(' insert into temp_table_10001 (x,y) values (100,200),(300,400)').fetchall()
+    #     c.close()
+    #
+    #     cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s"' % tmpfile.name
+    #     retcode, o, e = run_command(cmd)
+    #
+    #     self.assertEqual(retcode, 0)
+    #     self.assertEqual(len(o), 1)
+    #     self.assertEqual(len(e), 0)
+    #     self.assertEqual(o[0],six.b('400,600'))
+
+    def test_qsql_creation_and_direct_use(self):
+        numbers = [[six.b(str(i)),six.b(str(i)),six.b(str(i))] for i in range(1,10001)]
+
+        file_data = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'),six.b('bb'),six.b('cc')],numbers)
+
+        tmpfile = self.create_file_with_data(file_data)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -t "select sum(aa),sum(bb),sum(cc) from %s" -H -C readwrite' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        self.cleanup(tmpfile)
+
+        # Get the data using a comma delimiter, to make sure that column parsing was done correctlyAdding to metaq table:
+        cmd = Q_EXECUTABLE + ' -D , "select count(*),sum(aa),sum(bb),sum(cc) from %s"' % expected_cache_filename
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('10000,50005000,50005000,50005000'))
+
+        # TODO RLRL - Cleanup folders for all tests
+
+    def test_analysis_of_qsql_direct_usage(self):
+        numbers = [[six.b(str(i)),six.b(str(i)),six.b(str(i))] for i in range(1,10001)]
+
+        file_data = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'),six.b('bb'),six.b('cc')],numbers)
+
+        tmpfile = self.create_file_with_data(file_data)
+        tmpfile_folder = os.path.dirname(tmpfile.name)
+        tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -t "select sum(aa),sum(bb),sum(cc) from %s" -H -C readwrite' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        self.cleanup(tmpfile)
+
+        cmd = Q_EXECUTABLE + ' "select * from %s" -A' % expected_cache_filename
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 7)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('Table: %s' % expected_cache_filename))
+        self.assertEqual(o[1],six.b("  Data Loads:"))
+        self.assertEqual(o[2],six.b('    source_type: qsql-file source: %s:::TODO table name' % expected_cache_filename))
+        self.assertEqual(o[3],six.b("  Fields:"))
+        self.assertEqual(o[4],six.b('    `aa` - int'))
+        self.assertEqual(o[5],six.b('    `bb` - int'))
+        self.assertEqual(o[6],six.b('    `cc` - int'))
+
+
+        # TODO RLRL - Cleanup folders for all tests
+
 
 class CachingTests(AbstractQTestCase):
 

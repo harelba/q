@@ -324,7 +324,8 @@ class Sqlite3DB(object):
         if create_metaq:
             self.create_metaq_table()
         else:
-            xprint('using database with the following metaq content: %s',self.execute_and_fetch('select * from metaq').results)
+
+            xprint('Not creating metaq for db_id %s' % db_id)
 
     def create_metaq_table(self):
         with self.conn as cursor:
@@ -337,6 +338,10 @@ class Sqlite3DB(object):
                                source text)')
             _ = r.fetchall()
 
+    def metaq_table_exists(self):
+        metaq_table_results = self.execute_and_fetch("select count(*) from sqlite_master where type='table' and tbl_name != 'metaq'").results
+        return len(metaq_table_results) == 1
+
     def calculate_content_signature_key(self,content_signature):
         if type(content_signature) != OrderedDict:
             raise Exception('bug - content_signature should be a dictionary')
@@ -346,7 +351,7 @@ class Sqlite3DB(object):
 
     def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_type, source):
         content_signature_key = self.calculate_content_signature_key(content_signature)
-        xprint("Adding to metaq table: %s. Calculated signature key %s" % (temp_table_name,content_signature_key))
+        xprint("db_id: %s Adding to metaq table: %s. Calculated signature key %s" % (self.db_id, temp_table_name,content_signature_key))
         r = self.execute_and_fetch(
             'INSERT INTO metaq (content_signature_key, temp_table_name,content_signature,creation_time,source_type,source) VALUES (?,?,?,?,?,?)',
                               (content_signature_key,temp_table_name,json.dumps(content_signature),creation_time,source_type,source))
@@ -1442,13 +1447,27 @@ class TableCreator(object):
         if expected_content_signature is not None:
             self.sqlite_db.done()
         else:
-            # metaq_info = self.sqlite_db.get_from_metaq_using_table_name('temp_table_10001')
-            table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % 'temp_table_10001').results
-            xprint('Table info is %s' % table_info)
-            self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
-            self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2]], table_info))
-            self.content_signature = OrderedDict(**json.loads(new_db.get_from_metaq_using_table_name('temp_table_10001')['content_signature']))
-            xprint('inferred column names and types: %s' % list(zip(self.column_inferer.column_names,self.column_inferer.column_types)))
+            if new_db.metaq_table_exists():
+                table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % 'temp_table_10001').results
+                xprint('Table info is %s' % table_info)
+                self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
+                self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
+                self.content_signature = OrderedDict(**json.loads(new_db.get_from_metaq_using_table_name('temp_table_10001')['content_signature']))
+                xprint('Inferred column names and types from qsql: %s' % list(zip(self.column_inferer.column_names,self.column_inferer.column_types)))
+            else:
+                xprint("No metaq table - generic sqlite file")
+                table_list = new_db.execute_and_fetch("SELECT tbl_name FROM sqlite_master WHERE type='table'").results
+                if len(table_list) == 1:
+                    table_name = table_list[0][0]
+                    xprint("Only one table in sqlite database, choosing it: %s" % table_name)
+                    table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
+                    xprint('Table info is %s' % table_info)
+                    self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
+                    self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
+                    xprint("Column names and types for table %s: %s" % (table_name,list(zip(self.column_inferer.column_names,self.column_inferer.column_types))))
+                    self.content_signature = OrderedDict()
+                else:
+                    raise Exception('bug - Multiple tables in sqlite database not yet supported')
 
         self.sqlite_db = new_db
 
@@ -1996,7 +2015,11 @@ class QTextAsData(object):
             source_type = 'qsql-file'
             target_sqlite_table_name = 'temp_table_10001'
             db_id = '%s' % self._generate_db_name(atomic_fn)
+            # TODO RLRL Table creator should directly use the qsql file and not just after read_table_from_cache()
+            #  is called. This is a must for -A to work properly, since the table must be analyzed without and analyze()
+            #  phase.
             db_to_use = None
+
             table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
             disk_db_filename = atomic_fn
             self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator,forced = True)
@@ -2027,7 +2050,7 @@ class QTextAsData(object):
         # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
         #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
         # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
-        if not stop_after_analysis:
+        if not stop_after_analysis or forced:
             table_creator.perform_load_data_from_disk(db_id, disk_db_filename,forced = forced)
         db_id = 'disk_%s' % db_id
         self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
@@ -2060,16 +2083,17 @@ class QTextAsData(object):
         return source,source_type, db_id, db_to_use
 
     def attach_to_adhoc_db(self, atomic_fn, table_creator, db_to_use):
-        content_signature = table_creator.content_signature
-        content_signature_key = self.adhoc_db.calculate_content_signature_key(content_signature)
-        xprint("Atomic fn %s signature key %s" % (atomic_fn, content_signature_key))
+        # content_signature_key = self.adhoc_db.calculate_content_signature_key(table_creator.content_signature)
+        # xprint("Atomic fn %s signature key %s" % (atomic_fn, content_signature_key))
 
         if db_to_use.db_id != self.adhoc_db_id:
             attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
             if attached_database_count < MAX_ALLOWED_ATTACHED_SQLITE_DATABASES:
                 self.attach_to_db(table_creator.sqlite_db, self.query_level_db)
             else:
-                xprint("table creator signature: %s" % table_creator.content_signature)
+                content_signature = table_creator.content_signature
+                content_signature_key = table_creator.sqlite_db.calculate_content_signature_key(content_signature)
+                xprint("table creator signature: %s" % content_signature)
                 # data copy is needed. attach, copy into adhoc_db and detach
                 new_tables = self.adhoc_db.attach_and_copy_tables(table_creator.sqlite_db)
                 relevant_table = new_tables[content_signature_key]

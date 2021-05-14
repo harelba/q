@@ -1471,7 +1471,6 @@ class TableCreator(object):
 
         self.sqlite_db = new_db
 
-    # TODO RLRL - Read directly from ".qsql" files when provided as the table name. Requires inference from sqlite itself
     # TODO RLRL - Add qsql versioning table + check
     # TODO RLRL - Rename metaq table to a better name
     def get_table_name_for_querying(self):
@@ -2173,14 +2172,31 @@ class QTextAsData(object):
         # Get the list of filenames
         filenames = qtable_name.split("+")
 
+        # TODO RLRL Add test for this with concatenated and non concatenated files
+
+        unfound_files = []
         # for each filename (or pattern)
         for fileglob in filenames:
-            materialized_file_list += glob.glob(fileglob)
+            # First check if the file exists without globbing. This will ensure that we don't support non-existent files
+            if os.path.exists(fileglob):
+                # If it exists, then just use it
+                found_files = [fileglob]
+            else:
+                # If not, then try with globs
+                found_files = glob.glob(fileglob)
+                # If no files
+                if len(found_files) == 0:
+                    unfound_files += [fileglob]
+            materialized_file_list += found_files
 
         # If there are no files to go over,
-        if len(materialized_file_list) == 0:
+        if len(unfound_files) == 1:
             raise FileNotFoundException(
-                "No files matching '%s' have been found" % qtable_name)
+                "No files matching '%s' have been found" % unfound_files[0])
+        elif len(unfound_files) > 1:
+            # TODO RLRL Add test for this
+            raise FileNotFoundException(
+                "The following files have not been found for table %s: %s" % (qtable_name,",".join(unfound_files)))
 
         l = len(materialized_file_list)
         # If this proves to be a problem for users in terms of usability, then we'll just materialize the files
@@ -2202,7 +2218,6 @@ class QTextAsData(object):
 
                 table_name_in_disk_db = tc.get_table_name_for_querying()
 
-
                 effective_table_name = '%s.%s' % (tc.sqlite_db.db_id,table_name_in_disk_db)
 
                 sql_object.set_effective_table_name(qtable_name,effective_table_name)
@@ -2219,9 +2234,11 @@ class QTextAsData(object):
                     effective_table_names_list += [effective_table_name]
 
                 if len(effective_table_names_list) == 1:
+                    # for a single file - no need to create a union, just use the table name
                     sql_object.set_effective_table_name(qtable_name, effective_table_names_list[0])
                     xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_names_list[0]))
                 else:
+                    # For multiple files - create a UNION ALL subquery with the content of all subtables
                     union_parts = ['select * from %s' % x for x in effective_table_names_list]
                     union_as_table_name = "(%s)" % ' UNION ALL '.join(union_parts)
                     sql_object.set_effective_table_name(qtable_name,union_as_table_name)
@@ -2230,7 +2247,7 @@ class QTextAsData(object):
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO Need to attach each db into the new one so the create table as select would work
         materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,save_db_to_disk_filename,create_metaq=True)
-        table_name_mapping = {}
+        table_name_mapping = OrderedDict()
 
         # Attach all databases
         for db_id in self.databases.keys():

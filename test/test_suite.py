@@ -291,6 +291,8 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    # TODO RLRL - test save-to-db with over-the-limit number of databases
+
     def test_preventing_db_overwrite(self):
         db_filename = self.random_tmp_filename('store-to-disk', 'db')
         self.assertFalse(os.path.exists(db_filename))
@@ -1990,7 +1992,7 @@ caching_mode=readwrite
 
 class QsqlUsageTests(AbstractQTestCase):
 
-    def test_qsql_with_single_table_direct_use(self):
+    def test_query_qsql_with_single_table(self):
         numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
 
         qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
@@ -2005,22 +2007,197 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
 
-    def test_qsql_with_single_table_direct_use(self):
-        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+    def test_query_multi_qsql_with_single_table(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')
 
-        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        qsql_file_data2 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(qsql_file_data2,suffix='.qsql')
 
-        tmpfile = self.create_file_with_data(qsql_file_data)
-
-        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)"' % (tmpfile2.name,tmpfile1.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+        self.assertEqual(o[0],six.b('55\t55\t55'))
 
-    def test_multi_qsql_with_single_table_direct_use(self):
+    def test_query_concatenated_qsqls_each_with_single_table(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')
+
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        qsql_file_data2 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(qsql_file_data2,suffix='.qsql')
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s+%s"' % (tmpfile2.name,tmpfile1.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('50005055\t50005055\t50005055'))
+
+    def test_concatenated_mixes_qsql_with_single_table_and_csv(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        csv_file_data2 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(csv_file_data2)
+        expected_cache_filename2 = '%s.qsql' % tmpfile2.name
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile2.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+        # csv and qsql files prepared. now test all four combinations
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s"' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),2)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
+        self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s.qsql"' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),2)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
+        self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s"' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),2)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
+        self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s.qsql"' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),2)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
+        self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
+
+    def test_analysis_of_concatenated_mixes_qsql_with_single_table_and_csv(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        csv_file_data2 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(csv_file_data2)
+        expected_cache_filename2 = '%s.qsql' % tmpfile2.name
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile2.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+        # csv and qsql files prepared. now test *the analysis results* all four combinations
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s" -A' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o, [
+            six.b('Table: %s+%s' % (tmpfile1.name,tmpfile2.name)),
+            six.b('  Data Loads:'),
+            six.b('    source_type: file source: %s' % tmpfile1.name),
+            six.b('    source_type: file source: %s' % tmpfile2.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int')])
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s.qsql" -A' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(o, [
+            six.b('Table: %s+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
+            six.b('  Data Loads:'),
+            six.b('    source_type: file source: %s' % tmpfile1.name),
+            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile2.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int')])
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s" -A' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o, [
+            six.b('Table: %s.qsql+%s' % (tmpfile1.name,tmpfile2.name)),
+            six.b('  Data Loads:'),
+            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile1.name),
+            six.b('    source_type: file source: %s' % tmpfile2.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int')])
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s.qsql" -A' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o, [
+            six.b('Table: %s.qsql+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
+            six.b('  Data Loads:'),
+            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile1.name),
+            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile2.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int')])
+
+
+    def test_mixed_qsql_with_single_table_and_csv__missing_header_parameter_for_csv(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')
+
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+        csv_file_data2 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
+        tmpfile2 = self.create_file_with_data(csv_file_data2)
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s+%s"' % (tmpfile1.name,tmpfile2.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 2)
+        self.assertEqual(e[0],six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
+        self.assertEqual(e[1],six.b('Bad header row: Column names differ for table %s+%s: aa,bb,cc vs c1,c2,c3' % (tmpfile1.name,tmpfile2.name)))
+
+    def test_qsql_with_multiple_tables_direct_use(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
         qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
         tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')

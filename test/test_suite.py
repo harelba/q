@@ -179,17 +179,35 @@ def sqlite_dict_factory(cursor, row):
 
 class AbstractQTestCase(unittest.TestCase):
 
-    def create_file_with_data(self, data, encoding=None,suffix=None):
+    def create_file_with_data(self, data, encoding=None,prefix=None,suffix=None):
         if encoding is not None:
             raise Exception('Deprecated: Encoding must be none')
-        tmpfile = NamedTemporaryFile(delete=False,suffix=suffix)
+        tmpfile = NamedTemporaryFile(delete=False,prefix=prefix,suffix=suffix)
         tmpfile.write(data)
         tmpfile.close()
         return tmpfile
 
+    def generate_tmpfile_name(self,prefix=None,suffix=None):
+        tmpfile = NamedTemporaryFile(delete=False,prefix=prefix,suffix=suffix)
+        os.remove(tmpfile.name)
+        return tmpfile.name
+
     def arrays_to_csv_file_content(self,delimiter,header_row_list,cell_list):
         all_rows = [delimiter.join(row) for row in [header_row_list] + cell_list]
         return six.b("\n").join(all_rows)
+
+    def create_qsql_file_with_content_and_return_filename(self, header_row,cell_list):
+        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        tmpfile = self.create_file_with_data(csv_content)
+
+        cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
+        r, o, e = run_command(cmd)
+        self.assertEqual(r, 0)
+
+        created_qsql_filename = '%s.qsql' % tmpfile.name
+        self.assertTrue(os.path.exists(created_qsql_filename))
+
+        return created_qsql_filename
 
     def arrays_to_qsql_file_content(self, header_row,cell_list):
         csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
@@ -203,6 +221,8 @@ class AbstractQTestCase(unittest.TestCase):
         f = open(matching_qsql_filename,'rb')
         qsql_file_bytes = f.read()
         f.close()
+
+        self.assertEqual(matching_qsql_filename,'%s.qsql' % tmpfile.name)
 
         return qsql_file_bytes
 
@@ -244,6 +264,7 @@ class SaveDbToDiskTests(AbstractQTestCase):
         x = [six.b(a) for a in map(str,range(1,101))]
         large_file_data = six.b("val\n") + six.b("\n").join(x)
         tmpfile = self.create_file_with_data(large_file_data)
+        tmpfile_expected_table_name = os.path.basename(tmpfile.name)
 
         disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
 
@@ -257,8 +278,10 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         self.assertEqual(e[0],six.b('Going to save data into a disk database: %s' % disk_db_filename))
         self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken ' % disk_db_filename)))
-        self.assertEqual(e[2],six.b('Query to run on the database: select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val);'))
-        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select stdin.*,f.* from t0 stdin left join t1 f on (stdin.id * 10 = f.val)" | sqlite3 %s' % disk_db_filename))
+        self.assertEqual(e[2],six.b('Query to run on the database: select stdin.*,f.* from data_stream_stdin stdin left join %s f on (stdin.id * 10 = f.val);' % \
+                         tmpfile_expected_table_name))
+        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select stdin.*,f.* from data_stream_stdin stdin left join %s f on (stdin.id * 10 = f.val)" | sqlite3 %s' %
+                                    (tmpfile_expected_table_name,disk_db_filename)))
 
         import re
         P = re.compile(six.b("^Query to run on the database: (?P<query_to_run_on_db>.*)$"))
@@ -270,11 +293,11 @@ class SaveDbToDiskTests(AbstractQTestCase):
         # validate disk db content natively
         c = sqlite3.connect(disk_db_filename)
         c.row_factory = sqlite_dict_factory
-        t0_results = c.execute('select * from t0').fetchall()
+        t0_results = c.execute('select * from data_stream_stdin').fetchall()
         self.assertEqual(len(t0_results),5)
         self.assertEqual(sorted(list(t0_results[0].keys())), ['id'])
         self.assertEqual(list(map(lambda x:x['id'],t0_results)),[1,3,5,7,9])
-        t1_results = c.execute('select * from t1').fetchall()
+        t1_results = c.execute('select * from %s' % tmpfile_expected_table_name).fetchall()
         self.assertEqual(len(t1_results),100)
         self.assertEqual(sorted(list(t1_results[0].keys())), ['val'])
         self.assertEqual("\n".join(list(map(lambda x:str(x['val']),t1_results))),"\n".join(map(str,range(1,101))))
@@ -2199,20 +2222,30 @@ class QsqlUsageTests(AbstractQTestCase):
 
     def test_qsql_with_multiple_tables_direct_use(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
-        qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
-        tmpfile1 = self.create_file_with_data(qsql_file_data1,suffix='.qsql')
+        qsql_filename1 = self.create_qsql_file_with_content_and_return_filename([six.b('aa'), six.b('bb'), six.b('cc')],numbers1)
+        expected_stored_table_name1 = os.path.basename(qsql_filename1)[:-5]
 
         numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
-        qsql_file_data2 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
-        tmpfile2 = self.create_file_with_data(qsql_file_data2,suffix='.qsql')
+        qsql_filename2 = self.create_qsql_file_with_content_and_return_filename([six.b('aa'), six.b('bb'), six.b('cc')],numbers2)
+        expected_stored_table_name2 = os.path.basename(qsql_filename2)[:-5]
 
-        cmd = Q_EXECUTABLE + ' -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)"' % (tmpfile2.name,tmpfile1.name)
+        qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+              (qsql_filename1,qsql_filename2,qsql_with_multiple_tables)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 1)
-        self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('55\t55\t55'))
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+        self.assertEqual(e[0], six.b('Going to save data into a disk database: %s' % qsql_with_multiple_tables))
+        self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken' % qsql_with_multiple_tables)))
+        self.assertEqual(e[2],six.b('Query to run on the database: select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb);' % \
+                                    (expected_stored_table_name1,expected_stored_table_name2)))
+        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" | sqlite3 %s' % \
+                                    (expected_stored_table_name1,expected_stored_table_name2,qsql_with_multiple_tables)))
+
+        cmd = Q_EXECUTABLE + ' "select ' #PXPX run query directly on resulting qsql. need to think about metaq format for this to work
 
     # def test_direct_use_of_sqlite_db_with_one_table(self):
     #     tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
@@ -2405,15 +2438,6 @@ class CachingTests(AbstractQTestCase):
     #     self.assertEqual(len(e), 0)
     #     self.assertTrue(o[0],six.b('10'))
     #     self.assertEqual(o[1],six.b('30'))
-
-
-    # TODO RLRL - table name interpretation cases:
-    #   select from original-file: read cache, compare signatures
-    #   select file.qsql: read cache, use existing table if there's one. Otherwise, fail
-    #   select from file.qsql::<table_name> : read cache, use table as the data.
-    #   select from original-file, with original file missing:
-    #     Option 1 - Fail - only explicitly use qsql when stated in the SELECT query table name
-    #     Option 2 (too vague it seems) - read cache file, use existing table if there's one (no signature checking). Otherwise fail
 
 
     # TODO RLRL - Test moving the cache around (with original, without original)

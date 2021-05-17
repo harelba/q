@@ -64,7 +64,7 @@ if six.PY3:
     long = int
     unicode = six.text_type
 
-DEBUG = os.environ.get('Q_DEBUG', None) or '-V' in sys.argv
+DEBUG = bool(os.environ.get('Q_DEBUG', None)) or '-V' in sys.argv
 
 if DEBUG:
     def xprint(*args,**kwargs):
@@ -350,6 +350,8 @@ class Sqlite3DB(object):
         return hashlib.sha1(six.b(pp)).hexdigest()
 
     def add_to_metaq_table(self, temp_table_name, content_signature, creation_time,source_type, source):
+        assert source is not None
+        assert source_type is not None
         content_signature_key = self.calculate_content_signature_key(content_signature)
         xprint("db_id: %s Adding to metaq table: %s. Calculated signature key %s" % (self.db_id, temp_table_name,content_signature_key))
         r = self.execute_and_fetch(
@@ -1407,14 +1409,16 @@ class TableCreator(object):
 
             if data_stream is not None:
                 source_type = 'data-stream'
+                source = self.mfs.data_stream.stream_id
             else:
                 source_type = 'file'
+                source = self.mfs.atomic_fn
 
             self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
                                               self.content_signature,
                                               now,
                                               source_type,
-                                              self.get_absolute_filenames_str())
+                                              source)
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
@@ -2051,7 +2055,6 @@ class QTextAsData(object):
         # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
         if not stop_after_analysis or forced:
             table_creator.perform_load_data_from_disk(db_id, disk_db_filename,forced = forced)
-        db_id = 'disk_%s' % db_id
         self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
 
     def add_db_to_database_list(self,db_id, db_to_use, needs_closing):
@@ -2244,6 +2247,17 @@ class QTextAsData(object):
                     sql_object.set_effective_table_name(qtable_name,union_as_table_name)
                     xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,union_as_table_name))
 
+    def generate_new_table_name_from_metaq_data(self,metaq_data,table_name_mapping):
+        # TODO RLRL Prevent conflicts by considering table_name_mapping content
+        source = metaq_data['source']
+        source_type = metaq_data['source_type']
+        if source_type == 'file':
+            return os.path.basename(source)
+        elif source_type == 'data-stream':
+            return 'data_stream_%s' % source
+        else:
+            raise Exception('bug - only file source types are currently being handled')
+
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO Need to attach each db into the new one so the create table as select would work
         materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,save_db_to_disk_filename,create_metaq=True)
@@ -2265,14 +2279,15 @@ class QTextAsData(object):
             # The DatabaseInfo instance for this db
             source_database = self.databases[db_id]
 
-            new_table_name = 't%s' % i
-            # Copy the table into the materialized database
-            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
-
-            # Add it to metaq
+            # Get table data from metaq
             metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(table_name)
             if metaq_data is None:
                 raise Exception('Bug - must find table in metaq - %s' % v)
+
+            new_table_name = self.generate_new_table_name_from_metaq_data(metaq_data,table_name_mapping)
+
+            # Copy the table into the materialized database
+            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
 
             # TODO RLRL - Convert all content_signature reads/writes to dicts
             actual_content_signature = OrderedDict(json.loads(metaq_data['content_signature']))

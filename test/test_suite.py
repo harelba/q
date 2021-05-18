@@ -235,6 +235,8 @@ class AbstractQTestCase(unittest.TestCase):
         name = self.random_tmp_filename(prefix,suffix)
         os.mkdir(name)
         for filename,content in six.iteritems(filename_to_content_dict):
+            if os.path.sep in filename:
+                os.mkdir('%s/%s' % (name,os.path.split(filename)[0]))
             f = open(os.path.join(name,filename),'wb')
             f.write(content)
             f.close()
@@ -313,6 +315,50 @@ class SaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(query_results[4],{ 'id': 9 , 'val': 90})
 
         self.cleanup(tmpfile)
+
+    def test_saving_to_db_with_same_basename_files(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        new_tmp_folder = self.create_folder_with_files({
+            'filename1': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'otherfolder/filename1' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/filename1' % new_tmp_folder
+        effective_filename2 = '%s/otherfolder/filename1' % new_tmp_folder
+
+        expected_stored_table_name1 = 'filename1'
+        expected_stored_table_name2 = 'filename1_2'
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+              (effective_filename1,effective_filename2,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+        self.assertEqual(e[0], six.b('Going to save data into a disk database: %s' % qsql_with_multiple_tables))
+        self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken' % qsql_with_multiple_tables)))
+        self.assertEqual(e[2],six.b('Query to run on the database: select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb);' % \
+                                    (expected_stored_table_name1,expected_stored_table_name2)))
+        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" | sqlite3 %s' % \
+                                    (expected_stored_table_name1,expected_stored_table_name2,qsql_with_multiple_tables)))
+
+        #self.assertTrue(False) # pxpx - need to actually test reading from the saved db file
+        conn = sqlite3.connect(qsql_with_multiple_tables)
+        c1 = conn.execute('select count(*) from filename1').fetchall()
+        c2 = conn.execute('select count(*) from filename1_2').fetchall()
+        metaq = conn.execute('select temp_table_name,source_type,source from metaq').fetchall()
+
+        self.assertEqual(c1[0][0],10000)
+        self.assertEqual(c2[0][0],10)
+        self.assertEqual(metaq, [('filename1', 'file', '%s/filename1' % new_tmp_folder),
+                                 ('filename1_2', 'file', '%s/otherfolder/filename1' % new_tmp_folder)])
 
     # TODO RLRL - test save-to-db with over-the-limit number of databases
 
@@ -2245,7 +2291,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" | sqlite3 %s' % \
                                     (expected_stored_table_name1,expected_stored_table_name2,qsql_with_multiple_tables)))
 
-        cmd = Q_EXECUTABLE + ' "select ' #PXPX run query directly on resulting qsql. need to think about metaq format for this to work
+        self.assertTrue(False) # pxpx - need to actually test reading from the saved db file
 
     # def test_direct_use_of_sqlite_db_with_one_table(self):
     #     tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')

@@ -2248,18 +2248,36 @@ class QTextAsData(object):
                     xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,union_as_table_name))
 
     def generate_new_table_name_from_metaq_data(self,metaq_data,table_name_mapping):
-        # TODO RLRL Prevent conflicts by considering table_name_mapping content
+        existing_table_names = table_name_mapping.values()
+
         source = metaq_data['source']
         source_type = metaq_data['source_type']
+
         if source_type == 'file':
-            return os.path.basename(source)
+            planned_table_name = os.path.basename(source)
         elif source_type == 'data-stream':
-            return 'data_stream_%s' % source
+            planned_table_name = 'data_stream_%s' % source
         else:
-            raise Exception('bug - only file source types are currently being handled')
+            raise Exception('bug - only file/data-stream source types are currently being handled')
+
+        possible_indices = range(1,1000)
+
+        for index in possible_indices:
+            if index == 1:
+                suffix = ''
+            else:
+                suffix = '_%s' % index
+
+            table_name_attempt = '%s%s' % (planned_table_name,suffix)
+
+            if table_name_attempt not in existing_table_names:
+                xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,source_type,source))
+                return table_name_attempt
+
+        raise Exception('Cannot find free table name for source type %s source %s' % (source_type,source))
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
-        # TODO Need to attach each db into the new one so the create table as select would work
+        # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
         materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,save_db_to_disk_filename,create_metaq=True)
         table_name_mapping = OrderedDict()
 

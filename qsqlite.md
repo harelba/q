@@ -41,3 +41,5 @@ Insights
 * had to improve the reproducability of e2e test bugs in order to actually be effective
 
 
+Deprecated earlier - needs to be removed
+* fluffy mode

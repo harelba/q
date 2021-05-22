@@ -59,6 +59,7 @@ import io
 import json
 import sqlitebck
 import datetime
+import hashlib
 
 if six.PY3:
     long = int
@@ -1155,9 +1156,10 @@ class TableCreatorState(object):
     ANALYZED = 'ANALYZED'
     FULLY_READ = 'FULLY_READ'
 
-class TableType(object):
+class TableSourceType(object):
     DELIMITED_FILE = 'delimited-file'
     QSQL_FILE = 'qsql-file'
+    DATA_STREAM = 'data-stream'
 
 class MaterializedFileState(object):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect, data_stream=None):
@@ -1253,8 +1255,6 @@ class MaterializedFileState(object):
 
         if not self.data_stream:
             self.f.close()
-
-import hashlib
 
 class TableCreator(object):
     def __str__(self):
@@ -1957,14 +1957,14 @@ class QTextAsData(object):
         f.close()
         return magic == six.b("SQLite format 3\x00")
 
-    def get_table_type(self,filename,data_stream):
+    def detect_table_type(self,filename,data_stream):
         if data_stream is None:
             if self.is_sqlite_file(filename):
-                return TableType.QSQL_FILE
+                return TableSourceType.QSQL_FILE
             else:
-                return TableType.DELIMITED_FILE
+                return TableSourceType.DELIMITED_FILE
         else:
-            return TableType.DELIMITED_FILE # TODO RLRL - Consolidate data stream as table type perhaps
+            return TableSourceType.DATA_STREAM
 
     def _load_mfs_as_table_creator(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
@@ -1975,8 +1975,8 @@ class QTextAsData(object):
 
         xprint("Atomic Filename %s not found - loading" % atomic_fn)
 
-        table_type = self.get_table_type(atomic_fn,mfs.data_stream)
-        if table_type == TableType.DELIMITED_FILE:
+        table_type = self.detect_table_type(atomic_fn,mfs.data_stream)
+        if table_type == TableSourceType.DELIMITED_FILE or table_type == TableSourceType.DATA_STREAM:
             mfs.open_file()
 
             source,source_type, db_id, db_to_use = self.choose_db_to_use(mfs,atomic_fn)
@@ -1999,7 +1999,7 @@ class QTextAsData(object):
             if should_read_from_cache:
                 self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator)
 
-                source_type = 'disk-file'
+                source_type = TableSourceType.QSQL_FILE
                 source = disk_db_filename
                 xprint("Data has been loaded from disk (filename %s). Changed source type to %s and source to %s" % (
                     disk_db_filename, source_type, source))
@@ -2013,7 +2013,7 @@ class QTextAsData(object):
             mfs.close_file()
 
             xprint("MFS Loaded")
-        elif table_type == TableType.QSQL_FILE:
+        elif table_type == TableSourceType.QSQL_FILE:
             source = '%s:::%s' % (atomic_fn,'TODO table name')
             source_type = 'qsql-file'
             target_sqlite_table_name = 'temp_table_10001'

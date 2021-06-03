@@ -264,6 +264,7 @@ user_functions = [
                     "Raise expr1 to the power of expr2",
                     power,
                     2),
+    #TODO RLRL - Add a convenient function for date formatting
     UserFunctionDef(FunctionType.AGG,
                     "percentile","percentile(<expr>,<percentile-in-the-range-0-to-1>) = <percentile-value>",
                     "Calculate the strict percentile of a set of a values.",
@@ -1248,12 +1249,12 @@ class MaterializedState(object):
         self.qtable_name = qtable_name
 
 class MaterializedDelimitedFileState(object):
-    def __init__(self, qtable_name, atomic_fn, input_params, dialect,engine_id):
+    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id):
         xprint("Creating new MDFS: %s %s" % (id(self),qtable_name))
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
         self.input_params = input_params
-        self.dialect_id = dialect
+        self.dialect_id = dialect_id
         self.engine_id = engine_id
 
         self.delimited_file_reader = None
@@ -1273,11 +1274,11 @@ class MaterializedDelimitedFileState(object):
         source = self.atomic_fn
         return source,source_type, self.db_id, self.db_to_use
 
-    def __analyze_delimited_file(self):
-        target_sqlite_table_name = self.db_to_use.generate_temp_table_name()
+    def __analyze_delimited_file(self,database_info):
+        target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
         # Create the matching database table and populate it
-        table_creator = TableCreator(self, self.input_params, sqlite_db=self.db_to_use,
+        table_creator = TableCreator(self, self.input_params, sqlite_db=database_info.sqlite_db,
                                      target_sqlite_table_name=target_sqlite_table_name)
         table_creator.perform_analyze(self.dialect_id)
         return table_creator
@@ -1293,18 +1294,24 @@ class MaterializedDelimitedFileState(object):
 
         return should_read_from_cache
 
-    def make_data_available(self,stop_after_analysis):
+    def calculate_should_read_from_cache(self):
         disk_db_filename = self._generate_disk_db_filename(self.atomic_fn)
         should_read_from_cache = self._get_should_read_from_cache(disk_db_filename)
         xprint("should read from cache %s" % should_read_from_cache)
+        return disk_db_filename,should_read_from_cache
 
-        database_info = DatabaseInfo(self.db_to_use, needs_closing=True)
+    def make_data_available(self,stop_after_analysis):
+        disk_db_filename, should_read_from_cache = self.calculate_should_read_from_cache()
+
+        xprint("In make_data_available. db_id %s db_to_use %s" % (self.db_id,self.db_to_use))
+        assert self.db_id is not None
+        database_info = DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True)
         xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
 
-        table_creator = self.__analyze_delimited_file()
-        #PXPX
+        table_creator = self.__analyze_delimited_file(database_info)
+
         if should_read_from_cache:
-            database_info = self.read_table_from_cache(disk_db_filename, stop_after_analysis, table_creator)
+            database_info, relevant_table = self.read_table_from_cache(disk_db_filename, stop_after_analysis, table_creator)
 
             source_type = TableSourceType.QSQL_FILE
             source = disk_db_filename
@@ -1319,7 +1326,7 @@ class MaterializedDelimitedFileState(object):
             #  does not differentiate, so maybe this would need to move
             content_signature = table_creator.content_signature
             content_signature_key = self.db_to_use.calculate_content_signature_key(content_signature)
-            xprint("table creator signature: %s" % content_signature)
+            xprint("table creator signature key: %s" % content_signature_key)
 
             relevant_table = self.db_to_use.get_from_metaq(content_signature)['temp_table_name']
 
@@ -1347,7 +1354,7 @@ class MaterializedDelimitedFileState(object):
         # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
         if not stop_after_analysis or forced:
             table_creator.perform_load_data_from_disk(self.db_id, disk_db_filename,forced = forced)
-        return DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
+        return DatabaseInfo(self.db_id, table_creator.sqlite_db, needs_closing=True), 'temp_table_10001'
 
     def _generate_db_name(self, filenames_str):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
@@ -1363,29 +1370,33 @@ class MaterializedDelimitedFileState(object):
         return self.delimited_file_reader.lines_read
 
 class MaterialiedDataStreamState(MaterializedDelimitedFileState):
-    def __init__(self,qtable_name,atomic_fn, input_params, dialect, data_stream = None, target_db=None): ## should pass adhoc_db
+    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id, engine_id, data_stream, stream_target_db): ## should pass adhoc_db
+        assert data_stream is not None
+
+        super().__init__(qtable_name, atomic_fn, input_params, dialect_id, engine_id)
         xprint("Creating new MDSS: %s %s" % (id(self), qtable_name))
-        self.qtable_name = qtable_name
-        self.atomic_fn = atomic_fn
-        self.input_params = input_params
-        self.dialect = dialect
 
         self.data_stream = data_stream
-        self.target_db = target_db
+
+        self.stream_target_db = stream_target_db
 
     def initialize(self):
         if self.input_params.gzipped_input:
             raise CannotUnzipDataStreamException()
 
-        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect,f = self.data_stream.stream)
+        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect_id,f = self.data_stream.stream)
 
     def choose_db_to_use(self):
-        db_id = None
-        db_to_use = self.target_db  ## effectively adhoc_db
+        self.db_id = self.stream_target_db.db_id
+        self.db_to_use = self.stream_target_db
         source_type = 'data-stream'
         source = self.data_stream.stream_id
 
-        return source,source_type, db_id, db_to_use
+        return source,source_type, self.db_id, self.db_to_use
+
+    def calculate_should_read_from_cache(self):
+        # No disk_db_filename, and no reading from cache when reading a datastream
+        return None, False
 
     def read_file_using_csv(self):
         for x in self.delimited_file_reader.generate_rows():
@@ -2011,11 +2022,13 @@ class DataStreams(object):
                 raise Exception('Bug - Invalid dict: %s' % str(d))
 
     def get_for_filename(self, filename):
+        xprint("Data streams dict is %s. Trying to find %s" % (self.data_streams_dict,filename))
         x = self.data_streams_dict.get(filename)
         return x
 
 class DatabaseInfo(object):
-    def __init__(self,sqlite_db,needs_closing):
+    def __init__(self,db_id,sqlite_db,needs_closing):
+        self.db_id = db_id
         self.sqlite_db = sqlite_db
         self.needs_closing = needs_closing
 
@@ -2046,10 +2059,11 @@ class QTextAsData(object):
         self.adhoc_db = Sqlite3DB(self.adhoc_db_id,self.adhoc_db_name,'<adhoc-db>',create_metaq=True)
         self.query_level_db.conn.execute("attach '%s' as %s" % (self.adhoc_db_name,self.adhoc_db_id))
 
-        self.databases[self.query_level_db_id] = DatabaseInfo(self.query_level_db,needs_closing=True)
-        self.databases[self.adhoc_db_id] = DatabaseInfo(self.adhoc_db,needs_closing=True)
+        self.add_db_to_database_list(DatabaseInfo(self.query_level_db_id,self.query_level_db,needs_closing=True))
+        self.add_db_to_database_list(DatabaseInfo(self.adhoc_db_id,self.adhoc_db,needs_closing=True))
 
     def done(self):
+        xprint("Inside done: Database list is %s" % self.databases)
         for db_id in reversed(self.databases.keys()):
             database_info = self.databases[db_id]
             if database_info.needs_closing:
@@ -2092,9 +2106,10 @@ class QTextAsData(object):
         materialized_file_dict = OrderedDict()
 
         data_stream = self.data_streams.get_for_filename(qtable_name)
+        xprint("Found data stream %s" % data_stream)
 
         if data_stream is not None:
-            ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,data_stream,target_db=self.adhoc_db)
+            ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
             materialized_file_dict[qtable_name] = [ms]
         else:
             materialized_file_list = self.materialize_file_list(qtable_name)
@@ -2158,8 +2173,10 @@ class QTextAsData(object):
 
             # TODO RLRL Extract adhoc_db from choose_db_to_use to here, isolating the MS instances from db-attachment
             source,source_type, db_id, db_to_use = mfs.choose_db_to_use()
+            xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
 
             table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
+            self.add_db_to_database_list(database_info)
 
             self.attach_to_adhoc_db(database_info.sqlite_db,relevant_table)
 
@@ -2173,7 +2190,8 @@ class QTextAsData(object):
             target_sqlite_table_name = 'temp_table_10001' # TODO RLRL temporary
             table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
             disk_db_filename = atomic_fn
-            self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator,forced = True)
+            database_info = self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator,forced = True)
+            self.add_db_to_database_list(database_info)
 
             self.attach_to_adhoc_db(table_creator.sqlite_db,target_sqlite_table_name)
         else:
@@ -2202,10 +2220,20 @@ class QTextAsData(object):
         # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
         if not stop_after_analysis or forced:
             table_creator.perform_load_data_from_disk(db_id, disk_db_filename,forced = forced)
-        self.databases[db_id] = DatabaseInfo(table_creator.sqlite_db, needs_closing=True)
+        return DatabaseInfo(db_id,table_creator.sqlite_db, needs_closing=True)
 
-    def add_db_to_database_list(self,db_id, db_to_use, needs_closing):
-        self.databases[db_id] = DatabaseInfo(db_to_use, needs_closing=needs_closing)
+    def add_db_to_database_list(self,database_info):
+        db_id = database_info.db_id
+        assert db_id is not None
+        assert database_info.sqlite_db is not None
+        if db_id in self.databases:
+            if id(database_info.sqlite_db) != id(self.databases[db_id].sqlite_db):
+                xprint(id(database_info.sqlite_db))
+                xprint(id(self.databases[db_id].sqlite_db))
+                raise Exception('Bug - database already in database list: db_id %s: old %s new %s' % (db_id,self.databases[db_id],database_info))
+            else:
+                return
+        self.databases[db_id] = database_info
 
     def get_should_read_from_cache(self, mfs, input_params, atomic_fn, disk_db_filename):
         disk_db_file_exists = os.path.exists(disk_db_filename)

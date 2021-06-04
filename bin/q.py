@@ -1165,6 +1165,7 @@ class TableCreatorState(object):
     FULLY_READ = 'FULLY_READ'
 
 class TableSourceType(object):
+    UNKNOWN = 'unknown'
     DELIMITED_FILE = 'delimited-file'
     QSQL_FILE = 'qsql-file'
     DATA_STREAM = 'data-stream'
@@ -1248,6 +1249,9 @@ class MaterializedState(object):
     def __init__(self,qtable_name):
         self.qtable_name = qtable_name
 
+    def get_table_source_type(self):
+        return TableSourceType.UNKNOWN
+
 class MaterializedDelimitedFileState(object):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id):
         xprint("Creating new MDFS: %s %s" % (id(self),qtable_name))
@@ -1261,6 +1265,9 @@ class MaterializedDelimitedFileState(object):
 
         self.db_id = None
         self.db_to_use = None
+
+    def get_table_source_type(self):
+        return TableSourceType.DELIMITED_FILE
 
     def initialize(self):
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
@@ -1301,10 +1308,12 @@ class MaterializedDelimitedFileState(object):
         return disk_db_filename,should_read_from_cache
 
     def make_data_available(self,stop_after_analysis):
-        disk_db_filename, should_read_from_cache = self.calculate_should_read_from_cache()
-
         xprint("In make_data_available. db_id %s db_to_use %s" % (self.db_id,self.db_to_use))
         assert self.db_id is not None
+
+        disk_db_filename, should_read_from_cache = self.calculate_should_read_from_cache()
+        xprint("disk_db_filename=%s should_read_from_cache=%s" % (disk_db_filename,should_read_from_cache))
+
         database_info = DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True)
         xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
 
@@ -1380,6 +1389,9 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
         self.stream_target_db = stream_target_db
 
+    def get_table_source_type(self):
+        return TableSourceType.DATA_STREAM
+
     def initialize(self):
         if self.input_params.gzipped_input:
             raise CannotUnzipDataStreamException()
@@ -1416,22 +1428,85 @@ class MaterializedQsqlState(object):
         self.table_name = table_name
         self.engine_id = engine_id
 
+        self.db_id = None
+        self.db_to_use = None
+
+    def initialize(self):
+        pass # TODO RLRL Add validatin of qsql file, for fast failure
+
+    def finalize(self):
+        pass
+
+    def get_table_source_type(self):
+        return TableSourceType.QSQL_FILE
+
     def _generate_qsql_only_db_name__temp(self, filenames_str):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
     def choose_db_to_use(self):
         source = '%s:::%s' % (self.atomic_fn, 'TODO table name')
         source_type = 'qsql-file'
-        db_id = '%s' % self._generate_qsql_only_db_name__temp(self.atomic_fn)
-        # TODO RLRL Table creator should directly use the qsql file and not just after read_table_from_cache()
+        self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.atomic_fn)
+        # TODO RLRL PNR Table creator should directly use the qsql file and not just after read_table_from_cache()
         #  is called. This is a must for -A to work properly, since the table must be analyzed without and analyze()
         #  phase. ?
-        db_to_use = None
+        x = 'file:%s?immutable=1' % self.qsql_filename
+        xprint("Loading sqlite_db %s from %s" % (self.db_id, self.qsql_filename))
+        self.db_to_use = Sqlite3DB(self.db_id, x, self.qsql_filename,create_metaq=False)
+        xprint("Loaded sqlite_db %s into %s" % (self.db_id,self.db_to_use))
 
-        return source,source_type, db_id, db_to_use
+        return source,source_type, self.db_id, self.db_to_use
 
+    def make_data_available(self,stop_after_analysis):
+        database_info = DatabaseInfo(self.db_id, self.db_to_use, needs_closing=True)
+        xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
 
-    # TODO RLRL bring up QSQL_FILE handling from the depths of _load_mfs_as_table_creator and TableCreator so qsql handling will be isolated
+        database_info,relevant_table = self._read_table_from_cache(stop_after_analysis)
+
+        # TODO RLRL TMP none table creator for now
+        return QsqlTableCreatorFacade(), database_info, relevant_table
+
+    # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
+
+    def _read_table_from_cache(self, stop_after_analysis):
+        return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), 'temp_table_10001'
+
+    # TODO RLRL IP bring up QSQL_FILE handling from the depths of _load_mfs_as_table_creator and TableCreator so qsql handling will be isolated
+
+class QsqlTableColumnInfererFacade(object):
+    def __init__(self):
+        self.column_names = ['11','22']
+        self.column_types = [int,int]
+
+    def get_column_names(self):
+        return self.column_names
+
+    def get_column_types(self):
+        return self.column_types
+
+    def get_column_dict(self):
+        return OrderedDict(zip(self.column_names, self.column_types))
+
+class QsqlSqlite3DBFacade(object):
+    def __init__(self):
+        self.db_id = None
+        pass
+
+class QsqlMfsFacade(object):
+    def __init__(self):
+        self.qtable_name = 'xxxx'
+        self.atomic_fn = 'yyyy'
+        pass
+
+class QsqlTableCreatorFacade(object):
+    def __init__(self):
+        self.mfs = QsqlMfsFacade()
+        self.column_inferer = QsqlTableColumnInfererFacade()
+        self.sqlite_db = QsqlSqlite3DBFacade()
+        pass
+
+    def get_table_name_for_querying(self):
+        return 'dummy_table_name_for_querying'
 
 class TableCreator(object):
     def __str__(self):
@@ -2132,30 +2207,30 @@ class QTextAsData(object):
     def try_qsql_table_reference(self,filename):
         if ':::' in filename:
             qsql_filename,table_name = filename.split(":::'",1)
-            if not self.is_sqlite_file(qsql_filename):
-                # TODO RLRL Specific Exception and error handling.
-                raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
-            return qsql_filename,table_name
-        else:
-            if self.is_sqlite_file(filename):
-                return filename,None
+            if os.path.exists(qsql_filename):
+                if not self.is_sqlite_file(qsql_filename):
+                    # TODO RLRL Specific Exception and error handling.
+                    raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
+                return qsql_filename,table_name
             else:
-                return None,None
+                raise Exception('Bug - Unhandled missing file logic')
+        else:
+            qsql_filename = '%s.qsql' % filename
+            if os.path.exists(qsql_filename):
+                if self.is_sqlite_file(qsql_filename):
+                    return qsql_filename,None
+                elif self.is_sqlite_file(filename):
+                    return filename,None
+                else:
+                    return None, None
+            else:
+                return None, None
 
     def is_sqlite_file(self,filename):
         f = open(filename,'rb')
         magic = f.read(16)
         f.close()
         return magic == six.b("SQLite format 3\x00")
-
-    def detect_table_type(self,filename,mfs):
-        if isinstance(mfs,MaterialiedDataStreamState):
-            return TableSourceType.DATA_STREAM
-        else:
-            if self.is_sqlite_file(filename):
-                return TableSourceType.QSQL_FILE
-            else:
-                return TableSourceType.DELIMITED_FILE
 
     def _load_mfs_as_table_creator(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
@@ -2166,47 +2241,25 @@ class QTextAsData(object):
 
         xprint("Atomic Filename %s not found - loading" % atomic_fn)
 
-        table_type = self.detect_table_type(atomic_fn,mfs)
+        table_type = mfs.get_table_source_type()
+        xprint("Detected table type for %s: %s" % (atomic_fn,table_type))
 
-        if table_type == TableSourceType.DELIMITED_FILE or table_type == TableSourceType.DATA_STREAM:
-            mfs.initialize()
+        mfs.initialize()
 
-            # TODO RLRL Extract adhoc_db from choose_db_to_use to here, isolating the MS instances from db-attachment
-            source,source_type, db_id, db_to_use = mfs.choose_db_to_use()
-            xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
+        # TODO RLRL Extract adhoc_db from choose_db_to_use to here, isolating the MS instances from db-attachment
+        source,source_type, db_id, db_to_use = mfs.choose_db_to_use()
+        xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
 
-            table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
-            self.add_db_to_database_list(database_info)
+        table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
+        self.add_db_to_database_list(database_info)
 
-            self.attach_to_adhoc_db(database_info.sqlite_db,relevant_table)
+        self.attach_to_adhoc_db(database_info.sqlite_db,relevant_table)
 
-            mfs.finalize()
+        mfs.finalize()
 
-            xprint("MFS Loaded")
-        elif table_type == TableSourceType.QSQL_FILE:
-
-            source,source_type, db_id, db_to_use = mfs.choose_db_to_use()
-
-            target_sqlite_table_name = 'temp_table_10001' # TODO RLRL temporary
-            table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,target_sqlite_table_name=target_sqlite_table_name)
-            disk_db_filename = atomic_fn
-            database_info = self.read_table_from_cache(db_id, disk_db_filename, stop_after_analysis, table_creator,forced = True)
-            self.add_db_to_database_list(database_info)
-
-            self.attach_to_adhoc_db(table_creator.sqlite_db,target_sqlite_table_name)
-        else:
-            raise Exception('bug - unknown table type')
+        xprint("MFS Loaded")
 
         return (source,source_type,table_creator)
-
-    def __analyze_delimited_file(self, atomic_fn, db_id, db_to_use, dialect_id, input_params):
-        target_sqlite_table_name = db_to_use.generate_temp_table_name()
-        xprint("Target sqlite table name is %s" % target_sqlite_table_name)
-        # Create the matching database table and populate it
-        table_creator = TableCreator(mfs, input_params, sqlite_db=db_to_use,
-                                     target_sqlite_table_name=target_sqlite_table_name)
-        table_creator.perform_analyze(dialect_id)
-        return source, source_type, table_creator
 
     def save_cache_to_disk_if_needed(self, atomic_fn, disk_db_filename, input_params, mfs, table_creator):
         effective_write_caching = (not isinstance(mfs,MaterialiedDataStreamState)) and input_params.write_caching
@@ -2276,6 +2329,8 @@ class QTextAsData(object):
             start_time = time.time()
 
             source,source_type,table_creator = self._load_mfs_as_table_creator(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
+            xprint("RRR Loaded: source-type %s source %s table_creator %s" % (source_type,source,table_creator))
+            xprint("RRR table creators: %s" % self.table_creators)
 
             if table_creator is not None:
                 self.table_creators[atomic_fn] = table_creator
@@ -2284,6 +2339,8 @@ class QTextAsData(object):
                 else:
                     ds = None
                 dls += [QDataLoad(atomic_fn, start_time, time.time(), data_stream=ds, source_type=source_type,source=source)]
+            else:
+                xprint("Table creator is empty, so not adding a new data load: atomic_fn %s" % atomic_fn)
 
         return dls
 

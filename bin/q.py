@@ -1252,6 +1252,8 @@ class MaterializedState(object):
     def get_table_source_type(self):
         return TableSourceType.UNKNOWN
 
+    # TODO RLRL Copy complete interface for clarity
+
 class MaterializedDelimitedFileState(object):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id):
         xprint("Creating new MDFS: %s %s" % (id(self),qtable_name))
@@ -1487,22 +1489,12 @@ class QsqlTableColumnInfererFacade(object):
     def get_column_dict(self):
         return OrderedDict(zip(self.column_names, self.column_types))
 
-class QsqlSqlite3DBFacade(object):
-    def __init__(self):
-        self.db_id = None
-        pass
-
-class QsqlMfsFacade(object):
+class QsqlTableCreatorFacade(object):
     def __init__(self):
         self.qtable_name = 'xxxx'
         self.atomic_fn = 'yyyy'
-        pass
-
-class QsqlTableCreatorFacade(object):
-    def __init__(self):
-        self.mfs = QsqlMfsFacade()
+        self.db_id = 'xxxxx'
         self.column_inferer = QsqlTableColumnInfererFacade()
-        self.sqlite_db = QsqlSqlite3DBFacade()
         pass
 
     def get_table_name_for_querying(self):
@@ -1521,6 +1513,9 @@ class TableCreator(object):
         #   standard table creator for qsql files entirely
 
         self.mfs = mfs
+        self.qtable_name = mfs.qtable_name
+        self.atomic_fn = mfs.atomic_fn
+        self.db_id = sqlite_db.db_id
 
         self.sqlite_db = sqlite_db
         self.target_sqlite_table_name = target_sqlite_table_name
@@ -2455,7 +2450,7 @@ class QTextAsData(object):
                     tc = self.table_creators[atomic_fn]
                     table_name_in_disk_db = tc.get_table_name_for_querying()
 
-                    effective_table_name = '%s.%s' % (tc.sqlite_db.db_id, table_name_in_disk_db)
+                    effective_table_name = '%s.%s' % (tc.db_id, table_name_in_disk_db)
                     effective_table_names_list += [effective_table_name]
 
                 if len(effective_table_names_list) == 1:
@@ -2707,7 +2702,7 @@ class QTextAsData(object):
             column_names = table_creator.column_inferer.get_column_names()
             column_types = [Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[table_creator.column_inferer.get_column_dict()[k]].lower() for k in column_names]
 
-            qtable_name = table_creator.mfs.qtable_name
+            qtable_name = table_creator.qtable_name
 
             # TODO RLRL - Some order here
 
@@ -2719,8 +2714,8 @@ class QTextAsData(object):
                     xprint("No data load was needed for qtable name %s" % qtable_name)
                     data_loads_for_qtable_name = []
 
-                if table_creator.mfs.atomic_fn:
-                    x = [table_creator.mfs.atomic_fn]
+                if table_creator.atomic_fn:
+                    x = [table_creator.atomic_fn]
                 else:
                     x = []
 
@@ -2735,8 +2730,8 @@ class QTextAsData(object):
                 if current.column_types != column_types:
                     raise BadHeaderException("Column types differ for table %s: %s vs %s" % (qtable_name,",".join(current.column_types),",".join(column_types)))
 
-                if table_creator.mfs.atomic_fn:
-                    x = [table_creator.mfs.atomic_fn]
+                if table_creator.atomic_fn:
+                    x = [table_creator.atomic_fn]
                 else:
                     x = []
 

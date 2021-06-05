@@ -1017,6 +1017,8 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
 
+class ManyOpenFilesTests(AbstractQTestCase):
+
     def batch(self,iterable, n=1):
         r = []
         l = len(iterable)
@@ -2244,8 +2246,8 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o, [
             six.b('Table: %s+%s' % (tmpfile1.name,tmpfile2.name)),
             six.b('  Data Loads:'),
-            six.b('    source_type: file source: %s' % tmpfile1.name),
-            six.b('    source_type: file source: %s' % tmpfile2.name),
+            six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile1.name),
+            six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
@@ -2258,8 +2260,8 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o, [
             six.b('Table: %s+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
             six.b('  Data Loads:'),
-            six.b('    source_type: file source: %s' % tmpfile1.name),
-            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile2.name),
+            six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile1.name),
+            six.b('    source_type: qsql-file source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
@@ -2273,8 +2275,8 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o, [
             six.b('Table: %s.qsql+%s' % (tmpfile1.name,tmpfile2.name)),
             six.b('  Data Loads:'),
-            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile1.name),
-            six.b('    source_type: file source: %s' % tmpfile2.name),
+            six.b('    source_type: qsql-file source: %s.qsql' % tmpfile1.name),
+            six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
@@ -2288,8 +2290,8 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o, [
             six.b('Table: %s.qsql+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
             six.b('  Data Loads:'),
-            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile1.name),
-            six.b('    source_type: qsql-file source: %s.qsql:::TODO table name' % tmpfile2.name),
+            six.b('    source_type: qsql-file source: %s.qsql' % tmpfile1.name),
+            six.b('    source_type: qsql-file source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
@@ -2426,7 +2428,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(o[0],six.b('Table: %s' % expected_cache_filename))
         self.assertEqual(o[1],six.b("  Data Loads:"))
-        self.assertEqual(o[2],six.b('    source_type: qsql-file source: %s:::TODO table name' % expected_cache_filename))
+        self.assertEqual(o[2],six.b('    source_type: qsql-file source: %s' % expected_cache_filename))
         self.assertEqual(o[3],six.b("  Fields:"))
         self.assertEqual(o[4],six.b('    `aa` - int'))
         self.assertEqual(o[5],six.b('    `bb` - int'))
@@ -2503,10 +2505,11 @@ class CachingTests(AbstractQTestCase):
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 83)
+        self.assertEqual(retcode, 81)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertTrue(e[0], six.b('qsql file %s contains no table with a matching content signature key %s' % (expected_cache_filename,CONTENT_SIGNATURE_KEY)))
+        self.assertEqual(e[0], six.b('%s vs %s.qsql: Content Signatures differ at inferer.rows (actual analysis data differs)' % \
+                                     (tmpfile1.name,tmpfile1.name)))
 
 
     # def test_read_directly_from_cache_with_one_table(self):
@@ -2677,7 +2680,7 @@ class CachingTests(AbstractQTestCase):
 
         self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
         self.assertEqual(o[1],six.b('  Data Loads:'))
-        self.assertEqual(o[2],six.b('    source_type: qsql-file source: %s.qsql' % tmpfile.name))
+        self.assertEqual(o[2],six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile.name))
         self.assertEqual(o[3],six.b('  Fields:'))
         self.assertEqual(o[4],six.b('    `a` - int'))
         self.assertEqual(o[5],six.b('    `b` - int'))

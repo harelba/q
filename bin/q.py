@@ -73,7 +73,7 @@ if DEBUG:
 else:
     def xprint(*args,**kwargs): pass
 
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 3
+MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -2384,19 +2384,20 @@ class QTextAsData(object):
 
         return should_read_from_cache
 
-    def choose_db_to_use(self, mfs, atomic_fn):
-        db_id = None
-        if isinstance(mfs,MaterialiedDataStreamState):
-            db_to_use = self.adhoc_db
-            source_type = 'data-stream'
-            source = mfs.data_stream.stream_id
-        else:
-            db_id = '%s' % self._generate_db_name(atomic_fn)
-            xprint("Database id is %s" % db_id)
-            db_to_use = Sqlite3DB(db_id, 'file:%s?mode=memory&cache=shared' % db_id, 'memory<%s>' % db_id,create_metaq=True)
-            source_type = 'file'
-            source = atomic_fn
-        return source,source_type, db_id, db_to_use
+    # Moved to MS
+    # def choose_db_to_use(self, mfs, atomic_fn):
+    #     db_id = None
+    #     if isinstance(mfs,MaterialiedDataStreamState):
+    #         db_to_use = self.adhoc_db
+    #         source_type = 'data-stream'
+    #         source = mfs.data_stream.stream_id
+    #     else:
+    #         db_id = '%s' % self._generate_db_name(atomic_fn)
+    #         xprint("Database id is %s" % db_id)
+    #         db_to_use = Sqlite3DB(db_id, 'file:%s?mode=memory&cache=shared' % db_id, 'memory<%s>' % db_id,create_metaq=True)
+    #         source_type = 'file'
+    #         source = atomic_fn
+    #     return source,source_type, db_id, db_to_use
 
     def attach_to_adhoc_db(self, db_to_use,relevant_table):
         if db_to_use.db_id != self.adhoc_db_id:

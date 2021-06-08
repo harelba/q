@@ -73,7 +73,7 @@ if DEBUG:
 else:
     def xprint(*args,**kwargs): pass
 
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 2
+MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -1300,12 +1300,18 @@ class MaterializedDelimitedFileState(object):
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
         return self.delimited_file_reader.open_file()
 
-    def choose_db_to_use(self):
+    def choose_db_to_use(self,db_to_use=None):
+        source_type = 'file'
+        source = self.atomic_fn
+
+        if db_to_use is not None:
+            self.db_id = db_to_use.db_id
+            self.db_to_use = db_to_use
+            return source,source_type,self.db_id,self.db_to_use
+
         self.db_id = '%s' % self._generate_db_name(self.atomic_fn)
         xprint("Database id is %s" % self.db_id)
         self.db_to_use = Sqlite3DB(self.db_id, 'file:%s?mode=memory&cache=shared' % self.db_id, 'memory<%s>' % self.db_id,create_metaq=True)
-        source_type = 'file'
-        source = self.atomic_fn
         return source,source_type, self.db_id, self.db_to_use
 
     def __analyze_delimited_file(self,database_info):
@@ -1424,7 +1430,9 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect_id,f = self.data_stream.stream)
 
-    def choose_db_to_use(self):
+    def choose_db_to_use(self,forced_db_to_use=None):
+        assert forced_db_to_use is None
+
         self.db_id = self.stream_target_db.db_id
         self.db_to_use = self.stream_target_db
         source_type = 'data-stream'
@@ -1477,7 +1485,9 @@ class MaterializedQsqlState(object):
     def _generate_qsql_only_db_name__temp(self, filenames_str):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
-    def choose_db_to_use(self):
+    def choose_db_to_use(self,forced_db_to_use=False):
+        assert forced_db_to_use is None
+
         # TODO RLRL Reinstate source = '%s:::%s' % (self.qsql_filename, self.table_name)
         if '%s.qsql' % self.atomic_fn == self.qsql_filename:
             source = self.qsql_filename
@@ -2339,21 +2349,19 @@ class QTextAsData(object):
 
         mfs.initialize()
 
-        # TODO RLRL Extract adhoc_db from choose_db_to_use to here, isolating the MS instances from db-attachment
-        source,source_type, db_id, db_to_use = mfs.choose_db_to_use()
+        if self.should_copy_instead_of_attach() and not mfs.get_table_source_type() in [TableSourceType.DATA_STREAM]:
+            forced_db_to_use = self.adhoc_db
+        else:
+            forced_db_to_use = None
+
+        source,source_type, db_id, db_to_use = mfs.choose_db_to_use(forced_db_to_use)
         xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
 
         table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
 
-        if not self.is_adhoc_db(db_to_use):
-            if self.should_copy_instead_of_attach():
-                effective_table_name = self.adhoc_db.attach_and_copy_table(db_to_use,relevant_table)
-                db_to_use.done()
-                xprint("QQQQQQQQ")
-                mfs.set_effective_db_and_table_name(self.adhoc_db,effective_table_name)
-            else:
-                self.attach_to_db(db_to_use, self.query_level_db)
-                self.add_db_to_database_list(database_info)
+        if not self.is_adhoc_db(db_to_use) and not self.should_copy_instead_of_attach():
+            self.attach_to_db(db_to_use, self.query_level_db)
+            self.add_db_to_database_list(database_info)
 
         mfs.finalize()
 

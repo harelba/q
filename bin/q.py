@@ -513,12 +513,11 @@ class Sqlite3DB(object):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
     def attach_and_copy_table(self, from_db, relevant_table):
-        xprint("Attaching %s into db %s and copying all tables into it" % (from_db,self))
+        xprint("Attaching %s into db %s and copying table %s into it" % (from_db,self,relevant_table))
         temp_db_id = 'temp_db_id'
         q = "attach '%s' as %s" % (from_db.sqlite_db_url,temp_db_id)
         xprint("Attach query: %s" % q)
         c = self.execute_and_fetch(q)
-        xprint(c)
 
         all_table_names = [(x[0],x[1]) for x in self.execute_and_fetch("select content_signature_key,temp_table_name from %s.metaq" % temp_db_id).results]
         csk,t = list(filter(lambda x: x[1] == relevant_table,all_table_names))[0]
@@ -1485,9 +1484,7 @@ class MaterializedQsqlState(object):
     def _generate_qsql_only_db_name__temp(self, filenames_str):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
-    def choose_db_to_use(self,forced_db_to_use=False):
-        assert forced_db_to_use is None
-
+    def choose_db_to_use(self,forced_db_to_use:Sqlite3DB=False):
         # TODO RLRL Reinstate source = '%s:::%s' % (self.qsql_filename, self.table_name)
         if '%s.qsql' % self.atomic_fn == self.qsql_filename:
             source = self.qsql_filename
@@ -1501,9 +1498,14 @@ class MaterializedQsqlState(object):
         #  is called. This is a must for -A to work properly, since the table must be analyzed without and analyze()
         #  phase. ?
         x = 'file:%s?immutable=1' % self.qsql_filename
-        xprint("Loading sqlite_db %s from %s" % (self.db_id, self.qsql_filename))
         self.db_to_use = Sqlite3DB(self.db_id, x, self.qsql_filename,create_metaq=False)
-        xprint("Loaded sqlite_db %s into %s" % (self.db_id,self.db_to_use))
+
+        if forced_db_to_use:
+            new_table_name = forced_db_to_use.attach_and_copy_table(self.db_to_use,self.table_name) # PXPX physical table name or logical?
+            self.table_name = new_table_name
+            self.db_id = forced_db_to_use.db_id
+            self.db_to_use = forced_db_to_use
+
 
         return source,source_type, self.db_id, self.db_to_use
 

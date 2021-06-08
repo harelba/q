@@ -73,7 +73,7 @@ if DEBUG:
 else:
     def xprint(*args,**kwargs): pass
 
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
+MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 2
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -512,7 +512,7 @@ class Sqlite3DB(object):
     def drop_table(self, table_name):
         return self.execute_and_fetch(self.generate_drop_table(table_name))
 
-    def attach_and_copy_tables(self, from_db, relevant_table):
+    def attach_and_copy_table(self, from_db, relevant_table):
         xprint("Attaching %s into db %s and copying all tables into it" % (from_db,self))
         temp_db_id = 'temp_db_id'
         q = "attach '%s' as %s" % (from_db.sqlite_db_url,temp_db_id)
@@ -520,28 +520,21 @@ class Sqlite3DB(object):
         c = self.execute_and_fetch(q)
         xprint(c)
 
-        i = 0
-        new_database_tables = OrderedDict()
         all_table_names = [(x[0],x[1]) for x in self.execute_and_fetch("select content_signature_key,temp_table_name from %s.metaq" % temp_db_id).results]
-        for csk,t in all_table_names:
-            if relevant_table and t != relevant_table:
-                xprint("Skipping the copying of table %s, since relevant table name is %s" % (t,relevant_table))
-                continue
-            i += 1
-            xprint("Copying table %s from db_id %s" % (t,from_db.db_id))
-            d = from_db.get_from_metaq_using_table_name(t)
-            new_temp_table_name = 'temp_table_%s' % (self.last_temp_table_id + 1)
-            fully_qualified_table_name = '%s.%s' % (temp_db_id,t)
-            copy_results = self.execute_and_fetch('create table %s as select * from %s' % (new_temp_table_name,fully_qualified_table_name))
-            xprint("Copied %s.%s into %s in db_id %s. Results %s" % (temp_db_id,t,new_temp_table_name,self.db_id,copy_results))
-            xprint("CS",d['content_signature'])
-            cs = OrderedDict(json.loads(d['content_signature']))
-            self.add_to_metaq_table(new_temp_table_name, cs, d['creation_time'],
-                                    d['source_type'], d['source'])
-            new_database_tables[csk] = new_temp_table_name
-            self.last_temp_table_id += 1
+        csk,t = list(filter(lambda x: x[1] == relevant_table,all_table_names))[0]
+        xprint("Copying table %s from db_id %s" % (t,from_db.db_id))
+        d = from_db.get_from_metaq_using_table_name(t)
+        new_temp_table_name = 'temp_table_%s' % (self.last_temp_table_id + 1)
+        fully_qualified_table_name = '%s.%s' % (temp_db_id,t)
+        copy_results = self.execute_and_fetch('create table %s as select * from %s' % (new_temp_table_name,fully_qualified_table_name))
+        xprint("Copied %s.%s into %s in db_id %s. Results %s" % (temp_db_id,t,new_temp_table_name,self.db_id,copy_results))
+        xprint("CS",d['content_signature'])
+        cs = OrderedDict(json.loads(d['content_signature']))
+        self.add_to_metaq_table(new_temp_table_name, cs, d['creation_time'],
+                                d['source_type'], d['source'])
+        self.last_temp_table_id += 1
 
-        xprint("Copied %d tables into %s. Detaching db that was attached temporarily" % (i,self.db_id))
+        xprint("Copied table into %s. Detaching db that was attached temporarily" % self.db_id)
 
         # Validate metaq additions
         from_db_table_data = from_db.execute_and_fetch('select * from metaq').results
@@ -551,7 +544,7 @@ class Sqlite3DB(object):
         xprint("detach query: %s" % q)
         c = self.execute_and_fetch(q)
         xprint(c)
-        return new_database_tables
+        return new_temp_table_name
 
 
 class CouldNotConvertStringToNumericValueException(Exception):
@@ -1270,14 +1263,28 @@ class MaterializedDelimitedFileState(object):
         self.db_id = None
         self.db_to_use = None
 
+        self.effective_table_name = None
+
         # TODO RLRL content signature is initialized during __analyze_delimited_file
         self.content_signature = None
+
+    def set_effective_db_and_table_name(self,db_to_use,table_name):
+        self.db_id = db_to_use.db_id
+        self.db_to_use = db_to_use
+        self.effective_table_name = table_name
+        xprint("Effective DB and Table name set",self,self.__dict__)
 
     def get_table_source_type(self):
         return TableSourceType.DELIMITED_FILE
 
     def get_table_name_for_querying(self):
         xprint("Getting table name for querying inside db_id %s" % self.db_to_use.db_id)
+
+        if self.effective_table_name is not None:
+            x = '%s.%s' % (self.db_to_use,self.effective_table_name)
+            xprint("XX Effective Table name is %s" % x)
+            return x
+
         d = self.db_to_use.get_from_metaq(self.content_signature)
         if d is None:
             raise ContentSignatureNotFoundException("qsql file %s contains no table with a matching content signature key %s" % (
@@ -2337,9 +2344,16 @@ class QTextAsData(object):
         xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
 
         table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
-        self.add_db_to_database_list(database_info)
 
-        self.attach_to_adhoc_db(database_info.sqlite_db,relevant_table)
+        if not self.is_adhoc_db(db_to_use):
+            if self.should_copy_instead_of_attach():
+                effective_table_name = self.adhoc_db.attach_and_copy_table(db_to_use,relevant_table)
+                db_to_use.done()
+                xprint("QQQQQQQQ")
+                mfs.set_effective_db_and_table_name(self.adhoc_db,effective_table_name)
+            else:
+                self.attach_to_db(db_to_use, self.query_level_db)
+                self.add_db_to_database_list(database_info)
 
         mfs.finalize()
 
@@ -2399,20 +2413,18 @@ class QTextAsData(object):
     #         source = atomic_fn
     #     return source,source_type, db_id, db_to_use
 
-    def attach_to_adhoc_db(self, db_to_use,relevant_table):
-        if db_to_use.db_id != self.adhoc_db_id:
-            attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
-            if attached_database_count < MAX_ALLOWED_ATTACHED_SQLITE_DATABASES:
-                self.attach_to_db(db_to_use, self.query_level_db)
-            else:
-                self.adhoc_db.attach_and_copy_tables(db_to_use,relevant_table)
-                db_to_use.done()
-                del self.databases[db_to_use.db_id]
+    def is_adhoc_db(self,db_to_use):
+        return db_to_use.db_id == self.adhoc_db_id
+
+    def should_copy_instead_of_attach(self):
+        attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
+        return attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
 
     def _load_atomic_fn(self,mfss_in_qtable,atomic_fn,input_params,dialect_id,stop_after_analysis):
         dls = []
 
         for mfs in mfss_in_qtable:
+            xprint("MFSMFS: %s - %s" % (mfs,mfs.__dict__))
             start_time = time.time()
 
             source,source_type,table_creator = self._load_mfs_as_table_creator(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
@@ -2459,7 +2471,6 @@ class QTextAsData(object):
         xprint("Attach query: %s" % q)
         c = source_db.execute_and_fetch(q)
 
-
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
 
@@ -2495,7 +2506,7 @@ class QTextAsData(object):
                 found_files = [fileglob]
             else:
                 # If not, then try with globs
-                found_files = glob.glob(fileglob)
+                found_files = list(sorted(glob.glob(fileglob)))
                 # If no files
                 if len(found_files) == 0:
                     unfound_files += [fileglob]

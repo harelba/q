@@ -73,7 +73,7 @@ if DEBUG:
 else:
     def xprint(*args,**kwargs): pass
 
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
+MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 3
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -1494,9 +1494,7 @@ class MaterializedQsqlState(object):
             source_type = 'qsql-file'
 
         self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.atomic_fn)
-        # TODO RLRL PNR Table creator should directly use the qsql file and not just after read_table_from_cache()
-        #  is called. This is a must for -A to work properly, since the table must be analyzed without and analyze()
-        #  phase. ?
+
         x = 'file:%s?immutable=1' % self.qsql_filename
         self.db_to_use = Sqlite3DB(self.db_id, x, self.qsql_filename,create_metaq=False)
 
@@ -1521,12 +1519,12 @@ class MaterializedQsqlState(object):
 
     def _extract_information(self):
         if self.db_to_use.metaq_table_exists():
-            table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % 'temp_table_10001').results
+            table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % self.table_name).results
             xprint('Table info is %s' % table_info)
             column_names = list(map(lambda x: x[1], table_info))
             column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
             self.content_signature = OrderedDict(
-                **json.loads(self.db_to_use.get_from_metaq_using_table_name('temp_table_10001')['content_signature']))
+                **json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature']))
             xprint('Inferred column names and types from qsql: %s' % list(zip(column_names, column_types)))
         else:
             xprint("No metaq table - generic sqlite file")
@@ -2294,27 +2292,30 @@ class QTextAsData(object):
             ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
             materialized_file_dict[qtable_name] = [ms]
         else:
-            materialized_file_list = self.materialize_file_list(qtable_name)
-            # For each match
-            for atomic_fn in materialized_file_list:
-                qsql_filename,table_name = self.try_qsql_table_reference(atomic_fn)
-                if qsql_filename is None:
+            qsql_filename, table_name = self.try_qsql_table_reference(qtable_name)
+            if qsql_filename is not None:
+                ms = MaterializedQsqlState(qtable_name,qsql_filename,qsql_filename=qsql_filename,table_name=table_name,
+                                           engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
+                materialized_file_dict[qtable_name] = [ms]
+            else:
+                materialized_file_list = self.materialize_file_list(qtable_name)
+                # For each match
+                for atomic_fn in materialized_file_list:
+                    qsql_filename,table_name = self.try_qsql_table_reference(atomic_fn)
+                    # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
                     ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
-                else:
-                    ms = MaterializedQsqlState(qtable_name,atomic_fn,qsql_filename=qsql_filename,table_name=table_name,
-                                               engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
-                # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
-                if atomic_fn not in materialized_file_dict:
-                    materialized_file_dict[atomic_fn] = [ms]
-                else:
-                    materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
+                    # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
+                    if atomic_fn not in materialized_file_dict:
+                        materialized_file_dict[atomic_fn] = [ms]
+                    else:
+                        materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
 
         xprint("MS dict: %s" % str(materialized_file_dict))
         return materialized_file_dict
 
     def try_qsql_table_reference(self,filename):
         if ':::' in filename:
-            qsql_filename,table_name = filename.split(":::'",1)
+            qsql_filename,table_name = filename.split(":::",1)
             if os.path.exists(qsql_filename):
                 if not self.is_sqlite_file(qsql_filename):
                     # TODO RLRL Specific Exception and error handling.
@@ -2556,6 +2557,7 @@ class QTextAsData(object):
                 sql_object.set_effective_table_name(qtable_name,effective_table_name)
                 xprint("Materialized filename %s to effective table name %s" % (qtable_name,effective_table_name))
             else:
+                # TODO RLRL Prevent the need to re-materialize the file list, need to take it from the previous phase
                 materialized_file_list = self.materialize_file_list(qtable_name)
 
                 effective_table_names_list = []

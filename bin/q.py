@@ -826,6 +826,26 @@ class Sql(object):
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
+    def materialize_using(self,loaded_table_structures_dict, data_streams):
+        xprint("Materializing sql object: %s" % str(self.qtable_names))
+        for qtable_name in self.qtable_names:
+            effective_table_names_list = []
+            for table_structure in loaded_table_structures_dict[qtable_name]:
+                table_name_in_disk_db = table_structure.get_table_name_for_querying()
+
+                effective_table_name = '%s.%s' % (table_structure.db_id, table_name_in_disk_db)
+                effective_table_names_list += [effective_table_name]
+
+            if len(effective_table_names_list) == 1:
+                # for a single file - no need to create a union, just use the table name
+                self.set_effective_table_name(qtable_name, effective_table_names_list[0])
+                xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_names_list[0]))
+            else:
+                # For multiple files - create a UNION ALL subquery with the content of all subtables
+                union_parts = ['select * from %s' % x for x in effective_table_names_list]
+                union_as_table_name = "(%s)" % ' UNION ALL '.join(union_parts)
+                self.set_effective_table_name(qtable_name,union_as_table_name)
+                xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,union_as_table_name))
 
 class LineSplitter(object):
 
@@ -1267,6 +1287,11 @@ class MaterializedDelimitedFileState(object):
         # TODO RLRL content signature is initialized during __analyze_delimited_file
         self.content_signature = None
 
+        self.mfs_structure = None
+
+        self.start_time = None
+        self.end_time = None
+
     def set_effective_db_and_table_name(self,db_to_use,table_name):
         self.db_id = db_to_use.db_id
         self.db_to_use = db_to_use
@@ -1296,6 +1321,7 @@ class MaterializedDelimitedFileState(object):
         return table_name_in_disk_db
 
     def initialize(self):
+        self.start_time = time.time()
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
         return self.delimited_file_reader.open_file()
 
@@ -1352,10 +1378,10 @@ class MaterializedDelimitedFileState(object):
 
         table_creator = self.__analyze_delimited_file(database_info)
 
-        table_structure_info = NewTableStructureInformation(self.qtable_name, self.atomic_fn, self.db_id,
-                                                            table_creator.column_inferer.get_column_names(),
-                                                            table_creator.column_inferer.get_column_types(),
-                                                            self.get_table_name_for_querying())
+        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
+                                                             table_creator.column_inferer.get_column_names(),
+                                                             table_creator.column_inferer.get_column_types(),
+                                                             self.get_table_name_for_querying())
 
         # TODO RLRL Probably needs to happen only if not reading from cache, but original source code location of this
         #  does not differentiate, so maybe this would need to move
@@ -1370,9 +1396,7 @@ class MaterializedDelimitedFileState(object):
 
             self.save_cache_to_disk_if_needed(disk_db_filename, table_creator)
 
-        # TODO RLRL Temp - Table creator should become an implementation detail, but for now it contains
-        #  metadata for analysis, etc. so we're propagating it out
-        return table_structure_info, database_info, relevant_table
+        return database_info, relevant_table
 
     def save_cache_to_disk_if_needed(self, disk_db_filename, table_creator):
         effective_write_caching = self.input_params.write_caching
@@ -1469,6 +1493,8 @@ class MaterializedQsqlState(object):
         self.db_id = None
         self.db_to_use = None
 
+        self.mfs_structure = None
+
     def initialize(self):
         pass # TODO RLRL Add validatin of qsql file, for fast failure
 
@@ -1504,7 +1530,6 @@ class MaterializedQsqlState(object):
             self.db_id = forced_db_to_use.db_id
             self.db_to_use = forced_db_to_use
 
-
         return source,source_type, self.db_id, self.db_to_use
 
     def make_data_available(self,stop_after_analysis):
@@ -1512,10 +1537,12 @@ class MaterializedQsqlState(object):
 
         database_info,relevant_table = self._read_table_from_cache(stop_after_analysis)
 
-        # TODO RLRL TMP until we separate stuff from inferer
         column_names,column_types = self._extract_information()
-        return NewTableStructureInformation(self.qtable_name,self.atomic_fn,self.db_id,column_names,column_types,
-                                            self.get_table_name_for_querying()), database_info, relevant_table
+
+        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
+                                                             column_names, column_types,
+                                                             self.get_table_name_for_querying())
+        return database_info, relevant_table
 
     def _extract_information(self):
         if self.db_to_use.metaq_table_exists():
@@ -1587,7 +1614,7 @@ class MaterializedQsqlState(object):
 
 # TODO RLRL PXPX - Preparation for splitting low-level table structures from TableCreators, so qsql file can work
 #  without a TableCreator
-class NewTableStructureInformation(object):
+class MaterializedStateTableStructure(object):
     def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying):
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
@@ -1608,6 +1635,9 @@ class NewTableStructureInformation(object):
     def get_column_dict(self):
         return OrderedDict(zip(self.column_names, self.column_types))
 
+    def __str__(self):
+        return "MaterializedStateTableStructure<%s>" % self.__dict__
+    __repr__ = __str__
 
 class TableCreator(object):
     def __str__(self):
@@ -2055,11 +2085,11 @@ class QError(object):
     __repr__ = __str__
 
 class QDataLoad(object):
-    def __init__(self,filename,start_time,end_time,data_stream=None,source_type=None,source=None):
+    def __init__(self,mfs,filename,start_time,end_time,source_type=None,source=None):
+        self.mfs = mfs
         self.filename = filename
         self.start_time = start_time
         self.end_time = end_time
-        self.data_stream = data_stream
         self.source_type = source_type
         self.source = source
 
@@ -2067,10 +2097,7 @@ class QDataLoad(object):
         return self.end_time - self.start_time
 
     def __str__(self):
-        if self.data_stream is not None:
-            return "QDataLoad<source_type=%s,source=%s,data_stream=%s>" % (self.source_type,self.source,self.data_stream)
-        else:
-            return "QDataLoad<source_type=%s,source=%s,filename=%s>" % (self.source_type,self.source,self.filename)
+        return "QDataLoad<%s>" % self.__dict__
     __repr__ = __str__
 
 class QMaterializedFile(object):
@@ -2222,7 +2249,7 @@ class QTextAsData(object):
 
         self.default_input_params = default_input_params
 
-        self.table_creators = {}
+        self.loaded_table_structures_dict = OrderedDict()
         self.databases = OrderedDict()
 
         if data_streams_dict is not None:
@@ -2338,14 +2365,8 @@ class QTextAsData(object):
         f.close()
         return magic == six.b("SQLite format 3\x00")
 
-    def _load_mfs_as_table_creator(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
+    def _load_mfs(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
-
-        if atomic_fn in self.table_creators.keys():
-            xprint("Atomic filename %s found. no need to load" % atomic_fn)
-            return (None,None,None)
-
-        xprint("Atomic Filename %s not found - loading" % atomic_fn)
 
         table_type = mfs.get_table_source_type()
         xprint("Detected table type for %s: %s" % (atomic_fn,table_type))
@@ -2360,7 +2381,7 @@ class QTextAsData(object):
         source,source_type, db_id, db_to_use = mfs.choose_db_to_use(forced_db_to_use)
         xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
 
-        table_creator,database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
+        database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
 
         if not self.is_adhoc_db(db_to_use) and not self.should_copy_instead_of_attach():
             self.attach_to_db(db_to_use, self.query_level_db)
@@ -2370,7 +2391,7 @@ class QTextAsData(object):
 
         xprint("MFS Loaded")
 
-        return (source,source_type,table_creator)
+        return source,source_type
 
     def save_cache_to_disk_if_needed(self, atomic_fn, disk_db_filename, input_params, mfs, table_creator):
         effective_write_caching = (not isinstance(mfs,MaterialiedDataStreamState)) and input_params.write_caching
@@ -2431,26 +2452,33 @@ class QTextAsData(object):
         attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
         return attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
 
-    def _load_atomic_fn(self,mfss_in_qtable,atomic_fn,input_params,dialect_id,stop_after_analysis):
+    def _load_atomic_fn(self,qtable_name,mfss_in_qtable,atomic_fn,input_params,dialect_id,stop_after_analysis):
         dls = []
+
+        if atomic_fn in self.loaded_table_structures_dict.keys():
+            xprint("Atomic filename %s found. no need to load" % atomic_fn)
+            return []
+
+        xprint("Atomic Filename %s not found - loading" % atomic_fn)
 
         for mfs in mfss_in_qtable:
             xprint("MFSMFS: %s - %s" % (mfs,mfs.__dict__))
             start_time = time.time()
 
-            source,source_type,table_creator = self._load_mfs_as_table_creator(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
-            xprint("RRR Loaded: source-type %s source %s table_creator %s" % (source_type,source,table_creator))
-            xprint("RRR table creators: %s" % self.table_creators)
+            source,source_type = self._load_mfs(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
+            xprint("RRR Loaded: source-type %s source %s mfs_structure %s" % (source_type,source,mfs.mfs_structure))
 
-            if table_creator is not None:
-                self.table_creators[atomic_fn] = table_creator
-                if isinstance(mfs,MaterialiedDataStreamState):
-                    ds = mfs.data_stream
-                else:
-                    ds = None
-                dls += [QDataLoad(atomic_fn, start_time, time.time(), data_stream=ds, source_type=source_type,source=source)]
+            if isinstance(mfs, MaterialiedDataStreamState):
+                ds = mfs.data_stream
             else:
-                xprint("Table creator is empty, so not adding a new data load: atomic_fn %s" % atomic_fn)
+                ds = None
+
+            if atomic_fn not in self.loaded_table_structures_dict:
+                self.loaded_table_structures_dict[qtable_name] = [mfs.mfs_structure]
+            else:
+                self.loaded_table_structures_dict[qtable_name] += [mfs.mfs_structure]
+
+            dls += [QDataLoad(mfs,atomic_fn, start_time, time.time(), source_type=source_type,source=source)]
 
         return dls
 
@@ -2473,7 +2501,7 @@ class QTextAsData(object):
         for atomic_fn in mfss.keys():
             mfss_in_qtable = mfss[atomic_fn]
             xprint("Loading file %s. MFSs: %s" % (atomic_fn,mfss_in_qtable))
-            data_loads += self._load_atomic_fn(mfss_in_qtable, atomic_fn, input_params, dialect_id, stop_after_analysis)
+            data_loads += self._load_atomic_fn(qtable_name,mfss_in_qtable, atomic_fn, input_params, dialect_id, stop_after_analysis)
 
         return data_loads
 
@@ -2542,42 +2570,6 @@ class QTextAsData(object):
 
         absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
         return absolute_path_list
-
-    def materialize_sql_object(self,sql_object):
-        xprint("Materializing sql object: %s" % str(sql_object.qtable_names))
-        for qtable_name in sql_object.qtable_names:
-            data_stream = self.data_streams.get_for_filename(qtable_name)
-            if data_stream is not None:
-                tc = self.table_creators[qtable_name]
-
-                table_name_in_disk_db = tc.get_table_name_for_querying()
-
-                effective_table_name = '%s.%s' % (tc.db_id,table_name_in_disk_db)
-
-                sql_object.set_effective_table_name(qtable_name,effective_table_name)
-                xprint("Materialized filename %s to effective table name %s" % (qtable_name,effective_table_name))
-            else:
-                # TODO RLRL Prevent the need to re-materialize the file list, need to take it from the previous phase
-                materialized_file_list = self.materialize_file_list(qtable_name)
-
-                effective_table_names_list = []
-                for atomic_fn in materialized_file_list:
-                    tc = self.table_creators[atomic_fn]
-                    table_name_in_disk_db = tc.get_table_name_for_querying()
-
-                    effective_table_name = '%s.%s' % (tc.db_id, table_name_in_disk_db)
-                    effective_table_names_list += [effective_table_name]
-
-                if len(effective_table_names_list) == 1:
-                    # for a single file - no need to create a union, just use the table name
-                    sql_object.set_effective_table_name(qtable_name, effective_table_names_list[0])
-                    xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_names_list[0]))
-                else:
-                    # For multiple files - create a UNION ALL subquery with the content of all subtables
-                    union_parts = ['select * from %s' % x for x in effective_table_names_list]
-                    union_as_table_name = "(%s)" % ' UNION ALL '.join(union_parts)
-                    sql_object.set_effective_table_name(qtable_name,union_as_table_name)
-                    xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,union_as_table_name))
 
     def generate_new_table_name_from_metaq_data(self,metaq_data,table_name_mapping):
         existing_table_names = table_name_mapping.values()
@@ -2697,13 +2689,11 @@ class QTextAsData(object):
 
         try:
             load_start_time = time.time()
-            xprint("going to ensure data is loaded. Current table creators: %s" % str(self.table_creators))
+            xprint("going to ensure data is loaded. Currently loaded tables: %s" % str(self.loaded_table_structures_dict))
             data_loads_dict = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
-            xprint("ensured data is loaded. table creators: %s" % self.table_creators)
+            xprint("ensured data is loaded. loaded tables: %s" % self.loaded_table_structures_dict)
 
-            table_structures = self._create_table_structures_list(data_loads_dict)
-
-            self.materialize_sql_object(sql_object)
+            sql_object.materialize_using(self.loaded_table_structures_dict,self.data_streams)
 
             if save_db_to_disk_filename is not None:
                 xprint("Saving query data to disk")
@@ -2733,7 +2723,7 @@ class QTextAsData(object):
             return QOutput(
                 data = db_results_obj.results,
                 metadata = QMetadata(
-                    table_structures=table_structures,
+                    table_structures=self.loaded_table_structures_dict,
                     output_column_name_list=db_results_obj.query_column_names),
                 warnings = warnings,
                 error = error)
@@ -2793,13 +2783,14 @@ class QTextAsData(object):
         return r
 
     def unload(self):
-        for filename,table_creator in six.iteritems(self.table_creators):
+        # TODO RLRL Will fail, as now the table structures do not contain drop_table
+        for atomic_fn,table_creator in six.iteritems(self.loaded_table_structures_dict):
             try:
                 table_creator.drop_table()
             except:
                 # Support no-table select queries
                 pass
-        self.table_creators = {}
+        self.loaded_table_structures_dict = OrderedDict()
 
     def _create_materialized_files(self,table_creator):
         d = table_creator.materialized_file_dict
@@ -2808,9 +2799,8 @@ class QTextAsData(object):
             m[filename] = QMaterializedFile(filename,mfs.data_stream)
         return m
 
-    def _create_table_structures_list(self,data_loads_dict):
-        xprint("Creating Table Structure List %s" % data_loads_dict)
-        xprint("When creating TSL - table creators is %s" % str(self.table_creators))
+    def _create_table_structures_list(self):
+        xprint("Loaded Table Structure List: %s" % self.loaded_table_structures_dict)
         table_creators_by_qtable_name = OrderedDict()
         for atomic_fn,table_creator in six.iteritems(self.table_creators):
             xprint("Iterating atomic filename %s" % atomic_fn)
@@ -2951,11 +2941,10 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
+        xprint("AQ",results.metadata.table_structures)
         for qtable_name in results.metadata.table_structures:
             table_structure = results.metadata.table_structures[qtable_name]
-            print("Table: %s" %
-                  table_structure.qtable_name,
-                  file=f_out)
+            print("Table: %s" % table_structure.qtable_name,file=f_out)
             print("  Data Loads:",file=f_out)
             for dl in table_structure.data_loads:
                 print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)

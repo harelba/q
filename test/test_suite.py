@@ -3577,6 +3577,7 @@ class BasicModuleTests(AbstractQTestCase):
         tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
         tmpfile2 = self.create_file_with_data(six.b("d e f\n10 20 30\n40 50 60"))
 
+        # Run file 1 on engine 1
         q1 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q1.execute('select * from %s' % tmpfile1.name)
         print("QueryQuery",file=sys.stdout)
@@ -3586,9 +3587,13 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),2)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r.metadata.table_structures[tmpfile1.name].data_loads),1)
-        self.assertEqual(r.metadata.table_structures[tmpfile1.name].data_loads[0].filename,tmpfile1.name)
+        self.assertEqual(len(r.metadata.table_structures[tmpfile1.name]),1)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile1.name]),1)
+        self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].atomic_fn,tmpfile1.name)
+        self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].source_type,'file')
+        self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].source,tmpfile1.name)
 
+        # run file 1 on engine 2
         q2 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r2 = q2.execute('select * from %s' % tmpfile1.name)
         print("QueryQuery",file=sys.stdout)
@@ -3598,9 +3603,13 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.data),2)
         self.assertEqual(r2.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r2.metadata.table_structures[tmpfile1.name].data_loads),1)
-        self.assertEqual(r2.metadata.table_structures[tmpfile1.name].data_loads[0].filename,tmpfile1.name)
+        self.assertEqual(len(r2.metadata.table_structures[tmpfile1.name]),1)
+        self.assertEqual(len(r2.metadata.new_table_structures[tmpfile1.name]),1)
+        self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].atomic_fn,tmpfile1.name)
+        self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].source_type,'file')
+        self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].source,tmpfile1.name)
 
+        # run file 2 on engine 1
         r3 = q1.execute('select * from %s' % tmpfile2.name)
         print("QueryQuery",file=sys.stdout)
 
@@ -3610,8 +3619,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r3.data),2)
         self.assertEqual(r3.metadata.output_column_name_list,['d','e','f'])
         self.assertEqual(r3.data,[(10,20,30),(40,50,60)])
-        self.assertEqual(len(r3.metadata.table_structures[tmpfile2.name].data_loads),1)
-        self.assertEqual(r3.metadata.table_structures[tmpfile2.name].data_loads[0].filename,tmpfile2.name)
+        self.assertEqual(len(r3.metadata.table_structures[tmpfile2.name]),1)
+        self.assertEqual(len(r3.metadata.new_table_structures[tmpfile2.name]),1)
+        self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].atomic_fn,tmpfile2.name)
+        self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].source,tmpfile2.name)
+        self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].source_type,'file')
 
         q1.done()
         q2.done()
@@ -3630,8 +3642,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),2)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r.metadata.table_structures[tmpfile.name].data_loads),1)
-        self.assertEqual(r.metadata.table_structures[tmpfile.name].data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r.metadata.table_structures[tmpfile.name]),1)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile.name]),1)
+        self.assertEqual(r.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r.metadata.table_structures[tmpfile.name][0].source_type,'file')
+        self.assertEqual(r.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
 
         q.done()
         self.cleanup(tmpfile)
@@ -3649,12 +3664,15 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r1.data),2)
         self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(r1.metadata.table_structures[tmpfile.name].data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r1.metadata.table_structures[tmpfile.name]),1)
+        self.assertEqual(len(r1.metadata.new_table_structures[tmpfile.name]),1)
+        self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].source_type,'file')
+        self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
 
         self.assertTrue(r2.status == 'ok')
-        self.assertEqual(len(r1.metadata.table_structures[tmpfile.name].data_loads),1)
-        self.assertEqual(r1.metadata.table_structures[tmpfile.name].data_loads[0].filename,tmpfile.name)
-        self.assertEqual(len(r2.metadata.table_structures[tmpfile.name].data_loads),0)
+        self.assertEqual(len(r2.metadata.table_structures[tmpfile.name]),1)
+        self.assertEqual(len(r2.metadata.new_table_structures[tmpfile.name]),0)
         self.assertEqual(r2.data,r1.data)
         self.assertEqual(r2.metadata.output_column_name_list,r2.metadata.output_column_name_list)
         self.assertEqual(len(r2.warnings),0)
@@ -3677,15 +3695,14 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),2)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r.metadata.table_structures['-'].data_loads),1)
-        self.assertEqual(len(r.metadata.table_structures['-'].data_streams),0)
-        self.assertEqual(r.metadata.table_structures['-'].data_loads[0].source_type,'data-stream')
-        self.assertEqual(r.metadata.table_structures['-'].data_loads[0].source,'stdin')
-        print(r.metadata.table_structures['-'].data_loads[0])
-        self.assertEqual(r.metadata.table_structures['-'].data_loads[0].data_stream.stream_id,'stdin')
-        self.assertTrue(isinstance(r.metadata.table_structures['-'].data_loads[0].data_stream.stream,codecs.StreamReaderWriter))
-
-        # TODO RLRL - More tests
+        self.assertEqual(len(r.metadata.table_structures['-']),1)
+        self.assertEqual(len(r.metadata.new_table_structures['-']),1)
+        self.assertEqual(r.metadata.new_table_structures['-'],r.metadata.table_structures['-'])
+        self.assertEqual(r.metadata.table_structures['-'][0].column_names,['a','b','c'])
+        self.assertEqual(r.metadata.table_structures['-'][0].python_column_types,[int,int,int])
+        self.assertEqual(r.metadata.table_structures['-'][0].sqlite_column_types,['int','int','int'])
+        self.assertEqual(r.metadata.table_structures['-'][0].source_type,'data-stream')
+        self.assertEqual(r.metadata.table_structures['-'][0].source,'stdin')
 
         q.done()
         self.cleanup(tmpfile)
@@ -3705,10 +3722,9 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),2)
         self.assertEqual(r.metadata.output_column_name_list,['a'])
         self.assertEqual(r.data,[(1,),(4,)])
-        self.assertEqual(len(r.metadata.table_structures['my_stdin_data'].data_loads),1)
-        self.assertEqual(len(r.metadata.table_structures['my_stdin_data'].data_streams),0)
-        self.assertEqual(r.metadata.table_structures['my_stdin_data'].data_loads[0].data_stream.stream_id,'my_stdin_data')
-        self.assertTrue(isinstance(r.metadata.table_structures['my_stdin_data'].data_loads[0].data_stream.stream,codecs.StreamReaderWriter))
+        self.assertEqual(len(r.metadata.table_structures['my_stdin_data']),1)
+        self.assertEqual(len(r.metadata.new_table_structures['my_stdin_data']),1)
+        self.assertEqual(r.metadata.table_structures['my_stdin_data'][0].qtable_name,'my_stdin_data')
 
         q.done()
         self.cleanup(tmpfile)
@@ -3730,14 +3746,13 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r1.data),2)
         self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r1.metadata.table_structures['a-'].data_loads),1)
-        self.assertEqual(len(r1.metadata.table_structures['a-'].data_streams),0)
-        self.assertEqual(r1.metadata.table_structures['a-'].data_loads[0].data_stream.stream_id, 'a-')
-        self.assertTrue(isinstance(r1.metadata.table_structures['a-'].data_loads[0].data_stream.stream, codecs.StreamReaderWriter))
+        self.assertEqual(len(r1.metadata.table_structures['a-']),1)
+        self.assertEqual(r1.metadata.table_structures['a-'][0].source_type, 'data-stream')
+        self.assertEqual(r1.metadata.table_structures['a-'][0].source, 'a-')
+        self.assertEqual(r1.metadata.table_structures['a-'][0].column_names, ['a','b','c'])
+        self.assertEqual(r1.metadata.table_structures['a-'][0].python_column_types, [int,int,int])
+        self.assertEqual(r1.metadata.table_structures['a-'][0].sqlite_column_types, ['int','int','int'])
 
-        # TODO RLRL Warning - this might not be a good test. Due to the change of stdin to become separate data-streams
-        #   the original intention of "selecting from stdin twice" is no longer relevant (the test has been changed
-        #   to become two separate streams)
         r2 = q.execute('select * from b-')
 
         self.assertTrue(r2.status == 'ok')
@@ -3745,10 +3760,13 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.data),2)
         self.assertEqual(r2.metadata.output_column_name_list,['d','e','f'])
         self.assertEqual(r2.data,[(7,8,9),(10,11,12)])
-        self.assertEqual(len(r2.metadata.table_structures['b-'].data_loads),1)
-        self.assertEqual(len(r2.metadata.table_structures['b-'].data_streams),0)
-        self.assertEqual(r2.metadata.table_structures['b-'].data_loads[0].data_stream.stream_id,'b-')
-        self.assertTrue(isinstance(r2.metadata.table_structures['b-'].data_loads[0].data_stream.stream,codecs.StreamReaderWriter))
+
+        self.assertEqual(len(r1.metadata.table_structures['b-']),1)
+        self.assertEqual(r1.metadata.table_structures['b-'][0].source_type, 'data-stream')
+        self.assertEqual(r1.metadata.table_structures['b-'][0].source, 'b-')
+        self.assertEqual(r1.metadata.table_structures['b-'][0].column_names, ['d','e','f'])
+        self.assertEqual(r1.metadata.table_structures['b-'][0].python_column_types, [int,int,int])
+        self.assertEqual(r1.metadata.table_structures['b-'][0].sqlite_column_types, ['int','int','int'])
 
         q.done()
         self.cleanup(tmpfile1)
@@ -3770,10 +3788,9 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r1.data),2)
         self.assertEqual(r1.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r1.metadata.table_structures['my_stdin_data1'].data_loads),1)
-        self.assertEqual(len(r1.metadata.table_structures['my_stdin_data1'].data_streams),0)
-        self.assertEqual(r1.metadata.table_structures['my_stdin_data1'].data_loads[0].data_stream.stream_id,'my_stdin_data1')
-        self.assertTrue(isinstance(r1.metadata.table_structures['my_stdin_data1'].data_loads[0].data_stream.stream,codecs.StreamReaderWriter))
+        self.assertEqual(len(r1.metadata.table_structures['my_stdin_data1']),1)
+        self.assertEqual(len(r1.metadata.new_table_structures['my_stdin_data1']),1)
+        self.assertEqual(r1.metadata.table_structures['my_stdin_data1'][0].qtable_name,'my_stdin_data1')
 
         r2 = q.execute('select * from my_stdin_data2')
 
@@ -3783,10 +3800,9 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.metadata.output_column_name_list,['d','e','f'])
         self.assertEqual(r2.data,[(7,8,9),(10,11,12)])
         # There should be another data load, even though it's the same 'filename' as before
-        self.assertEqual(len(r2.metadata.table_structures['my_stdin_data2'].data_loads),1)
-        self.assertEqual(len(r2.metadata.table_structures['my_stdin_data2'].data_streams),0)
-        self.assertEqual(r2.metadata.table_structures['my_stdin_data2'].data_loads[0].data_stream.stream_id,'my_stdin_data2')
-        self.assertTrue(isinstance(r2.metadata.table_structures['my_stdin_data2'].data_loads[0].data_stream.stream,codecs.StreamReaderWriter))
+        self.assertEqual(len(r2.metadata.table_structures['my_stdin_data2']),1)
+        self.assertEqual(len(r2.metadata.new_table_structures['my_stdin_data2']),1)
+        self.assertEqual(r2.metadata.table_structures['my_stdin_data2'][0].qtable_name,'my_stdin_data2')
 
         r3 = q.execute('select aa.*,bb.* from my_stdin_data1 aa join my_stdin_data2 bb')
 
@@ -3795,7 +3811,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r3.data),4)
         self.assertEqual(r3.metadata.output_column_name_list,['a','b','c','d','e','f'])
         self.assertEqual(r3.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEqual(len(r3.metadata.table_structures['my_stdin_data1'].data_loads),0)
+        self.assertEqual(len(r3.metadata.table_structures['my_stdin_data1']),1)
+        self.assertEqual(len(r3.metadata.new_table_structures['my_stdin_data1']),0)
 
         q.done()
         self.cleanup(tmpfile1)
@@ -3817,8 +3834,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),4)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEqual(len(r.metadata.table_structures[tmpfile1.name].data_loads),0)
-        self.assertEqual(len(r.metadata.table_structures[tmpfile2.name].data_loads),0)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile1.name]),0)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile2.name]),0)
 
         q.done()
         self.cleanup(tmpfile1)
@@ -3840,8 +3857,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r.data),4)
         self.assertEqual(r.metadata.output_column_name_list,['a','b','c','c1','c2','c3'])
         self.assertEqual(r.data,[(1,2,3,7,8,9),(1,2,3,10,11,12),(4,5,6,7,8,9),(4,5,6,10,11,12)])
-        self.assertEqual(len(r.metadata.table_structures[tmpfile1.name].data_loads),0)
-        self.assertEqual(len(r.metadata.table_structures[tmpfile2.name].data_loads),0)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile1.name]),0)
+        self.assertEqual(len(r.metadata.new_table_structures[tmpfile2.name]),0)
 
         q.done()
         self.cleanup(tmpfile1)
@@ -3870,8 +3887,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(len(r2.data),2)
         self.assertEqual(r2.metadata.output_column_name_list,['a','b','c'])
         self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
-        self.assertEqual(len(r2.metadata.table_structures[tmpfile.name].data_loads),1)
-        self.assertEqual(r2.metadata.table_structures[tmpfile.name].data_loads[0].filename,tmpfile.name)
+        self.assertEqual(len(r2.metadata.table_structures[tmpfile.name]),1)
+        self.assertEqual(len(r2.metadata.new_table_structures[tmpfile.name]),1)
+        self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
+        self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].source_type,'file')
 
         q.done()
         self.cleanup(tmpfile)
@@ -3917,19 +3937,18 @@ class BasicModuleTests(AbstractQTestCase):
         metadata = q_output.metadata
 
         self.assertEqual(metadata.output_column_name_list, [ 'a','c'])
-        self.assertEqual(len(metadata.table_structures[tmpfile.name].data_loads),1)
+        self.assertEqual(len(metadata.new_table_structures[tmpfile.name]),1)
         self.assertEqual(len(metadata.table_structures),1)
 
-        table_structure = metadata.table_structures[tmpfile.name]
+        table_structure = metadata.new_table_structures[tmpfile.name][0]
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
-        self.assertEqual(table_structure.column_types,[ 'int','int','int'])
+        self.assertEqual(table_structure.python_column_types,[ int,int,int])
+        self.assertEqual(table_structure.sqlite_column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        self.assertEqual(len(table_structure.materialized_files),1)
-        self.assertEqual(table_structure.materialized_files[0],tmpfile.name)
-        self.assertEqual(table_structure.data_loads[0].source_type,'file')
-        self.assertEqual(table_structure.data_loads[0].filename,tmpfile.name)
-        self.assertEqual(table_structure.data_loads[0].data_stream,None)
+        self.assertEqual(table_structure.atomic_fn,tmpfile.name)
+        self.assertEqual(table_structure.source_type,'file')
+        self.assertEqual(table_structure.source,tmpfile.name)
 
         q.done()
         self.cleanup(tmpfile)
@@ -3951,20 +3970,18 @@ class BasicModuleTests(AbstractQTestCase):
         metadata = q_output.metadata
 
         self.assertEqual(metadata.output_column_name_list, [ 'a','c'])
-        self.assertEqual(len(metadata.table_structures.keys()),1)
-        self.assertEqual(len(metadata.table_structures[tmpfile.name].data_loads),1)
+        self.assertEqual(len(metadata.table_structures),1)
+        self.assertEqual(len(metadata.new_table_structures[tmpfile.name]),1)
 
-        table_structure = metadata.table_structures[tmpfile.name]
+        table_structure = metadata.table_structures[tmpfile.name][0]
 
         self.assertEqual(table_structure.column_names,[ 'a','b','c'])
-        self.assertEqual(table_structure.column_types,[ 'int','int','int'])
+        self.assertEqual(table_structure.python_column_types,[ int,int,int])
+        self.assertEqual(table_structure.sqlite_column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        self.assertEqual(len(table_structure.materialized_files),1)
-        self.assertEqual(table_structure.materialized_files[0],tmpfile.name)
-        self.assertEqual(table_structure.data_loads[0].source_type,'file')
-        self.assertEqual(table_structure.data_loads[0].source,tmpfile.name)
-        self.assertEqual(table_structure.data_loads[0].data_stream,None)
-        self.assertEqual(table_structure.data_loads[0].filename,tmpfile.name)
+        self.assertEqual(table_structure.atomic_fn,tmpfile.name)
+        self.assertEqual(table_structure.source_type,'file')
+        self.assertEqual(table_structure.source,tmpfile.name)
 
         q.done()
         self.cleanup(tmpfile)
@@ -3990,18 +4007,17 @@ class BasicModuleTests(AbstractQTestCase):
         metadata = q_output.metadata
 
         self.assertTrue(metadata.output_column_name_list,['column2','column3'])
-        self.assertEqual(len(metadata.table_structures['my_data'].data_loads),1)
-        self.assertEqual(len(metadata.table_structures['my_data'].data_streams),0)
+        self.assertEqual(len(metadata.new_table_structures['my_data']),1)
         self.assertEqual(len(metadata.table_structures),1)
 
-        table_structure = metadata.table_structures['my_data']
+        table_structure = metadata.table_structures['my_data'][0]
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
-        self.assertEqual(table_structure.column_types,['text','float','text'])
+        self.assertEqual(table_structure.sqlite_column_types,['text','float','text'])
+        self.assertEqual(table_structure.python_column_types,[str,float,str])
         self.assertEqual(table_structure.qtable_name, 'my_data')
-        self.assertEqual(len(table_structure.materialized_files),0)
-        self.assertEqual(table_structure.data_loads[0].data_stream.stream_id,'my_data_stream_id')
-        self.assertEqual(table_structure.data_loads[0].data_stream,data_streams_dict['my_data'])
+        self.assertEqual(table_structure.source_type, 'data-stream')
+        self.assertEqual(table_structure.source, 'my_data_stream_id')
 
         q.done()
 
@@ -4027,17 +4043,15 @@ class BasicModuleTests(AbstractQTestCase):
         metadata = q_output.metadata
 
         self.assertTrue(metadata.output_column_name_list,['column2','column3'])
-        self.assertEqual(len(metadata.table_structures['my_data'].data_loads),0)
+        self.assertEqual(len(metadata.new_table_structures['my_data']),0)
         self.assertTrue(len(metadata.table_structures),1)
 
-        table_structure = metadata.table_structures['my_data']
+        table_structure = metadata.table_structures['my_data'][0]
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
-        self.assertEqual(table_structure.column_types,['text','float','text'])
+        self.assertEqual(table_structure.sqlite_column_types,['text','float','text'])
+        self.assertEqual(table_structure.python_column_types,[str,float,str])
         self.assertEqual(table_structure.qtable_name, 'my_data')
-        self.assertEqual(len(table_structure.materialized_files),0)
-        self.assertEqual(len(table_structure.data_loads),0)
-        self.assertEqual(len(table_structure.data_streams),0)
 
         q.done()
 

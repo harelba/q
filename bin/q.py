@@ -1657,15 +1657,17 @@ class MaterializedQsqlState(object):
 # TODO RLRL PXPX - Preparation for splitting low-level table structures from TableCreators, so qsql file can work
 #  without a TableCreator
 class MaterializedStateTableStructure(object):
-    def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying,source_type,source):
+    def __init__(self,qtable_name, atomic_fn, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
         self.db_id = db_id
         self.column_names = column_names
-        self.column_types = column_types
+        self.python_column_types = python_column_types
         self.table_name_for_querying = table_name_for_querying
         self.source_type = source_type
         self.source = source
+
+        self.sqlite_column_types = [Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t].lower() for t in python_column_types]
 
     def get_table_name_for_querying(self):
         return self.table_name_for_querying
@@ -2347,7 +2349,7 @@ class QTextAsData(object):
             xprint("Found data stream %s" % data_stream)
 
             if data_stream is not None:
-                ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
+                ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
                 materialized_file_dict[data_stream.stream_id] = [ms]
             else:
                 qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
@@ -2671,7 +2673,8 @@ class QTextAsData(object):
             column_types = None
             for ts in relevant_table_structures:
                 names = ts.column_names
-                types = ts.column_types
+                types = ts.python_column_types
+                # TODO RLRL Compare sqlite column types as well?
                 xprint("Comparing column names: %s with %s" % (column_names,names))
                 if column_names is None:
                     column_names = names
@@ -2929,9 +2932,8 @@ class QOutputPrinter(object):
                 print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
             print("  Fields:",file=f_out)
             # TODO RLRL How to handle multi mfs in terms of field structure?
-            for n,t in zip(table_structures[0].column_names,table_structures[0].column_types):
-                sqlite_type = Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t].lower()
-                print("    `%s` - %s" % (n,sqlite_type), file=f_out)
+            for n,t in zip(table_structures[0].column_names,table_structures[0].sqlite_column_types):
+                print("    `%s` - %s" % (n,t), file=f_out)
 
     def print_output(self,f_out,f_err,results):
         try:

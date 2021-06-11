@@ -2327,7 +2327,7 @@ class QsqlUsageTests(AbstractQTestCase):
 
         qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
 
-        cmd = '%s -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+        cmd = '%s -t "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s large_file left join %s small_file on (large_file.aa == small_file.bb)" -S %s' % \
               (Q_EXECUTABLE,qsql_filename1,qsql_filename2,qsql_with_multiple_tables)
         retcode, o, e = run_command(cmd)
 
@@ -2336,9 +2336,9 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e), 4)
         self.assertEqual(e[0], six.b('Going to save data into a disk database: %s' % qsql_with_multiple_tables))
         self.assertTrue(e[1].startswith(six.b('Data has been saved into %s . Saving has taken' % qsql_with_multiple_tables)))
-        self.assertEqual(e[2],six.b('Query to run on the database: select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb);' % \
+        self.assertEqual(e[2],six.b('Query to run on the database: select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s large_file left join %s small_file on (large_file.aa == small_file.bb);' % \
                                     (expected_stored_table_name1,expected_stored_table_name2)))
-        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" | sqlite3 %s' % \
+        self.assertEqual(e[3],six.b('You can run the query directly from the command line using the following command: echo "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s large_file left join %s small_file on (large_file.aa == small_file.bb)" | sqlite3 %s' % \
                                     (expected_stored_table_name1,expected_stored_table_name2,qsql_with_multiple_tables)))
 
         cmd = '%s -d , "select count(*) cnt,sum(aa),sum(bb),sum(cc) from %s:::%s"' % (Q_EXECUTABLE,qsql_with_multiple_tables,expected_stored_table_name1)
@@ -2347,7 +2347,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(r,0)
         self.assertEqual(len(o),1)
         self.assertEqual(len(e),0)
-        self.assertEqual(o[0],six.b('10000,50000050,50000050,5000050'))
+        self.assertEqual(o[0],six.b('10000,50005000,50005000,50005000'))
 
     # def test_direct_use_of_sqlite_db_with_one_table(self):
     #     tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')

@@ -73,7 +73,7 @@ if DEBUG:
 else:
     def xprint(*args,**kwargs): pass
 
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 3
+MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -828,6 +828,7 @@ class Sql(object):
 
     def materialize_using(self,loaded_table_structures_dict, data_streams):
         xprint("Materializing sql object: %s" % str(self.qtable_names))
+        xprint("loaded table structures dict %s" % loaded_table_structures_dict)
         for qtable_name in self.qtable_names:
             effective_table_names_list = []
             for table_structure in loaded_table_structures_dict[qtable_name]:
@@ -1291,6 +1292,11 @@ class MaterializedDelimitedFileState(object):
 
         self.start_time = None
         self.end_time = None
+        self.duration = None
+
+        self.source_type = None
+        self.source = None
+
 
     def set_effective_db_and_table_name(self,db_to_use,table_name):
         self.db_id = db_to_use.db_id
@@ -1337,6 +1343,10 @@ class MaterializedDelimitedFileState(object):
         self.db_id = '%s' % self._generate_db_name(self.atomic_fn)
         xprint("Database id is %s" % self.db_id)
         self.db_to_use = Sqlite3DB(self.db_id, 'file:%s?mode=memory&cache=shared' % self.db_id, 'memory<%s>' % self.db_id,create_metaq=True)
+
+        self.source = source
+        self.source_type = source_type
+
         return source,source_type, self.db_id, self.db_to_use
 
     def __analyze_delimited_file(self,database_info):
@@ -1381,7 +1391,9 @@ class MaterializedDelimitedFileState(object):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
                                                              table_creator.column_inferer.get_column_names(),
                                                              table_creator.column_inferer.get_column_types(),
-                                                             self.get_table_name_for_querying())
+                                                             self.get_table_name_for_querying(),
+                                                             self.source_type,
+                                                             self.source)
 
         # TODO RLRL Probably needs to happen only if not reading from cache, but original source code location of this
         #  does not differentiate, so maybe this would need to move
@@ -1430,6 +1442,9 @@ class MaterializedDelimitedFileState(object):
     def finalize(self):
         self.delimited_file_reader.close_file()
 
+        self.end_time = time.time()
+        self.duration = self.end_time - self.start_time
+
     def get_lines_read(self):
         return self.delimited_file_reader.lines_read
 
@@ -1444,10 +1459,17 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
         self.stream_target_db = stream_target_db
 
+        self.start_time = None
+        self.end_time = None
+
+        self.source_type = None
+        self.source = None
+
     def get_table_source_type(self):
         return TableSourceType.DATA_STREAM
 
     def initialize(self):
+        self.start_time = time.time()
         if self.input_params.gzipped_input:
             raise CannotUnzipDataStreamException()
 
@@ -1461,6 +1483,9 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
         source_type = 'data-stream'
         source = self.data_stream.stream_id
 
+        self.source = source
+        self.source_type = source_type
+
         return source,source_type, self.db_id, self.db_to_use
 
     def calculate_should_read_from_cache(self):
@@ -1472,6 +1497,8 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
             yield x
 
     def finalize(self):
+        self.end_time = time.time()
+        self.duration = self.end_time - self.start_time
         pass
 
     def get_lines_read(self):
@@ -1495,10 +1522,20 @@ class MaterializedQsqlState(object):
 
         self.mfs_structure = None
 
+        self.start_time = None
+        self.end_time = None
+        self.duration = None
+
+        self.source_type = None
+        self.source = None
+
     def initialize(self):
+        self.start_time = time.time()
         pass # TODO RLRL Add validatin of qsql file, for fast failure
 
     def finalize(self):
+        self.end_time = time.time()
+        self.duration = self.end_time - self.start_time
         pass
 
     def get_table_name_for_querying(self):
@@ -1530,6 +1567,9 @@ class MaterializedQsqlState(object):
             self.db_id = forced_db_to_use.db_id
             self.db_to_use = forced_db_to_use
 
+        self.source_type = source_type
+        self.source = source
+
         return source,source_type, self.db_id, self.db_to_use
 
     def make_data_available(self,stop_after_analysis):
@@ -1539,9 +1579,11 @@ class MaterializedQsqlState(object):
 
         column_names,column_types = self._extract_information()
 
+#def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying,source_type,source):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
                                                              column_names, column_types,
-                                                             self.get_table_name_for_querying())
+                                                             self.get_table_name_for_querying(),
+                                                             self.source_type,self.source)
         return database_info, relevant_table
 
     def _extract_information(self):
@@ -1615,13 +1657,15 @@ class MaterializedQsqlState(object):
 # TODO RLRL PXPX - Preparation for splitting low-level table structures from TableCreators, so qsql file can work
 #  without a TableCreator
 class MaterializedStateTableStructure(object):
-    def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying):
+    def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying,source_type,source):
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
         self.db_id = db_id
         self.column_names = column_names
         self.column_types = column_types
         self.table_name_for_querying = table_name_for_querying
+        self.source_type = source_type
+        self.source = source
 
     def get_table_name_for_querying(self):
         return self.table_name_for_querying
@@ -2084,22 +2128,6 @@ class QError(object):
         return "QError<errorcode=%s,msg=%s,exception=%s,traceback=%s>" % (self.errorcode,self.msg,self.exception,str(self.traceback))
     __repr__ = __str__
 
-class QDataLoad(object):
-    def __init__(self,mfs,filename,start_time,end_time,source_type=None,source=None):
-        self.mfs = mfs
-        self.filename = filename
-        self.start_time = start_time
-        self.end_time = end_time
-        self.source_type = source_type
-        self.source = source
-
-    def duration(self):
-        return self.end_time - self.start_time
-
-    def __str__(self):
-        return "QDataLoad<%s>" % self.__dict__
-    __repr__ = __str__
-
 class QMaterializedFile(object):
     def __init__(self,filename,data_stream):
         self.filename = filename
@@ -2125,13 +2153,13 @@ class QTableStructure(object):
     __repr__ = __str__
 
 class QMetadata(object):
-    def __init__(self,table_structures={},output_column_name_list=None):
+    def __init__(self,table_structures={},new_table_structures={},output_column_name_list=None):
         self.table_structures = table_structures
+        self.new_table_structures = new_table_structures
         self.output_column_name_list = output_column_name_list
 
     def __str__(self):
-        return "QMetadata<table_count=%s,output_column_name_list=%s" % (
-            len(self.table_structures),self.output_column_name_list)
+        return "QMetadata<%s" % (self.__dict__)
     __repr__ = __str__
 
 class QOutput(object):
@@ -2317,18 +2345,18 @@ class QTextAsData(object):
 
         if data_stream is not None:
             ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-            materialized_file_dict[qtable_name] = [ms]
+            # TODO RLRL Implement concatenated data streams logic
+            materialized_file_dict[data_stream.stream_id] = [ms]
         else:
             qsql_filename, table_name = self.try_qsql_table_reference(qtable_name)
             if qsql_filename is not None:
                 ms = MaterializedQsqlState(qtable_name,qsql_filename,qsql_filename=qsql_filename,table_name=table_name,
                                            engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
-                materialized_file_dict[qtable_name] = [ms]
+                materialized_file_dict['%s:::%s' % (qsql_filename,table_name)] = [ms]
             else:
                 materialized_file_list = self.materialize_file_list(qtable_name)
                 # For each match
                 for atomic_fn in materialized_file_list:
-                    qsql_filename,table_name = self.try_qsql_table_reference(atomic_fn)
                     # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
                     ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
                     # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
@@ -2338,7 +2366,8 @@ class QTextAsData(object):
                         materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
 
         xprint("MS dict: %s" % str(materialized_file_dict))
-        return materialized_file_dict
+
+        return list([item for sublist in materialized_file_dict.values() for item in sublist])
 
     def try_qsql_table_reference(self,filename):
         if ':::' in filename:
@@ -2452,36 +2481,9 @@ class QTextAsData(object):
         attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
         return attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
 
-    def _load_atomic_fn(self,qtable_name,mfss_in_qtable,atomic_fn,input_params,dialect_id,stop_after_analysis):
-        dls = []
-
-        if atomic_fn in self.loaded_table_structures_dict.keys():
-            xprint("Atomic filename %s found. no need to load" % atomic_fn)
-            return []
-
-        xprint("Atomic Filename %s not found - loading" % atomic_fn)
-
-        for mfs in mfss_in_qtable:
-            xprint("MFSMFS: %s - %s" % (mfs,mfs.__dict__))
-            start_time = time.time()
-
-            source,source_type = self._load_mfs(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
-            xprint("RRR Loaded: source-type %s source %s mfs_structure %s" % (source_type,source,mfs.mfs_structure))
-
-            if isinstance(mfs, MaterialiedDataStreamState):
-                ds = mfs.data_stream
-            else:
-                ds = None
-
-            if atomic_fn not in self.loaded_table_structures_dict:
-                self.loaded_table_structures_dict[qtable_name] = [mfs.mfs_structure]
-            else:
-                self.loaded_table_structures_dict[qtable_name] += [mfs.mfs_structure]
-
-            dls += [QDataLoad(mfs,atomic_fn, start_time, time.time(), source_type=source_type,source=source)]
-
-        return dls
-
+    # TODO RLRL It's ensure_ now
+    def _load_atomic_fn(self,qtable_name,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
+        pass
 
     def _load_data(self,qtable_name,input_params=QInputParams(),stop_after_analysis=False):
         xprint("Attempting to load data for materialized file names %s" % qtable_name)
@@ -2496,14 +2498,29 @@ class QTextAsData(object):
                                              dialect_id)
 
         xprint("MFSs to load: %s" % mfss)
-        data_loads = []
+        all_new_table_structures = []
 
-        for atomic_fn in mfss.keys():
-            mfss_in_qtable = mfss[atomic_fn]
-            xprint("Loading file %s. MFSs: %s" % (atomic_fn,mfss_in_qtable))
-            data_loads += self._load_atomic_fn(qtable_name,mfss_in_qtable, atomic_fn, input_params, dialect_id, stop_after_analysis)
+        new_table_structures = []
 
-        return data_loads
+        for mfs in mfss:
+            atomic_fn = mfs.atomic_fn
+            if atomic_fn in self.loaded_table_structures_dict.keys():
+                xprint("Atomic filename %s found. no need to load" % atomic_fn)
+                continue
+
+            xprint("Atomic Filename %s not found - loading" % atomic_fn)
+
+            self._load_mfs(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
+            xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
+
+            if qtable_name not in self.loaded_table_structures_dict:
+                self.loaded_table_structures_dict[qtable_name] = [mfs.mfs_structure]
+            else:
+                self.loaded_table_structures_dict[qtable_name] += [mfs.mfs_structure]
+
+            all_new_table_structures += [mfs.mfs_structure]
+
+        return all_new_table_structures
 
     def attach_to_db(self, target_db, source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
@@ -2515,18 +2532,18 @@ class QTextAsData(object):
 
     def _ensure_data_is_loaded_for_sql(self,sql_object,input_params,data_streams=None,stop_after_analysis=False):
         xprint("Ensuring Data load")
-        data_loads = OrderedDict()
+        new_table_structures = OrderedDict()
 
-        # Get each "table name" which is actually the file name
+        # For each "table name"
         for qtable_name in sql_object.qtable_names:
-            new_data_loads = self._load_data(qtable_name,input_params,stop_after_analysis=stop_after_analysis)
-            xprint("New Data Loads:",new_data_loads)
-            if qtable_name not in data_loads:
-                data_loads[qtable_name] = new_data_loads
+            tss = self._load_data(qtable_name,input_params,stop_after_analysis=stop_after_analysis)
+            xprint("New Table Structures:",new_table_structures)
+            if qtable_name not in new_table_structures:
+                new_table_structures[qtable_name] = tss
             else:
-                data_loads[qtable_name] = data_loads[qtable_name] + new_data_loads
+                new_table_structures[qtable_name] = new_table_structures[qtable_name] + tss
 
-        return data_loads
+        return new_table_structures
 
     def materialize_file_list(self,qtable_name):
         materialized_file_list = []
@@ -2690,7 +2707,7 @@ class QTextAsData(object):
         try:
             load_start_time = time.time()
             xprint("going to ensure data is loaded. Currently loaded tables: %s" % str(self.loaded_table_structures_dict))
-            data_loads_dict = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
+            new_table_structures = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
             xprint("ensured data is loaded. loaded tables: %s" % self.loaded_table_structures_dict)
 
             sql_object.materialize_using(self.loaded_table_structures_dict,self.data_streams)
@@ -2724,6 +2741,7 @@ class QTextAsData(object):
                 data = db_results_obj.results,
                 metadata = QMetadata(
                     table_structures=self.loaded_table_structures_dict,
+                    new_table_structures=new_table_structures,
                     output_column_name_list=db_results_obj.query_column_names),
                 warnings = warnings,
                 error = error)
@@ -2941,16 +2959,18 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
-        xprint("AQ",results.metadata.table_structures)
+        xprint("AQ",results.metadata)
         for qtable_name in results.metadata.table_structures:
-            table_structure = results.metadata.table_structures[qtable_name]
-            print("Table: %s" % table_structure.qtable_name,file=f_out)
+            table_structures = results.metadata.table_structures[qtable_name]
+            print("Table: %s" % qtable_name,file=f_out)
             print("  Data Loads:",file=f_out)
-            for dl in table_structure.data_loads:
+            for dl in results.metadata.new_table_structures[qtable_name]:
                 print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
             print("  Fields:",file=f_out)
-            for n,t in zip(table_structure.column_names,table_structure.column_types):
-                print("    `%s` - %s" % (n,t), file=f_out)
+            # TODO RLRL How to handle multi mfs in terms of field structure?
+            for n,t in zip(table_structures[0].column_names,table_structures[0].column_types):
+                sqlite_type = Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t].lower()
+                print("    `%s` - %s" % (n,sqlite_type), file=f_out)
 
     def print_output(self,f_out,f_err,results):
         try:

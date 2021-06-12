@@ -70,8 +70,12 @@ DEBUG = bool(os.environ.get('Q_DEBUG', None)) or '-V' in sys.argv
 if DEBUG:
     def xprint(*args,**kwargs):
         print(datetime.datetime.utcnow().isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
+
+    def iprint(*args,**kwargs):
+        print(datetime.datetime.utcnow().isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
 else:
     def xprint(*args,**kwargs): pass
+    def iprint(*args,**kwargs): pass
 
 MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
@@ -341,6 +345,7 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def metaq_table_exists(self):
+        # TODO RLRL Bug? reverse query?
         metaq_table_results = self.execute_and_fetch("select count(*) from sqlite_master where type='table' and tbl_name != 'metaq'").results
         return len(metaq_table_results) == 1
 
@@ -395,6 +400,9 @@ class Sqlite3DB(object):
         if r is None:
             return None
 
+        if len(r.results) == 0:
+            return None
+
         if len(r.results) > 1:
             raise Exception("Bug - Exactly one result should have been provided: %s" % str(r.results))
 
@@ -402,6 +410,28 @@ class Sqlite3DB(object):
         cs = OrderedDict(json.loads(r.results[0][1]))
         d['content_signature_key'] = self.calculate_content_signature_key(cs)
         return d
+
+    def get_all_from_metaq(self):
+        xprint("getting from metaq using table name")
+
+        field_names = ["temp_table_name", "content_signature", "creation_time","source_type","source"]
+
+        q = "SELECT %s FROM metaq" % ",".join(field_names)
+        xprint("Query from metaq %s" % q)
+        r = self.execute_and_fetch(q)
+
+        if r is None:
+            return None
+
+        def convert(res):
+            d = dict(zip(field_names, res))
+            cs = OrderedDict(json.loads(res[1]))
+            d['content_signature_key'] = self.calculate_content_signature_key(cs)
+            return d
+
+        rr = [convert(r) for r in r.results]
+
+        return rr
 
     # TODO RLRL - Escape/Guard question marks in filenames
 
@@ -573,6 +603,20 @@ class IncorrectDefaultValueException(Exception):
     def __str(self):
         # TODO RLRL - Fix
         return repr(self.msg)
+
+class NonExistentTableNameInQsql(Exception):
+
+    def __init__(self, qsql_filename,table_name,existing_table_names):
+        self.qsql_filename = qsql_filename
+        self.table_name = table_name
+        self.existing_table_names = existing_table_names
+
+class NonExistentTableNameInSqlite(Exception):
+
+    def __init__(self, qsql_filename,table_name,existing_table_names):
+        self.qsql_filename = qsql_filename
+        self.table_name = table_name
+        self.existing_table_names = existing_table_names
 
 class ColumnMaxLengthLimitExceededException(Exception):
 
@@ -836,12 +880,14 @@ class Sql(object):
 
                 effective_table_name = '%s.%s' % (table_structure.db_id, table_name_in_disk_db)
                 effective_table_names_list += [effective_table_name]
+                xprint("Effective table name list is now: %s" % effective_table_names_list)
 
             if len(effective_table_names_list) == 1:
                 # for a single file - no need to create a union, just use the table name
                 self.set_effective_table_name(qtable_name, effective_table_names_list[0])
                 xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_names_list[0]))
             else:
+                xprint("Effective table names for all subtables: %s" % effective_table_names_list)
                 # For multiple files - create a UNION ALL subquery with the content of all subtables
                 union_parts = ['select * from %s' % x for x in effective_table_names_list]
                 union_as_table_name = "(%s)" % ' UNION ALL '.join(union_parts)
@@ -1432,8 +1478,9 @@ class MaterializedDelimitedFileState(object):
             table_creator.perform_load_data_from_disk(self.db_id, disk_db_filename,forced = forced)
         return DatabaseInfo(self.db_id, table_creator.sqlite_db, needs_closing=True), 'temp_table_10001'
 
-    def _generate_db_name(self, filenames_str):
-        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
+    # TODO RLRL PXPX Add instance number of table so self joins would work
+    def _generate_db_name(self, qtable_name):
+        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(qtable_name)).hexdigest())
 
     def read_file_using_csv(self):
         for x in self.delimited_file_reader.generate_rows():
@@ -1531,7 +1578,51 @@ class MaterializedQsqlState(object):
 
     def initialize(self):
         self.start_time = time.time()
+        self.validate_table_name()
         pass # TODO RLRL Add validatin of qsql file, for fast failure
+
+    def autodetect_table_name(self):
+        # TODO RLRL Randomize id?
+        db = Sqlite3DB('temp_db','file:%s?immutable=1' % self.qsql_filename,self.qsql_filename,create_metaq=False)
+        try:
+            if db.metaq_table_exists():
+                metaq_entries = db.get_all_from_metaq()
+                if len(metaq_entries) == 1:
+                    return metaq_entries[0]['temp_table_name']
+                else:
+                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
+                    raise Exception('TODO RLRL qsql file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+            else:
+                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                if len(table_names) == 1:
+                    return table_names[0]
+                else:
+                    raise Exception('TODO RLRL sqlite file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+        finally:
+            db.done()
+
+    def validate_table_name(self):
+        if self.table_name is None:
+            self.table_name = self.autodetect_table_name()
+            return
+
+        db = Sqlite3DB('temp_db', 'file:%s?immutable=1' % self.qsql_filename, self.qsql_filename,
+                       create_metaq=False)
+        try:
+            if db.metaq_table_exists():
+                entry = db.get_from_metaq_using_table_name(self.table_name)
+                if entry is None:
+                    metaq_entries = db.get_all_from_metaq()
+                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
+                    raise NonExistentTableNameInQsql(self.qsql_filename,self.table_name,table_names)
+                    #raise Exception('TODO RLRL Table name %s does not exist in qsql file %s . Existing table names are %s' % (self.table_name,self.qsql_filename,table_names))
+            else:
+                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                if self.table_name.lower() not in map(lambda x:x.lower(),table_names):
+                    raise NonExistentTableNameInSqlite(self.qsql_filename, self.table_name, table_names)
+                    #raise Exception('TODO RLRL Table name %s does not exist in sqlite file %s . Existing table names are %s' % (self.table_name, self.qsql_filename, table_names))
+        finally:
+            db.done()
 
     def finalize(self):
         self.end_time = time.time()
@@ -1589,11 +1680,14 @@ class MaterializedQsqlState(object):
     def _extract_information(self):
         if self.db_to_use.metaq_table_exists():
             table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % self.table_name).results
-            xprint('Table info is %s' % table_info)
+            xprint('table_name=%s Table info is %s' % (self.table_name,table_info))
+
+            x = self.db_to_use.get_from_metaq_using_table_name(self.table_name)
+
             column_names = list(map(lambda x: x[1], table_info))
             column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
             self.content_signature = OrderedDict(
-                **json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature']))
+                **json.loads(x['content_signature']))
             xprint('Inferred column names and types from qsql: %s' % list(zip(column_names, column_types)))
         else:
             xprint("No metaq table - generic sqlite file")
@@ -1631,7 +1725,7 @@ class MaterializedQsqlState(object):
                         raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
                     else:
                         # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(original_filenme, other_filename, self.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
+                        raise ContentSignatureDiffersException(original_filename, other_filename, self.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
 
     def _backing_original_file_exists(self):
         return '%s.qsql' % self.atomic_fn == self.qsql_filename
@@ -1644,18 +1738,14 @@ class MaterializedQsqlState(object):
             _,_, _, _ = mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
 
-            # TODO RLRL PXPX original mdfs content is actually correct (with the 50... line). actual_content_signature from qsql file is
-            #  now identical, not supposed to contain the 50... line
+            # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
             actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name('temp_table_10001')['content_signature'])
             original_file_content_signature = mdfs.content_signature
             self.validate_content_signature(self.atomic_fn, original_file_content_signature, self.qsql_filename, actual_content_signature)
             mdfs.finalize()
         return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), 'temp_table_10001'
 
-    # TODO RLRL IP bring up QSQL_FILE handling from the depths of _load_mfs_as_table_creator and TableCreator so qsql handling will be isolated
 
-# TODO RLRL PXPX - Preparation for splitting low-level table structures from TableCreators, so qsql file can work
-#  without a TableCreator
 class MaterializedStateTableStructure(object):
     def __init__(self,qtable_name, atomic_fn, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
         self.qtable_name = qtable_name
@@ -1672,15 +1762,6 @@ class MaterializedStateTableStructure(object):
     def get_table_name_for_querying(self):
         return self.table_name_for_querying
 
-    def get_column_names(self):
-        return self.column_names
-
-    def get_column_types(self):
-        return self.column_types
-
-    def get_column_dict(self):
-        return OrderedDict(zip(self.column_names, self.column_types))
-
     def __str__(self):
         return "MaterializedStateTableStructure<%s>" % self.__dict__
     __repr__ = __str__
@@ -1692,10 +1773,6 @@ class TableCreator(object):
 
     def __init__(self, mfs, input_params,sqlite_db=None,target_sqlite_table_name=None):
         xprint("Initializing table creator for %s" % mfs)
-
-        # TODO RLRL - Remove the need for TableCreator for cases where it's a qsql file. For now it's being used and the db is
-        #   is replaced under the hood with a mutation inside TableCreator. Essentially, this change would remove the need for the
-        #   standard table creator for qsql files entirely
 
         self.mfs = mfs
         self.qtable_name = mfs.qtable_name
@@ -1732,17 +1809,6 @@ class TableCreator(object):
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
             raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
-        # TODO RLRL - Should think what should happen to data streams in terms of content signature. Their signature
-        #             should be calculated only when writing them to disk and not before
-        # TODO RLRL - filenames_str should not be in metaq at all - The source of the data doesn't matter. in fact,
-        #             at some point it will be possible to use the cached files only, without having the original file.
-        #             The flow is one way only - From the source file to the cache and not back. Wanting it to be a circular
-        #             relationship has major disadvantages - Content Signature complexity, dependency on the source file,
-        #             syncing between source and cache, and probably more.
-        #             If trying to access a source file, and it exists, then the location of cache is derived from it
-        #             (side by side naming). If the source file doesn't exist, then it's possible to search for the cache
-        #             file and just use it (without comparing signatures to the source file).  If the source file exists
-        #             and the cache doesn't, then it's possible to create it after reading the source file.
         if not isinstance(self.mfs,MaterialiedDataStreamState):
             size = os.stat(self.mfs.atomic_fn).st_size
             last_modification_time = os.stat(self.mfs.atomic_fn).st_mtime_ns
@@ -2086,12 +2152,11 @@ class TableCreator(object):
                     raise ContentSignatureDataDiffersException("Content Signatures differ. %s is missing from content signature" % k)
                 if source_signature[k] != content_signature[k]:
                     if k == 'rows':
-                        xprint("ROWS1:",source_signature[k])
-                        xprint("ROWS2:",content_signature[k])
                         raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
                     else:
                         # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(self.mfs.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
+                        raise ContentSignatureDiffersException(self.mfs.atomic_fn, ".".join(scope + [k]),
+                                                               source_signature[k], content_signature[k])
 
 
 
@@ -2339,6 +2404,32 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
+    # TODO RLRL Consolidate with other _autodetect_table_name_in_qsql
+    def autodetect_table_name_in_qsql(self,qsql_filename,table_name):
+        assert qsql_filename is not None
+
+        # If table name is already set, no need to autodetect it
+        if table_name is not None:
+            return table_name
+
+        db = Sqlite3DB('temp_db','file:%s?immutable=1' % qsql_filename,qsql_filename,create_metaq=False)
+        try:
+            if db.metaq_table_exists():
+                metaq_entries = db.get_all_from_metaq()
+                if len(metaq_entries) == 1:
+                    return metaq_entries[0]['temp_table_name']
+                else:
+                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
+                    raise Exception('TODO RLRL qsql file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+            else:
+                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                if len(table_names) == 1:
+                    return table_names[0]
+                else:
+                    raise Exception('TODO RLRL sqlite file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+        finally:
+            db.done()
+
     def _open_files_and_get_mfss(self,full_qtable_name,input_params,dialect):
         materialized_file_dict = OrderedDict()
 
@@ -2354,6 +2445,7 @@ class QTextAsData(object):
             else:
                 qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
                 if qsql_filename is not None:
+                    table_name = self.autodetect_table_name_in_qsql(qsql_filename,table_name)
                     ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
                                                engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
                     materialized_file_dict['%s:::%s' % (qsql_filename,table_name)] = [ms]
@@ -2374,7 +2466,7 @@ class QTextAsData(object):
         return list([item for sublist in materialized_file_dict.values() for item in sublist])
 
     def try_qsql_table_reference(self,filename):
-        # return contract is (qsql_filename, relevant_table_name, real_original_filename)
+        # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
 
         if ':::' in filename:
             qsql_filename,table_name = filename.split(":::",1)
@@ -2382,19 +2474,19 @@ class QTextAsData(object):
                 if not self.is_sqlite_file(qsql_filename):
                     # TODO RLRL Specific Exception and error handling.
                     raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
-                return qsql_filename,table_name,qsql_filename
+                return qsql_filename,table_name,filename
             else:
                 raise Exception('Bug - Unhandled missing file logic')
         else:
             attempted_qsql_filename = '%s.qsql' % filename
             if os.path.exists(filename) and self.is_sqlite_file(attempted_qsql_filename):
-                return attempted_qsql_filename, 'temp_table_10001', filename
+                return attempted_qsql_filename, None, filename
             else:
                 if self.is_sqlite_file(filename):
-                    return filename, 'temp_table_10001', filename
+                    return filename, None, filename
                 else:
                     if self.is_sqlite_file(attempted_qsql_filename):
-                        return attempted_qsql_filename, 'temp_table_10001', filename
+                        return attempted_qsql_filename, None, filename
 
         return None, None, None
 
@@ -2426,8 +2518,11 @@ class QTextAsData(object):
         database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
 
         if not self.is_adhoc_db(db_to_use) and not self.should_copy_instead_of_attach():
-            self.attach_to_db(db_to_use, self.query_level_db)
-            self.add_db_to_database_list(database_info)
+            if not self.already_attached_to_query_level_db(db_to_use):
+                self.attach_to_db(db_to_use, self.query_level_db)
+                self.add_db_to_database_list(database_info)
+            else:
+                xprint("DB %s is already attached to query level db. No need to attach it again.")
 
         mfs.finalize()
 
@@ -2534,6 +2629,11 @@ class QTextAsData(object):
             all_new_table_structures += [mfs.mfs_structure]
 
         return all_new_table_structures
+
+    def already_attached_to_query_level_db(self,db_to_attach):
+        attached_dbs = list(map(lambda x:x[1],self.query_level_db.execute_and_fetch('pragma database_list').results))
+        xprint("PPPP",attached_dbs,db_to_attach.db_id)
+        return db_to_attach.db_id in attached_dbs
 
     def attach_to_db(self, target_db, source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
@@ -2717,13 +2817,17 @@ class QTextAsData(object):
 
         try:
             load_start_time = time.time()
-            xprint("going to ensure data is loaded. Currently loaded tables: %s" % str(self.loaded_table_structures_dict))
+            iprint("Going to ensure data is loaded. Currently loaded tables: %s" % str(self.loaded_table_structures_dict))
             new_table_structures = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
-            xprint("ensured data is loaded. loaded tables: %s" % self.loaded_table_structures_dict)
+            iprint("Ensured data is loaded. loaded tables: %s" % self.loaded_table_structures_dict)
 
             self.validate_query(sql_object,self.loaded_table_structures_dict)
 
+            iprint("Query validated")
+
             sql_object.materialize_using(self.loaded_table_structures_dict,self.data_streams)
+
+            iprint("Materialized sql object")
 
             if save_db_to_disk_filename is not None:
                 xprint("Saving query data to disk")
@@ -2744,6 +2848,8 @@ class QTextAsData(object):
             xprint("Query level db: databases %s" % self.query_level_db.conn.execute('pragma database_list').fetchall())
             # Execute the query and fetch the data
             db_results_obj = sql_object.execute_and_fetch(self.query_level_db)
+
+            iprint("Query executed")
 
             # TODO RLRL - consolidate save_db_to_disk feature into qsql
 
@@ -2798,6 +2904,12 @@ class QTextAsData(object):
             error = QError(e,e.msg,82)
         except ContentSignatureNotFoundException as e:
             error = QError(e,e.msg,83)
+        except NonExistentTableNameInQsql as e:
+            msg = "Table %s could not be found in qsql file %s . Existing table names: %s" % (e.table_name,e.qsql_filename,",".join(e.existing_table_names))
+            error = QError(e,msg,84)
+        except NonExistentTableNameInSqlite as e:
+            msg = "Table %s could not be found in sqlite file %s . Existing table names: %s" % (e.table_name,e.qsql_filename,",".join(e.existing_table_names))
+            error = QError(e,msg,85)
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:

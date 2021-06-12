@@ -2437,6 +2437,73 @@ class QsqlUsageTests(AbstractQTestCase):
 
         # TODO RLRL - Cleanup folders for all tests
 
+    def test_direct_qsql_usage_for_single_table_qsql_file(self):
+        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
+
+        cmd = 'seq 1 10000 | %s -t "select sum(aa),sum(bb),sum(cc) from -" -S %s' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+
+        cmd = '%s -D, "select count(*),sum(c1) from %s:::data_stream_stdin"' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('10000,50005000'))
+
+    def test_direct_qsql_usage_for_single_table_qsql_file__nonexistent_table(self):
+        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
+
+        cmd = 'seq 1 10000 | %s -t "select sum(aa),sum(bb),sum(cc) from -" -S %s' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+
+        cmd = '%s -D, "select count(*),sum(c1) from %s:::unknown_table_name"' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 84)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b('Table unknown_table_name could not be found in qsql file %s . Existing table names: data_stream_stdin' % (disk_db_filename)))
+
+    def test_direct_qsql_usage_from_written_data_stream(self):
+        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
+
+        cmd = 'seq 1 10000 | %s -t "select sum(aa),sum(bb),sum(cc) from -" -S %s' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+
+        cmd = '%s -D, "select count(*),sum(c1) from %s:::data_stream_stdin"' % (Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('10000,50005000'))
+
+    def test_direct_qsql_self_join(self):
+        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
+
+        N = 100
+        cmd = 'seq 1 %s | %s -t "select count(*),sum(c1) from -" -S %s' % (N,Q_EXECUTABLE,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+
+        cmd = '%s -D, "select count(*),sum(a.c1),sum(b.c1) from %s:::data_stream_stdin a left join %s:::data_stream_stdin b"' % (Q_EXECUTABLE,disk_db_filename,disk_db_filename)
+        retcode, o, e = run_command(cmd)
+
+        expected_sum = sum(range(1,N+1))*N
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('10000,%s,%s' % (expected_sum,expected_sum)))
+
 
 class CachingTests(AbstractQTestCase):
 

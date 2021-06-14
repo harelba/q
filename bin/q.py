@@ -345,9 +345,8 @@ class Sqlite3DB(object):
             _ = r.fetchall()
 
     def metaq_table_exists(self):
-        # TODO RLRL Bug? reverse query?
-        metaq_table_results = self.execute_and_fetch("select count(*) from sqlite_master where type='table' and tbl_name != 'metaq'").results
-        return len(metaq_table_results) == 1
+        metaq_table_results = self.execute_and_fetch("select count(*) from sqlite_master where type='table' and tbl_name == 'metaq'").results
+        return metaq_table_results[0][0] == 1
 
     def calculate_content_signature_key(self,content_signature):
         if type(content_signature) != OrderedDict:
@@ -616,6 +615,18 @@ class NonExistentTableNameInSqlite(Exception):
     def __init__(self, qsql_filename,table_name,existing_table_names):
         self.qsql_filename = qsql_filename
         self.table_name = table_name
+        self.existing_table_names = existing_table_names
+
+class TooManyTablesInQsqlException(Exception):
+
+    def __init__(self, qsql_filename,existing_table_names):
+        self.qsql_filename = qsql_filename
+        self.existing_table_names = existing_table_names
+
+class TooManyTablesInSqliteException(Exception):
+
+    def __init__(self, qsql_filename,existing_table_names):
+        self.qsql_filename = qsql_filename
         self.existing_table_names = existing_table_names
 
 class ColumnMaxLengthLimitExceededException(Exception):
@@ -1590,14 +1601,16 @@ class MaterializedQsqlState(object):
                 if len(metaq_entries) == 1:
                     return metaq_entries[0]['temp_table_name']
                 else:
-                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
-                    raise Exception('TODO RLRL qsql file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+                    table_names = list(sorted(map(lambda x:x[0],[x['temp_table_name'] for x in metaq_entries])))
+                    raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
             else:
-                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                table_names = list(sorted(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results)))
                 if len(table_names) == 1:
                     return table_names[0]
+                elif len(table_names) == 0:
+                    raise TooManyTablesInSqliteException(self.qsql_filename,table_names) #TODO RLRL Separate exception type
                 else:
-                    raise Exception('TODO RLRL sqlite file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
+                    raise TooManyTablesInSqliteException(self.qsql_filename,table_names)
         finally:
             db.done()
 
@@ -1605,6 +1618,8 @@ class MaterializedQsqlState(object):
         if self.table_name is None:
             self.table_name = self.autodetect_table_name()
             return
+
+        # Detect table name if possible
 
         db = Sqlite3DB('temp_db', 'file:%s?immutable=1' % self.qsql_filename, self.qsql_filename,
                        create_metaq=False)
@@ -1615,12 +1630,11 @@ class MaterializedQsqlState(object):
                     metaq_entries = db.get_all_from_metaq()
                     table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
                     raise NonExistentTableNameInQsql(self.qsql_filename,self.table_name,table_names)
-                    #raise Exception('TODO RLRL Table name %s does not exist in qsql file %s . Existing table names are %s' % (self.table_name,self.qsql_filename,table_names))
             else:
-                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                table_names = list(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results))
+                xprint("xa",self.table_name,table_names)
                 if self.table_name.lower() not in map(lambda x:x.lower(),table_names):
                     raise NonExistentTableNameInSqlite(self.qsql_filename, self.table_name, table_names)
-                    #raise Exception('TODO RLRL Table name %s does not exist in sqlite file %s . Existing table names are %s' % (self.table_name, self.qsql_filename, table_names))
         finally:
             db.done()
 
@@ -2412,9 +2426,12 @@ class QTextAsData(object):
         if table_name is not None:
             return table_name
 
+        xprint("Autodetecting table name in %s" % qsql_filename)
+
         db = Sqlite3DB('temp_db','file:%s?immutable=1' % qsql_filename,qsql_filename,create_metaq=False)
         try:
             if db.metaq_table_exists():
+                xprint("Metaq table exists")
                 metaq_entries = db.get_all_from_metaq()
                 if len(metaq_entries) == 1:
                     return metaq_entries[0]['temp_table_name']
@@ -2423,8 +2440,9 @@ class QTextAsData(object):
                     raise Exception('TODO RLRL qsql file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
             else:
                 table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
+                xprint("Metaq table does not exist. Existing tables %s" % table_names)
                 if len(table_names) == 1:
-                    return table_names[0]
+                    return table_names[0][0]
                 else:
                     raise Exception('TODO RLRL sqlite file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
         finally:
@@ -2445,7 +2463,7 @@ class QTextAsData(object):
             else:
                 qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
                 if qsql_filename is not None:
-                    table_name = self.autodetect_table_name_in_qsql(qsql_filename,table_name)
+                    xprint("Table name %s has been detected" % table_name)
                     ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
                                                engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
                     materialized_file_dict['%s:::%s' % (qsql_filename,table_name)] = [ms]
@@ -2910,6 +2928,12 @@ class QTextAsData(object):
         except NonExistentTableNameInSqlite as e:
             msg = "Table %s could not be found in sqlite file %s . Existing table names: %s" % (e.table_name,e.qsql_filename,",".join(e.existing_table_names))
             error = QError(e,msg,85)
+        except TooManyTablesInQsqlException as e:
+            msg = "Could not autodetect table name in qsql file %s" % ",".join(e.existing_table_names)
+            error = QError(e,msg,86)
+        except TooManyTablesInSqliteException as e:
+            msg = "Could not autodetect table name in sqlite file %s" % ",".join(e.existing_table_names)
+            error = QError(e,msg,87)
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:

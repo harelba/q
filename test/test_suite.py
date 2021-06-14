@@ -315,9 +315,6 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    # # TODO RLRL Reinstate after finding a solution for:
-    # #   PXPX Resulting file contains table source type file instead of qsql-file. This happens due to the direct copy between
-    # #     the metaq row of the qsql file and the query-level db, which is then written directly into the save-to-db file.
     # def test_join_with_qsql_file_and_save(self):
     #     numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
     #     numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
@@ -2349,21 +2346,40 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(o[0],six.b('10000,50005000,50005000,50005000'))
 
-    # def test_direct_use_of_sqlite_db_with_one_table(self):
-    #     tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
-    #     os.remove(tmpfile.name)
-    #     c = sqlite3.connect(tmpfile.name)
-    #     c.execute(' create table temp_table_10001 (x int, y int)').fetchall()
-    #     c.execute(' insert into temp_table_10001 (x,y) values (100,200),(300,400)').fetchall()
-    #     c.close()
-    #
-    #     cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s"' % tmpfile.name
-    #     retcode, o, e = run_command(cmd)
-    #
-    #     self.assertEqual(retcode, 0)
-    #     self.assertEqual(len(o), 1)
-    #     self.assertEqual(len(e), 0)
-    #     self.assertEqual(o[0],six.b('400,600'))
+    def test_direct_use_of_sqlite_db_with_one_table(self):
+        tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
+        os.remove(tmpfile.name)
+        c = sqlite3.connect(tmpfile.name)
+        c.execute(' create table temp_table_10001 (x int, y int)').fetchall()
+        c.execute(' insert into temp_table_10001 (x,y) values (100,200),(300,400)').fetchall()
+        c.commit()
+        c.close()
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('400\t600'))
+
+    def test_direct_use_of_sqlite_db_with_one_table__nonexistent_table(self):
+        tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
+        os.remove(tmpfile.name)
+        c = sqlite3.connect(tmpfile.name)
+        c.execute(' create table some_numbers (x int, y int)').fetchall()
+        c.execute(' insert into some_numbers (x,y) values (100,200),(300,400)').fetchall()
+        c.commit()
+        c.close()
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s:::non_existent"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 85)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0],six.b('Table non_existent could not be found in sqlite file %s . Existing table names: some_numbers' % (tmpfile.name)))
+
 
     def test_qsql_creation_and_direct_use(self):
         numbers = [[six.b(str(i)),six.b(str(i)),six.b(str(i))] for i in range(1,10001)]

@@ -266,7 +266,7 @@ class Sqlite3DBResults(object):
 
 class Sqlite3DB(object):
 
-    def __init__(self, show_sql=SHOW_SQL):
+    def __init__(self, show_sql=SHOW_SQL, extension_path=None):
         self.show_sql = show_sql
         self.conn = sqlite3.connect(':memory:')
         self.last_temp_table_id = 10000
@@ -275,6 +275,13 @@ class Sqlite3DB(object):
             str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT'}
         self.numeric_column_types = set([int, long, float])
         self.add_user_functions()
+        if extension_path:
+            self.conn.enable_load_extension(True)
+            try:
+                self.conn.load_extension(extension_path)
+            except sqlite3.OperationalError as e:
+                print("Cannot load extension %s, error: %s" % (extension_path, e), file=sys.stderr)
+                sys.exit(80)
 
     def done(self):
         self.conn.commit()
@@ -1422,13 +1429,13 @@ class QInputParams(object):
         return "QInputParams(...)"
 
 class QTextAsData(object):
-    def __init__(self,default_input_params=QInputParams()):
+    def __init__(self,default_input_params=QInputParams(),extension_path=None):
         self.default_input_params = default_input_params
 
         self.table_creators = {}
 
         # Create DB object
-        self.db = Sqlite3DB()
+        self.db = Sqlite3DB(extension_path=extension_path)
 
     input_quoting_modes = {   'minimal' : csv.QUOTE_MINIMAL,
                         'all' : csv.QUOTE_ALL,
@@ -1945,6 +1952,8 @@ def run_standalone():
                       help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
     query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
                       help="query text encoding. Experimental. Please send your feedback on this")
+    query_option_group.add_option("-x", "--extension-path", dest="extension_path", default=None,
+                      help="Path for an SQLite extension binary to pre-load.")
     parser.add_option_group(query_option_group)
     #-----------------------------------------------
 
@@ -2110,7 +2119,7 @@ def run_standalone():
         input_quoting_mode=options.input_quoting_mode,
         disable_column_type_detection=options.disable_column_type_detection,
         max_column_length_limit=max_column_length_limit)
-    q_engine = QTextAsData(default_input_params=default_input_params)
+    q_engine = QTextAsData(default_input_params=default_input_params,extension_path=options.extension_path)
 
     output_params = QOutputParams(
         delimiter=options.output_delimiter,

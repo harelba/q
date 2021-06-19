@@ -2157,6 +2157,90 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(o[0],six.b('50005055\t50005055\t50005055'))
 
+    def test_concatenated_qsql_and_data_stream__column_names_mismatch(self):
+        N1 = 10000
+        N2 = 100
+
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, N1 + 1)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        cmd = 'seq 1 %s | %s -c 1 "select count(*) from %s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
+
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b('Bad header row: Column names differ for table %s+-: aa,bb,cc vs c1' % expected_cache_filename1))
+
+    def test_concatenated_qsql_and_data_stream(self):
+        N1 = 10000
+        N2 = 100
+
+        numbers1 = [[six.b(str(i))] for i in range(1, N1 + 1)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('c1')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from %s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
+
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('%s\t%s' % (N1+N2,sum(range(1,N1+1)) + sum(range(1,N2+1)))))
+
+    def test_concatenated_qsql_and_data_stream__explicit_table_name(self):
+        N1 = 10000
+        N2 = 100
+
+        numbers1 = [[six.b(str(i))] for i in range(1, N1 + 1)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('c1')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        tmpfile1_expected_table_name = os.path.basename(tmpfile1.name)
+
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from %s:::%s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1,tmpfile1_expected_table_name)
+
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('%s\t%s' % (N1+N2,sum(range(1,N1+1)) + sum(range(1,N2+1)))))
+
+    def test_write_to_qsql__check_chosen_table_name(self):
+        numbers1 = [[six.b(str(i))] for i in range(1, 10001)]
+        csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('c1')], numbers1)
+        tmpfile1 = self.create_file_with_data(csv_file_data1)
+        expected_cache_filename1 = '%s.qsql' % tmpfile1.name
+
+        cmd = Q_EXECUTABLE + ' -c 1 -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode, 0)
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        c = sqlite3.connect(expected_cache_filename1)
+        metaq_entries = c.execute('select temp_table_name from metaq').fetchall()
+        self.assertEqual(len(metaq_entries),1)
+        self.assertEqual(metaq_entries[0][0],os.path.basename(tmpfile1.name))
+
     def test_concatenated_mixes_qsql_with_single_table_and_csv(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
         csv_file_data1 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
@@ -2167,6 +2251,7 @@ class QsqlUsageTests(AbstractQTestCase):
         csv_file_data2 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
         tmpfile2 = self.create_file_with_data(csv_file_data2)
         expected_cache_filename2 = '%s.qsql' % tmpfile2.name
+
 
         cmd = Q_EXECUTABLE + ' -H -t "select count(*) from %s" -C readwrite' % tmpfile1.name
         retcode, o, e = run_command(cmd)
@@ -2528,6 +2613,7 @@ class CachingTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
+        tmpfile_expected_table_name = os.path.basename(tmpfile.name)
         expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
@@ -2549,10 +2635,11 @@ class CachingTests(AbstractQTestCase):
         # After readwrite caching has been activated, the cache file is expected to exist
         self.assertTrue(os.path.exists(expected_cache_filename))
 
+
         # Read the cache file directly, to make sure it's a valid sqlite file
         import sqlite3
         db = sqlite3.connect(expected_cache_filename)
-        table_list = db.execute("select * from metaq where temp_table_name == 'temp_table_10001'").fetchall()
+        table_list = db.execute("select * from metaq where temp_table_name == '%s'" % (tmpfile_expected_table_name)).fetchall()
         self.assertTrue(len(table_list) == 1)
         table_metadata = table_list[0]
         results = db.execute("select * from %s" % table_metadata[1]).fetchall()
@@ -2637,6 +2724,7 @@ class CachingTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
+        expected_tmpfile_table_name = tmpfile_filename
         expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C none' % tmpfile.name
@@ -2677,7 +2765,7 @@ class CachingTests(AbstractQTestCase):
 
         # Read the cache file directly, to make sure it's a valid sqlite file
         db = sqlite3.connect(expected_cache_filename)
-        table_list = db.execute("select * from metaq where temp_table_name == 'temp_table_10001'").fetchall()
+        table_list = db.execute("select * from metaq where temp_table_name == '%s'" % expected_tmpfile_table_name).fetchall()
         self.assertTrue(len(table_list) == 1)
         table_metadata = table_list[0]
         results = db.execute("select * from %s" % table_metadata[1]).fetchall()

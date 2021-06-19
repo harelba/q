@@ -333,6 +333,25 @@ class Sqlite3DB(object):
 
             xprint('Not creating metaq for db_id %s' % db_id)
 
+    def find_new_table_name(self,planned_table_name):
+        existing_table_names = [x[0] for x in self.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results]
+
+        possible_indices = range(1,1000)
+
+        for index in possible_indices:
+            if index == 1:
+                suffix = ''
+            else:
+                suffix = '_%s' % index
+
+            table_name_attempt = '%s%s' % (planned_table_name,suffix)
+
+            if table_name_attempt not in existing_table_names:
+                xprint("Found free table name %s in db %s for planned table name %s" % (table_name_attempt,self.db_id,planned_table_name))
+                return table_name_attempt
+
+        raise Exception('Cannot find free table name in db %s for planned table name %s' % (self.db_id,planned_table_name))
+
     def create_metaq_table(self):
         with self.conn as cursor:
             r = cursor.execute('CREATE TABLE metaq ( \
@@ -1327,13 +1346,14 @@ class MaterializedState(object):
     # TODO RLRL Copy complete interface for clarity
 
 class MaterializedDelimitedFileState(object):
-    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id):
+    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id,target_table_name=None):
         xprint("Creating new MDFS: %s %s" % (id(self),qtable_name))
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
         self.input_params = input_params
         self.dialect_id = dialect_id
         self.engine_id = engine_id
+        self.target_table_name = target_table_name
 
         self.delimited_file_reader = None
 
@@ -1354,6 +1374,32 @@ class MaterializedDelimitedFileState(object):
         self.source_type = None
         self.source = None
 
+        self.size = 0
+        self.last_modification_time = 0
+
+    def normalize_filename_to_table_name(self,filename):
+        return filename.replace("-","_")
+
+    def autodetect_table_name(self):
+        existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results]
+
+        planned_table_name = self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
+
+        possible_indices = range(1,1000)
+
+        for index in possible_indices:
+            if index == 1:
+                suffix = ''
+            else:
+                suffix = '_%s' % index
+
+            table_name_attempt = '%s%s' % (planned_table_name,suffix)
+
+            if table_name_attempt not in existing_table_names:
+                xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,self.source_type,self.source))
+                return table_name_attempt
+
+        raise Exception('Cannot find free table name for source type %s source %s' % (self.source_type,self.source))
 
     def set_effective_db_and_table_name(self,db_to_use,table_name):
         self.db_id = db_to_use.db_id
@@ -1386,28 +1432,35 @@ class MaterializedDelimitedFileState(object):
     def initialize(self):
         self.start_time = time.time()
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
+
+        self.size = os.stat(self.atomic_fn).st_size
+        self.last_modification_time = os.stat(self.atomic_fn).st_mtime_ns
+
         return self.delimited_file_reader.open_file()
 
     def choose_db_to_use(self,db_to_use=None):
-        source_type = 'file'
-        source = self.atomic_fn
+        self.source_type = 'file'
+        self.source = self.atomic_fn
 
         if db_to_use is not None:
             self.db_id = db_to_use.db_id
             self.db_to_use = db_to_use
-            return source,source_type,self.db_id,self.db_to_use
+            return self.source,self.source_type,self.db_id,self.db_to_use
 
         self.db_id = '%s' % self._generate_db_name(self.atomic_fn)
         xprint("Database id is %s" % self.db_id)
         self.db_to_use = Sqlite3DB(self.db_id, 'file:%s?mode=memory&cache=shared' % self.db_id, 'memory<%s>' % self.db_id,create_metaq=True)
 
-        self.source = source
-        self.source_type = source_type
+        if self.target_table_name is None:
+            self.target_table_name = self.autodetect_table_name()
 
-        return source,source_type, self.db_id, self.db_to_use
+        return self.source,self.source_type, self.db_id, self.db_to_use
 
     def __analyze_delimited_file(self,database_info):
-        target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
+        if self.target_table_name is not None:
+            target_sqlite_table_name = self.target_table_name
+        else:
+            target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
         # Create the matching database table and populate it
         table_creator = TableCreator(self, self.input_params, sqlite_db=database_info.sqlite_db,
@@ -1480,16 +1533,6 @@ class MaterializedDelimitedFileState(object):
         xprint("Written db to disk: disk db filename %s" % (disk_db_filename))
         disk_db_conn.close()
 
-    def read_table_from_cache(self, disk_db_filename, stop_after_analysis, table_creator, forced = False):
-        # Old TODOs not sure if they're relevant anymore
-        # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-        #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-        # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
-        if not stop_after_analysis or forced:
-            table_creator.perform_load_data_from_disk(self.db_id, disk_db_filename,forced = forced)
-        return DatabaseInfo(self.db_id, table_creator.sqlite_db, needs_closing=True), 'temp_table_10001'
-
-    # TODO RLRL PXPX Add instance number of table so self joins would work
     def _generate_db_name(self, qtable_name):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(qtable_name)).hexdigest())
 
@@ -1510,7 +1553,7 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect_id, engine_id, data_stream, stream_target_db): ## should pass adhoc_db
         assert data_stream is not None
 
-        super().__init__(qtable_name, atomic_fn, input_params, dialect_id, engine_id)
+        super().__init__(qtable_name, atomic_fn, input_params, dialect_id, engine_id,target_table_name=None)
         xprint("Creating new MDSS: %s %s" % (id(self), qtable_name))
 
         self.data_stream = data_stream
@@ -1522,6 +1565,31 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
         self.source_type = None
         self.source = None
+
+        self.target_table_name = None
+
+    def autodetect_table_name(self):
+        existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch(
+            "select tbl_name from sqlite_master where type='table'").results]
+
+        planned_table_name = 'data_stream_%s' % (self.normalize_filename_to_table_name(self.source))
+
+        possible_indices = range(1, 1000)
+
+        for index in possible_indices:
+            if index == 1:
+                suffix = ''
+            else:
+                suffix = '_%s' % index
+
+            table_name_attempt = '%s%s' % (planned_table_name, suffix)
+
+            if table_name_attempt not in existing_table_names:
+                xprint("Found free table name %s for source type %s source %s" % (
+                table_name_attempt, self.source_type, self.source))
+                return table_name_attempt
+
+        raise Exception('Cannot find free table name for source type %s source %s' % (self.source_type, self.source))
 
     def get_table_source_type(self):
         return TableSourceType.DATA_STREAM
@@ -1543,6 +1611,8 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
         self.source = source
         self.source_type = source_type
+
+        self.target_table_name = self.autodetect_table_name()
 
         return source,source_type, self.db_id, self.db_to_use
 
@@ -1747,17 +1817,17 @@ class MaterializedQsqlState(object):
     def _read_table_from_cache(self, stop_after_analysis):
         if self._backing_original_file_exists():
             xprint("Found a matching source file for qsql file. Checking content signature by creating a temp MFDS + analysis")
-            mdfs = MaterializedDelimitedFileState(self.qtable_name,self.atomic_fn,self.input_params,self.dialect_id,self.engine_id)
+            mdfs = MaterializedDelimitedFileState(self.qtable_name,self.atomic_fn,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
             mdfs.initialize()
             _,_, _, _ = mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
 
             # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
-            actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name('temp_table_10001')['content_signature'])
+            actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature'])
             original_file_content_signature = mdfs.content_signature
             self.validate_content_signature(self.atomic_fn, original_file_content_signature, self.qsql_filename, actual_content_signature)
             mdfs.finalize()
-        return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), 'temp_table_10001'
+        return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
 
 
 class MaterializedStateTableStructure(object):
@@ -1823,13 +1893,8 @@ class TableCreator(object):
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
             raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
-        if not isinstance(self.mfs,MaterialiedDataStreamState):
-            size = os.stat(self.mfs.atomic_fn).st_size
-            last_modification_time = os.stat(self.mfs.atomic_fn).st_mtime_ns
-        else:
-            # TODO RLRL - Need to prevent generating content signature once it's a data-stream
-            size = 0
-            last_modification_time = 0
+        size = self.mfs.size
+        last_modification_time = self.mfs.last_modification_time
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1848,8 +1913,9 @@ class TableCreator(object):
 
         return m
 
-    def get_table_name(self):
-        return self.target_sqlite_table_name
+    # def get_table_name(self):
+    #     return self.target_sqlite_table_name
+    #
 
     def _should_skip_extra_headers(self, filenumber, filename, mfs, col_vals):
         if not self.skip_header:
@@ -1906,10 +1972,6 @@ class TableCreator(object):
 
         self.sqlite_db.conn.commit()
 
-    # TODO RLRL - Remove
-    def get_absolute_filenames_str(self):
-        return self.mfs.atomic_fn
-
     def perform_analyze(self, dialect):
         xprint("Analyzing... %s" % dialect)
         if self.state == TableCreatorState.INITIALIZED:
@@ -1922,18 +1984,11 @@ class TableCreator(object):
 
             now = datetime.datetime.utcnow().isoformat()
 
-            if isinstance(self.mfs,MaterialiedDataStreamState):
-                source_type = 'data-stream'
-                source = self.mfs.data_stream.stream_id
-            else:
-                source_type = 'file'
-                source = self.mfs.atomic_fn
-
             self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
                                               self.content_signature,
                                               now,
-                                              source_type,
-                                              source)
+                                              self.mfs.source_type,
+                                              self.mfs.source)
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
@@ -1957,53 +2012,8 @@ class TableCreator(object):
     #   need to add a test that will validate this flow
 
     # TODO RLRL - Changing the original file after the qsql file exists - Requires a test, it now fails on an index out of range error
-    def load_qsql(self, db_id, disk_db_filename, expected_content_signature):
-        x = 'file:%s?immutable=1' % disk_db_filename
-        xprint("Loading sqlite_db %s from %s" % (db_id, disk_db_filename))
-        new_db = Sqlite3DB(db_id, x, disk_db_filename,create_metaq=False)
-        xprint("Loaded sqlite_db %s into %s" % (db_id,new_db))
 
-        if expected_content_signature is not None:
-            self.sqlite_db.done()
-        else:
-            if new_db.metaq_table_exists():
-                table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % 'temp_table_10001').results
-                xprint('Table info is %s' % table_info)
-                self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
-                self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
-                self.content_signature = OrderedDict(**json.loads(new_db.get_from_metaq_using_table_name('temp_table_10001')['content_signature']))
-                xprint('Inferred column names and types from qsql: %s' % list(zip(self.column_inferer.column_names,self.column_inferer.column_types)))
-            else:
-                xprint("No metaq table - generic sqlite file")
-                table_list = new_db.execute_and_fetch("SELECT tbl_name FROM sqlite_master WHERE type='table'").results
-                if len(table_list) == 1:
-                    table_name = table_list[0][0]
-                    xprint("Only one table in sqlite database, choosing it: %s" % table_name)
-                    table_info = new_db.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
-                    xprint('Table info is %s' % table_info)
-                    self.column_inferer.column_names = list(map(lambda x: x[1], table_info))
-                    self.column_inferer.column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
-                    xprint("Column names and types for table %s: %s" % (table_name,list(zip(self.column_inferer.column_names,self.column_inferer.column_types))))
-                    self.content_signature = OrderedDict()
-                else:
-                    raise Exception('bug - Multiple tables in sqlite database not yet supported')
-
-        self.sqlite_db = new_db
-
-    # TODO RLRL - Add qsql versioning table + check
     # TODO RLRL - Rename metaq table to a better name
-    def get_table_name_for_querying(self):
-        xprint("Getting table name for querying inside db_id %s" % self.sqlite_db.db_id)
-        d = self.sqlite_db.get_from_metaq(self.content_signature)
-        if d is None:
-            raise ContentSignatureNotFoundException("qsql file %s contains no table with a matching content signature key %s" % (
-                self.sqlite_db.sqlite_db_filename,
-                self.sqlite_db.calculate_content_signature_key(self.content_signature)))
-
-        # TODO DB table names - can they be taken from the filename itself?
-        table_name_in_disk_db = d['temp_table_name']
-        xprint("table name for querying is %s" % table_name_in_disk_db)
-        return table_name_in_disk_db
 
     def _flush_pre_creation_rows(self, filename):
         for i, col_vals in enumerate(self.pre_creation_rows):
@@ -2152,27 +2162,6 @@ class TableCreator(object):
 
     # store_qsql and load_qsql should be moved to the engine layer
 
-    # TODO RLRL Move
-    def validate_content_signature(self,source_signature,content_signature,scope=None):
-        if scope is None:
-            scope = []
-        for k in source_signature:
-            if type(source_signature[k]) == OrderedDict:
-                r = self.validate_content_signature(source_signature[k],content_signature[k],scope + [k])
-                if r:
-                    return True
-            else:
-                if k not in content_signature:
-                    raise ContentSignatureDataDiffersException("Content Signatures differ. %s is missing from content signature" % k)
-                if source_signature[k] != content_signature[k]:
-                    if k == 'rows':
-                        raise ContentSignatureDataDiffersException("Content Signatures differ at %s.%s (actual analysis data differs)" % (".".join(scope),k))
-                    else:
-                        # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(self.mfs.atomic_fn, ".".join(scope + [k]),
-                                                               source_signature[k], content_signature[k])
-
-
 
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     if len(m) == 0:
@@ -2207,30 +2196,6 @@ class QError(object):
 
     def __str__(self):
         return "QError<errorcode=%s,msg=%s,exception=%s,traceback=%s>" % (self.errorcode,self.msg,self.exception,str(self.traceback))
-    __repr__ = __str__
-
-class QMaterializedFile(object):
-    def __init__(self,filename,data_stream):
-        self.filename = filename
-        self.data_stream = data_stream
-
-    def __str__(self):
-        return "QMaterializedFile<filename=%s,data_stream=%s>" % (self.filename,self.data_stream)
-    __repr__ = __str__
-
-class QTableStructure(object):
-    def __init__(self, qtable_name, materialized_files, column_names, column_types, data_loads,data_streams):
-        self.qtable_name = qtable_name
-        self.materialized_files = materialized_files
-        self.column_names = column_names
-        self.column_types = column_types
-        self.data_loads = data_loads
-        # TODO RLRL - Remove data_streams, no longer needed as it's baked into data_loads
-        self.data_streams = data_streams
-
-    def __str__(self):
-        return "QTableStructure<qtable_name=%s,materialized_file=%s,column_names=%s,column_types=%s,data_loads=%s,data_streams=%s>" % (
-            self.qtable_name, self.materialized_files, self.column_names, self.column_types,self.data_loads,self.data_streams)
     __repr__ = __str__
 
 class QMetadata(object):
@@ -2418,36 +2383,6 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    # TODO RLRL Consolidate with other _autodetect_table_name_in_qsql
-    def autodetect_table_name_in_qsql(self,qsql_filename,table_name):
-        assert qsql_filename is not None
-
-        # If table name is already set, no need to autodetect it
-        if table_name is not None:
-            return table_name
-
-        xprint("Autodetecting table name in %s" % qsql_filename)
-
-        db = Sqlite3DB('temp_db','file:%s?immutable=1' % qsql_filename,qsql_filename,create_metaq=False)
-        try:
-            if db.metaq_table_exists():
-                xprint("Metaq table exists")
-                metaq_entries = db.get_all_from_metaq()
-                if len(metaq_entries) == 1:
-                    return metaq_entries[0]['temp_table_name']
-                else:
-                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
-                    raise Exception('TODO RLRL qsql file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
-            else:
-                table_names = db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results
-                xprint("Metaq table does not exist. Existing tables %s" % table_names)
-                if len(table_names) == 1:
-                    return table_names[0][0]
-                else:
-                    raise Exception('TODO RLRL sqlite file %s contains more than one table. Please specify explicitly which table should be used. Available tables: %s' % table_names)
-        finally:
-            db.done()
-
     def _open_files_and_get_mfss(self,full_qtable_name,input_params,dialect):
         materialized_file_dict = OrderedDict()
 
@@ -2469,9 +2404,11 @@ class QTextAsData(object):
                     materialized_file_dict['%s:::%s' % (qsql_filename,table_name)] = [ms]
                 else:
                     materialized_file_list = self.materialize_file_list(qtable_name)
+
                     # For each match
                     for atomic_fn in materialized_file_list:
                         # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
+
                         ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
                         # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
                         if atomic_fn not in materialized_file_dict:
@@ -2547,20 +2484,6 @@ class QTextAsData(object):
         xprint("MFS Loaded")
 
         return source,source_type
-
-    def save_cache_to_disk_if_needed(self, atomic_fn, disk_db_filename, input_params, mfs, table_creator):
-        effective_write_caching = (not isinstance(mfs,MaterialiedDataStreamState)) and input_params.write_caching
-        if effective_write_caching:
-            xprint("Going to write file cache for %s. Disk filename is %s" % (atomic_fn, disk_db_filename))
-            self.store_qsql(table_creator.sqlite_db, disk_db_filename)
-
-    def read_table_from_cache(self, db_id, disk_db_filename, stop_after_analysis, table_creator, forced = False):
-        # TODO RLRL - Loading qsql should be done from here and from the table creator itself. The reason is there
-        #   is because for now the analyzer is embedded inside the TableCreator and we need it in order to load data
-        # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
-        if not stop_after_analysis or forced:
-            table_creator.perform_load_data_from_disk(db_id, disk_db_filename,forced = forced)
-        return DatabaseInfo(db_id,table_creator.sqlite_db, needs_closing=True)
 
     def add_db_to_database_list(self,database_info):
         db_id = database_info.db_id
@@ -2712,34 +2635,8 @@ class QTextAsData(object):
         absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
         return absolute_path_list
 
-    def generate_new_table_name_from_metaq_data(self,metaq_data,table_name_mapping):
-        existing_table_names = table_name_mapping.values()
-
-        source = metaq_data['source']
-        source_type = metaq_data['source_type']
-
-        if source_type == 'file':
-            planned_table_name = os.path.basename(source)
-        elif source_type == 'data-stream':
-            planned_table_name = 'data_stream_%s' % source
-        else:
-            raise Exception('bug - only file/data-stream source types are currently being handled')
-
-        possible_indices = range(1,1000)
-
-        for index in possible_indices:
-            if index == 1:
-                suffix = ''
-            else:
-                suffix = '_%s' % index
-
-            table_name_attempt = '%s%s' % (planned_table_name,suffix)
-
-            if table_name_attempt not in existing_table_names:
-                xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,source_type,source))
-                return table_name_attempt
-
-        raise Exception('Cannot find free table name for source type %s source %s' % (source_type,source))
+    def normalize_filename_to_table_name(self,filename):
+        return filename.replace("-","_")
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
@@ -2767,7 +2664,7 @@ class QTextAsData(object):
             if metaq_data is None:
                 raise Exception('Bug - must find table in metaq - %s' % v)
 
-            new_table_name = self.generate_new_table_name_from_metaq_data(metaq_data,table_name_mapping)
+            new_table_name = materialized_db.find_new_table_name(metaq_data['temp_table_name'])
 
             # Copy the table into the materialized database
             xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
@@ -2958,13 +2855,6 @@ class QTextAsData(object):
                 # Support no-table select queries
                 pass
         self.loaded_table_structures_dict = OrderedDict()
-
-    def _create_materialized_files(self,table_creator):
-        d = table_creator.materialized_file_dict
-        m = {}
-        for filename,mfs in six.iteritems(d):
-            m[filename] = QMaterializedFile(filename,mfs.data_stream)
-        return m
 
     def analyze(self,query_str,input_params=None,data_streams=None):
         q_output = self._execute(query_str,input_params,data_streams=data_streams,stop_after_analysis=True)

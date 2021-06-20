@@ -2435,12 +2435,20 @@ class QsqlUsageTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(six.b(''),suffix='.sqlite')
         os.remove(tmpfile.name)
         c = sqlite3.connect(tmpfile.name)
-        c.execute(' create table temp_table_10001 (x int, y int)').fetchall()
-        c.execute(' insert into temp_table_10001 (x,y) values (100,200),(300,400)').fetchall()
+        c.execute(' create table mytable (x int, y int)').fetchall()
+        c.execute(' insert into mytable (x,y) values (100,200),(300,400)').fetchall()
         c.commit()
         c.close()
 
         cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s"' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('400\t600'))
+
+        cmd = Q_EXECUTABLE + ' -t "select sum(x),sum(y) from %s:::mytable"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)

@@ -35,7 +35,7 @@ from sqlite3.dbapi2 import OperationalError
 
 q_version = '2.0.19'
 
-__all__ = [ 'QTextAsData' ]
+#__all__ = [ 'QTextAsData' ]
 
 import os
 import sys
@@ -1337,33 +1337,18 @@ class DelimitedFileReader(object):
             raise UniversalNewlinesExistException()
 
 class MaterializedState(object):
-    def __init__(self,qtable_name):
-        self.qtable_name = qtable_name
+    def __init__(self, qtable_name, atomic_fn, engine_id):
+        xprint("Creating new MS: %s %s" % (id(self), qtable_name))
 
-    def get_table_source_type(self):
-        return TableSourceType.UNKNOWN
-
-    # TODO RLRL Copy complete interface for clarity
-
-class MaterializedDelimitedFileState(object):
-    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id,target_table_name=None):
-        xprint("Creating new MDFS: %s %s" % (id(self),qtable_name))
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
-        self.input_params = input_params
-        self.dialect_id = dialect_id
         self.engine_id = engine_id
-        self.target_table_name = target_table_name
 
-        self.delimited_file_reader = None
-
-        self.db_id = None
         self.db_to_use = None
+        self.db_id = None
 
-        self.effective_table_name = None
-
-        # TODO RLRL content signature is initialized during __analyze_delimited_file
-        self.content_signature = None
+        self.source_type = None
+        self.source = None
 
         self.mfs_structure = None
 
@@ -1371,19 +1356,23 @@ class MaterializedDelimitedFileState(object):
         self.end_time = None
         self.duration = None
 
-        self.source_type = None
-        self.source = None
+        self.effective_table_name = None
 
-        self.size = 0
-        self.last_modification_time = 0
+
+    def get_table_source_type(self):
+        return TableSourceType.UNKNOWN
 
     def normalize_filename_to_table_name(self,filename):
         return filename.replace("-","_")
 
+    def get_planned_table_name(self):
+        return Exception('not implemented')
+
+    def get_planned_table_name(self):
+        return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
+
     def autodetect_table_name(self):
         existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results]
-
-        planned_table_name = self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
 
         possible_indices = range(1,1000)
 
@@ -1393,7 +1382,7 @@ class MaterializedDelimitedFileState(object):
             else:
                 suffix = '_%s' % index
 
-            table_name_attempt = '%s%s' % (planned_table_name,suffix)
+            table_name_attempt = '%s%s' % (self.get_planned_table_name(),suffix)
 
             if table_name_attempt not in existing_table_names:
                 xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,self.source_type,self.source))
@@ -1405,7 +1394,31 @@ class MaterializedDelimitedFileState(object):
         self.db_id = db_to_use.db_id
         self.db_to_use = db_to_use
         self.effective_table_name = table_name
-        xprint("Effective DB and Table name set",self,self.__dict__)
+
+    def initialize(self):
+        self.start_time = time.time()
+
+    def finalize(self):
+        self.end_time = time.time()
+        self.duration = self.end_time - self.start_time
+
+    # TODO RLRL Copy complete interface for clarity
+
+class MaterializedDelimitedFileState(MaterializedState):
+    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id,target_table_name=None):
+        super().__init__(qtable_name,atomic_fn,engine_id)
+
+        self.input_params = input_params
+        self.dialect_id = dialect_id
+        self.target_table_name = target_table_name
+
+        self.delimited_file_reader = None
+
+        # TODO RLRL content signature is initialized during __analyze_delimited_file
+        self.content_signature = None
+
+        self.size = 0
+        self.last_modification_time = 0
 
     def get_table_source_type(self):
         return TableSourceType.DELIMITED_FILE
@@ -1430,22 +1443,23 @@ class MaterializedDelimitedFileState(object):
         return table_name_in_disk_db
 
     def initialize(self):
-        self.start_time = time.time()
+        super(MaterializedDelimitedFileState, self).initialize()
+
         self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
 
         self.size = os.stat(self.atomic_fn).st_size
         self.last_modification_time = os.stat(self.atomic_fn).st_mtime_ns
 
-        return self.delimited_file_reader.open_file()
-
-    def choose_db_to_use(self,db_to_use=None):
         self.source_type = 'file'
         self.source = self.atomic_fn
 
+        return self.delimited_file_reader.open_file()
+
+    def choose_db_to_use(self,db_to_use=None):
         if db_to_use is not None:
             self.db_id = db_to_use.db_id
             self.db_to_use = db_to_use
-            return self.source,self.source_type,self.db_id,self.db_to_use
+            return
 
         self.db_id = '%s' % self._generate_db_name(self.atomic_fn)
         xprint("Database id is %s" % self.db_id)
@@ -1454,7 +1468,6 @@ class MaterializedDelimitedFileState(object):
         if self.target_table_name is None:
             self.target_table_name = self.autodetect_table_name()
 
-        return self.source,self.source_type, self.db_id, self.db_to_use
 
     def __analyze_delimited_file(self,database_info):
         if self.target_table_name is not None:
@@ -1524,9 +1537,9 @@ class MaterializedDelimitedFileState(object):
         effective_write_caching = self.input_params.write_caching
         if effective_write_caching:
             xprint("Going to write file cache for %s. Disk filename is %s" % (self.atomic_fn, disk_db_filename))
-            self.store_qsql(table_creator.sqlite_db, disk_db_filename)
+            self._store_qsql(table_creator.sqlite_db, disk_db_filename)
 
-    def store_qsql(self, source_sqlite_db, disk_db_filename):
+    def _store_qsql(self, source_sqlite_db, disk_db_filename):
         xprint("Storing data as disk db")
         disk_db_conn = sqlite3.connect(disk_db_filename)
         sqlitebck.copy(source_sqlite_db.conn,disk_db_conn)
@@ -1540,56 +1553,28 @@ class MaterializedDelimitedFileState(object):
         for x in self.delimited_file_reader.generate_rows():
             yield x
 
-    def finalize(self):
-        self.delimited_file_reader.close_file()
-
-        self.end_time = time.time()
-        self.duration = self.end_time - self.start_time
-
     def get_lines_read(self):
         return self.delimited_file_reader.lines_read
+
+    def finalize(self):
+        self.delimited_file_reader.close_file()
+        super(MaterializedDelimitedFileState, self).finalize()
+
 
 class MaterialiedDataStreamState(MaterializedDelimitedFileState):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect_id, engine_id, data_stream, stream_target_db): ## should pass adhoc_db
         assert data_stream is not None
 
         super().__init__(qtable_name, atomic_fn, input_params, dialect_id, engine_id,target_table_name=None)
-        xprint("Creating new MDSS: %s %s" % (id(self), qtable_name))
 
         self.data_stream = data_stream
 
         self.stream_target_db = stream_target_db
 
-        self.start_time = None
-        self.end_time = None
-
-        self.source_type = None
-        self.source = None
-
         self.target_table_name = None
 
-    def autodetect_table_name(self):
-        existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch(
-            "select tbl_name from sqlite_master where type='table'").results]
-
-        planned_table_name = 'data_stream_%s' % (self.normalize_filename_to_table_name(self.source))
-
-        possible_indices = range(1, 1000)
-
-        for index in possible_indices:
-            if index == 1:
-                suffix = ''
-            else:
-                suffix = '_%s' % index
-
-            table_name_attempt = '%s%s' % (planned_table_name, suffix)
-
-            if table_name_attempt not in existing_table_names:
-                xprint("Found free table name %s for source type %s source %s" % (
-                table_name_attempt, self.source_type, self.source))
-                return table_name_attempt
-
-        raise Exception('Cannot find free table name for source type %s source %s' % (self.source_type, self.source))
+    def get_planned_table_name(self):
+        return 'data_stream_%s' % (self.normalize_filename_to_table_name(self.source))
 
     def get_table_source_type(self):
         return TableSourceType.DATA_STREAM
@@ -1599,22 +1584,20 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
         if self.input_params.gzipped_input:
             raise CannotUnzipDataStreamException()
 
-        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect_id,f = self.data_stream.stream)
+        self.source_type = 'data-stream'
+        self.source = self.data_stream.stream_id
+
+        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect_id, f=self.data_stream.stream)
 
     def choose_db_to_use(self,forced_db_to_use=None):
         assert forced_db_to_use is None
 
         self.db_id = self.stream_target_db.db_id
         self.db_to_use = self.stream_target_db
-        source_type = 'data-stream'
-        source = self.data_stream.stream_id
-
-        self.source = source
-        self.source_type = source_type
 
         self.target_table_name = self.autodetect_table_name()
 
-        return source,source_type, self.db_id, self.db_to_use
+        return
 
     def calculate_should_read_from_cache(self):
         # No disk_db_filename, and no reading from cache when reading a datastream
@@ -1625,42 +1608,25 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
             yield x
 
     def finalize(self):
-        self.end_time = time.time()
-        self.duration = self.end_time - self.start_time
-        pass
+        super(MaterialiedDataStreamState, self).finalize()
 
-    def get_lines_read(self):
-        return self.delimited_file_reader.lines_read
 
-class MaterializedQsqlState(object):
+class MaterializedQsqlState(MaterializedState):
     def __init__(self,qtable_name,atomic_fn,qsql_filename,table_name, engine_id,input_params,dialect_id):
-        self.qtable_name = qtable_name
-        self.atomic_fn = atomic_fn
+        super(MaterializedQsqlState, self).__init__(qtable_name,atomic_fn,engine_id)
         self.qsql_filename = qsql_filename
         self.table_name = table_name
-        self.engine_id = engine_id
 
         # These are for cases where the qsql file is just a cache and the original is still there, used for content
         # validation
         self.input_params = input_params
         self.dialect_id = dialect_id
 
-        self.db_id = None
-        self.db_to_use = None
-
-        self.mfs_structure = None
-
-        self.start_time = None
-        self.end_time = None
-        self.duration = None
-
-        self.source_type = None
-        self.source = None
-
     def initialize(self):
-        self.start_time = time.time()
+        super(MaterializedQsqlState, self).initialize()
+
         self.validate_table_name()
-        pass # TODO RLRL Add validatin of qsql file, for fast failure
+        pass
 
     def autodetect_table_name(self):
         # TODO RLRL Randomize id?
@@ -1702,16 +1668,13 @@ class MaterializedQsqlState(object):
                     raise NonExistentTableNameInQsql(self.qsql_filename,self.table_name,table_names)
             else:
                 table_names = list(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results))
-                xprint("xa",self.table_name,table_names)
                 if self.table_name.lower() not in map(lambda x:x.lower(),table_names):
                     raise NonExistentTableNameInSqlite(self.qsql_filename, self.table_name, table_names)
         finally:
             db.done()
 
     def finalize(self):
-        self.end_time = time.time()
-        self.duration = self.end_time - self.start_time
-        pass
+        super(MaterializedQsqlState, self).finalize()
 
     def get_table_name_for_querying(self):
         return self.table_name
@@ -1722,14 +1685,13 @@ class MaterializedQsqlState(object):
     def _generate_qsql_only_db_name__temp(self, filenames_str):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
-    def choose_db_to_use(self,forced_db_to_use:Sqlite3DB=False):
-        # TODO RLRL Reinstate source = '%s:::%s' % (self.qsql_filename, self.table_name)
+    def choose_db_to_use(self,forced_db_to_use=None):
         if '%s.qsql' % self.atomic_fn == self.qsql_filename:
-            source = self.qsql_filename
-            source_type = 'qsql-file-with-original'
+            self.source = self.qsql_filename
+            self.source_type = 'qsql-file-with-original'
         else:
-            source = self.qsql_filename
-            source_type = 'qsql-file'
+            self.source = self.qsql_filename
+            self.source_type = 'qsql-file'
 
         self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.atomic_fn)
 
@@ -1742,10 +1704,7 @@ class MaterializedQsqlState(object):
             self.db_id = forced_db_to_use.db_id
             self.db_to_use = forced_db_to_use
 
-        self.source_type = source_type
-        self.source = source
-
-        return source,source_type, self.db_id, self.db_to_use
+        return
 
     def make_data_available(self,stop_after_analysis):
         xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
@@ -1754,7 +1713,6 @@ class MaterializedQsqlState(object):
 
         column_names,column_types = self._extract_information()
 
-#def __init__(self,qtable_name, atomic_fn, db_id, column_names, column_types, table_name_for_querying,source_type,source):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
@@ -1819,7 +1777,7 @@ class MaterializedQsqlState(object):
             xprint("Found a matching source file for qsql file. Checking content signature by creating a temp MFDS + analysis")
             mdfs = MaterializedDelimitedFileState(self.qtable_name,self.atomic_fn,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
             mdfs.initialize()
-            _,_, _, _ = mdfs.choose_db_to_use()
+            mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
 
             # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
@@ -2467,14 +2425,14 @@ class QTextAsData(object):
         else:
             forced_db_to_use = None
 
-        source,source_type, db_id, db_to_use = mfs.choose_db_to_use(forced_db_to_use)
-        xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (source,source_type,db_id,db_to_use))
+        mfs.choose_db_to_use(forced_db_to_use)
+        xprint("Chosen db to use: source %s source_type %s db_id %s db_to_use %s" % (mfs.source,mfs.source_type,mfs.db_id,mfs.db_to_use))
 
         database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
 
-        if not self.is_adhoc_db(db_to_use) and not self.should_copy_instead_of_attach():
-            if not self.already_attached_to_query_level_db(db_to_use):
-                self.attach_to_db(db_to_use, self.query_level_db)
+        if not self.is_adhoc_db(mfs.db_to_use) and not self.should_copy_instead_of_attach():
+            if not self.already_attached_to_query_level_db(mfs.db_to_use):
+                self.attach_to_db(mfs.db_to_use, self.query_level_db)
                 self.add_db_to_database_list(database_info)
             else:
                 xprint("DB %s is already attached to query level db. No need to attach it again.")
@@ -2483,7 +2441,7 @@ class QTextAsData(object):
 
         xprint("MFS Loaded")
 
-        return source,source_type
+        return mfs.source,mfs.source_type
 
     def add_db_to_database_list(self,database_info):
         db_id = database_info.db_id

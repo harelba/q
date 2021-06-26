@@ -32,8 +32,8 @@ Look at some examples [here](#examples), or just download the tool using the lin
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|run `brew install q`|man page is not available for this release yet. Use `q --help` for now||
-|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter man q.|
+|[macOS](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|run `brew install q`|A man page is available for this release. Just enter `man q`.|
+|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.|A man page is available for this release. Just enter `man q`.|
 |[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`.|
 |[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.|
 |[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||

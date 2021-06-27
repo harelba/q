@@ -315,6 +315,64 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_join_with_qsql_file(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        new_tmp_folder = self.create_folder_with_files({
+            'some_csv_file': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'some_qsql_database.qsql' : self.arrays_to_qsql_file_content(header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/some_csv_file' % new_tmp_folder
+        effective_filename2 = '%s/some_qsql_database.qsql' % new_tmp_folder
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(small_file.aa) from %s large_file left join %s small_file on (small_file.aa == large_file.bb)"' % \
+              (effective_filename1,effective_filename2)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('50005000,55'))
+
+    def test_join_with_qsql_file_and_save(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        saved_qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        new_tmp_folder = self.create_folder_with_files({
+            'some_csv_file': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'some_qsql_database.qsql' : self.arrays_to_qsql_file_content(header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/some_csv_file' % new_tmp_folder
+        effective_filename2 = '%s/some_qsql_database.qsql' % new_tmp_folder
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(small_file.aa) from %s large_file left join %s small_file on (small_file.aa == large_file.bb)" -S %s' % \
+              (effective_filename1,effective_filename2,saved_qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+
+        conn = sqlite3.connect(saved_qsql_with_multiple_tables)
+        c1 = conn.execute('select count(*) from some_csv_file').fetchall()
+        c2 = conn.execute('select count(*) from some_qsql_database').fetchall()
+        metaq = conn.execute('select temp_table_name,source_type,source from metaq').fetchall()
+
+        self.assertEqual(c1[0][0],10000)
+        self.assertEqual(c2[0][0],10)
+        self.assertEqual(metaq, [('some_csv_file', 'file', '%s/some_csv_file' % new_tmp_folder),
+                                 ('some_qsql_database', 'file', '%s/some_qsql_database.qsql' % new_tmp_folder)])
+
+
+
+
     # def test_join_with_qsql_file_and_save(self):
     #     numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
     #     numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
@@ -2107,6 +2165,22 @@ caching_mode=readwrite
 
 
 class QsqlUsageTests(AbstractQTestCase):
+
+
+    def test_concatenate_same_qsql_file_with_single_table(self):
+        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+
+        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+
+        tmpfile = self.create_file_with_data(qsql_file_data,suffix='.qsql')
+
+        cmd = Q_EXECUTABLE + ' -t "select count(*) from %s+%s"' % (tmpfile.name,tmpfile.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b('20000'))
 
     def test_query_qsql_with_single_table(self):
         numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]

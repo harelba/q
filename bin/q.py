@@ -900,7 +900,7 @@ class Sql(object):
         db_results_obj = db.execute_and_fetch(x)
         return db_results_obj
 
-    def materialize_using(self,loaded_table_structures_dict, data_streams):
+    def materialize_using(self,loaded_table_structures_dict):
         xprint("Materializing sql object: %s" % str(self.qtable_names))
         xprint("loaded table structures dict %s" % loaded_table_structures_dict)
         for qtable_name in self.qtable_names:
@@ -2350,16 +2350,29 @@ class QTextAsData(object):
             data_stream = self.data_streams.get_for_filename(qtable_name)
             xprint("Found data stream %s" % data_stream)
 
+            # TODO RLRL - The materialize loop below needs to happen over the entire if-flow, and not just
+            #  for real files. This would allow concatenation of all the types dynamically
+            #  and will solve the current bug that handles "add to list if alreqdy exists" only in the real file list.
+            #  (the add-to-list currently doesn't happen for data-stream/qsql - this is the reason that
+            #  QsqlUsageTests.test_concatenate_same_qsql_file_with_single_table fails now).
             if data_stream is not None:
                 ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-                materialized_file_dict[data_stream.stream_id] = [ms]
+                if data_stream.stream_id not in materialized_file_dict:
+                    materialized_file_dict[data_stream.stream_id] = [ms]
+                else:
+                    materialized_file_dict[data_stream.stream_id] = materialized_file_dict[data_stream.stream_id] + [ms]
             else:
                 qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
                 if qsql_filename is not None:
                     xprint("Table name %s has been detected" % table_name)
                     ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
                                                engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
-                    materialized_file_dict['%s:::%s' % (qsql_filename,table_name)] = [ms]
+
+                    x = '%s:::%s' % (qsql_filename,table_name)
+                    if x not in materialized_file_dict:
+                        materialized_file_dict[x] = [ms]
+                    else:
+                        materialized_file_dict[x] = materialized_file_dict[x] + [ms]
                 else:
                     materialized_file_list = self.materialize_file_list(qtable_name)
 
@@ -2698,7 +2711,7 @@ class QTextAsData(object):
 
             iprint("Query validated")
 
-            sql_object.materialize_using(self.loaded_table_structures_dict,self.data_streams)
+            sql_object.materialize_using(self.loaded_table_structures_dict)
 
             iprint("Materialized sql object")
 

@@ -1363,10 +1363,13 @@ class MaterializedState(object):
         return TableSourceType.UNKNOWN
 
     def normalize_filename_to_table_name(self,filename):
-        return filename.replace("-","_")
-
-    def get_planned_table_name(self):
-        return Exception('not implemented')
+        if filename[0].isdigit():
+            filename = 't%s' % filename
+        if filename.lower().endswith(".qsql"):
+            filename = filename[:-5]
+        # TODO RLRL PXPX - Planned table name now works, but metaq content is wrong
+        #  since it is taken from the original metaq data !!
+        return filename.replace("-","_").replace(".","_")
 
     def get_planned_table_name(self):
         return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
@@ -1511,7 +1514,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         table_creator = self.__analyze_delimited_file(database_info)
 
-        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fn, self.db_id,
                                                              table_creator.column_inferer.get_column_names(),
                                                              table_creator.column_inferer.get_column_types(),
                                                              self.get_table_name_for_querying(),
@@ -1622,11 +1625,25 @@ class MaterializedQsqlState(MaterializedState):
         self.input_params = input_params
         self.dialect_id = dialect_id
 
+        self.table_name_autodetected = None
+
     def initialize(self):
         super(MaterializedQsqlState, self).initialize()
 
+        self.table_name_autodetected = False
+        if self.table_name is None:
+            self.table_name = self.autodetect_table_name()
+            self.table_name_autodetected = True
+            return
+
         self.validate_table_name()
-        pass
+
+    def get_planned_table_name(self):
+        if self.table_name_autodetected:
+            return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
+        else:
+            return self.table_name
+
 
     def autodetect_table_name(self):
         # TODO RLRL Randomize id?
@@ -1651,12 +1668,6 @@ class MaterializedQsqlState(MaterializedState):
             db.done()
 
     def validate_table_name(self):
-        if self.table_name is None:
-            self.table_name = self.autodetect_table_name()
-            return
-
-        # Detect table name if possible
-
         db = Sqlite3DB('temp_db', 'file:%s?immutable=1' % self.qsql_filename, self.qsql_filename,
                        create_metaq=False)
         try:
@@ -1713,7 +1724,7 @@ class MaterializedQsqlState(MaterializedState):
 
         column_names,column_types = self._extract_information()
 
-        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fn, self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fn, self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
                                                              self.source_type,self.source)
@@ -1789,7 +1800,9 @@ class MaterializedQsqlState(MaterializedState):
 
 
 class MaterializedStateTableStructure(object):
-    def __init__(self,qtable_name, atomic_fn, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
+    # TODO ms is temporary, need to leave this structure-only later on
+    def __init__(self,ms,qtable_name, atomic_fn, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
+        self.ms = ms
         self.qtable_name = qtable_name
         self.atomic_fn = atomic_fn
         self.db_id = db_id
@@ -2350,11 +2363,6 @@ class QTextAsData(object):
             data_stream = self.data_streams.get_for_filename(qtable_name)
             xprint("Found data stream %s" % data_stream)
 
-            # TODO RLRL - The materialize loop below needs to happen over the entire if-flow, and not just
-            #  for real files. This would allow concatenation of all the types dynamically
-            #  and will solve the current bug that handles "add to list if alreqdy exists" only in the real file list.
-            #  (the add-to-list currently doesn't happen for data-stream/qsql - this is the reason that
-            #  QsqlUsageTests.test_concatenate_same_qsql_file_with_single_table fails now).
             if data_stream is not None:
                 ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
                 if data_stream.stream_id not in materialized_file_dict:
@@ -2520,8 +2528,6 @@ class QTextAsData(object):
         xprint("MFSs to load: %s" % mfss)
         all_new_table_structures = []
 
-        new_table_structures = []
-
         for mfs in mfss:
             atomic_fn = mfs.atomic_fn
             if atomic_fn in self.loaded_table_structures_dict.keys():
@@ -2606,8 +2612,22 @@ class QTextAsData(object):
         absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
         return absolute_path_list
 
-    def normalize_filename_to_table_name(self,filename):
-        return filename.replace("-","_")
+    def propose_stored_table_name(self,qtable_name,source_database,actual_table_name_in_db):
+        # TODO RLRL PXPX Perhaps return a full metaq object from here and use it during storing
+        if not source_database.sqlite_db.metaq_table_exists():
+            raise Exception('sqlite is not supported yet')
+
+        if len(source_database.sqlite_db.get_all_from_metaq()) > 1:
+            # Get table data from metaq
+            metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(actual_table_name_in_db)
+            return metaq_data
+
+        l = []
+        for ts in self.loaded_table_structures_dict[qtable_name]:
+            planned_table_name = ts.ms.get_planned_table_name()
+            xprint("KKK",planned_table_name)
+            l += [planned_table_name]
+        return "_".join(l)
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
@@ -2622,29 +2642,30 @@ class QTextAsData(object):
         # For each table in the query
         effective_table_names = sql_object.get_qtable_name_effective_table_names()
 
-        for i, k in enumerate(effective_table_names):
+        for i, qtable_name in enumerate(effective_table_names):
             # table name, in the format db_id.table_name
-            v = effective_table_names[k]
-            db_id,table_name = v.split(".",1)
+            effective_table_name_for_qtable_name = effective_table_names[qtable_name]
 
+            db_id, actual_table_name_in_db = effective_table_name_for_qtable_name.split(".", 1)
             # The DatabaseInfo instance for this db
             source_database = self.databases[db_id]
 
-            # Get table data from metaq
-            metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(table_name)
-            if metaq_data is None:
-                raise Exception('Bug - must find table in metaq - %s' % v)
+            proposed_new_table_name = self.propose_stored_table_name(qtable_name,source_database,actual_table_name_in_db)
 
-            new_table_name = materialized_db.find_new_table_name(metaq_data['temp_table_name'])
+            new_table_name = materialized_db.find_new_table_name(proposed_new_table_name)
 
             # Copy the table into the materialized database
-            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,v))
+            xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,effective_table_name_for_qtable_name))
 
-            # TODO RLRL - Convert all content_signature reads/writes to dicts
-            actual_content_signature = OrderedDict(json.loads(metaq_data['content_signature']))
-            materialized_db.add_to_metaq_table(new_table_name,actual_content_signature,metaq_data['creation_time'],
-                                               metaq_data['source_type'],metaq_data['source'])
-            table_name_mapping[v] = new_table_name
+            if source_database.sqlite_db.metaq_table_exists():
+                metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(actual_table_name_in_db)
+                # TODO RLRL - Convert all content_signature reads/writes to dicts
+                actual_content_signature = OrderedDict(json.loads(metaq_data['content_signature']))
+                materialized_db.add_to_metaq_table(new_table_name,actual_content_signature,metaq_data['creation_time'],
+                                                   metaq_data['source_type'],metaq_data['source'])
+                table_name_mapping[effective_table_name_for_qtable_name] = new_table_name
+            else:
+                raise Exception('standard sqlite files are not supported yet')
 
         return table_name_mapping
 

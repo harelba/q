@@ -17,3 +17,4 @@ _benchmark_data/
 q.egg-info/
 .pytest_cache/
 *.qsql
+htmlcov/

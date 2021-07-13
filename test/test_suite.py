@@ -1057,7 +1057,7 @@ class BasicTests(AbstractQTestCase):
         tmpfile2_filename = os.path.basename(tmpfile2.name)
         expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
 
-        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from %s+%s" -C none' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from %s UNION ALL select * from %s" -C none' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -2174,7 +2174,7 @@ class QsqlUsageTests(AbstractQTestCase):
 
         tmpfile = self.create_file_with_data(qsql_file_data,suffix='.qsql')
 
-        cmd = Q_EXECUTABLE + ' -t "select count(*) from %s+%s"' % (tmpfile.name,tmpfile.name)
+        cmd = Q_EXECUTABLE + ' -t "select count(*) from (select * from %s union all select * from %s)"' % (tmpfile.name,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -2223,7 +2223,7 @@ class QsqlUsageTests(AbstractQTestCase):
         qsql_file_data2 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
         tmpfile2 = self.create_file_with_data(qsql_file_data2,suffix='.qsql')
 
-        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s+%s"' % (tmpfile2.name,tmpfile1.name)
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from (select * from %s union all select * from %s)"' % (tmpfile2.name,tmpfile1.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -2245,13 +2245,13 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
-        cmd = 'seq 1 %s | %s -c 1 "select count(*) from %s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
+        cmd = 'seq 1 %s | %s -c 1 "select count(*) from (select * from %s UNION ALL select * from -)"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
 
         retcode, o, e = run_command(cmd)
-        self.assertEqual(retcode, 35)
+        self.assertEqual(retcode, 1)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertEqual(e[0],six.b('Bad header row: Column names differ for table %s+-: aa,bb,cc vs c1' % expected_cache_filename1))
+        self.assertEqual(e[0],six.b('query error: SELECTs to the left and right of UNION ALL do not have the same number of result columns'))
 
     def test_concatenated_qsql_and_data_stream(self):
         N1 = 10000
@@ -2267,7 +2267,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
-        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from %s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
+        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from (select * from %s UNION ALL select * from -)"' % (N2, Q_EXECUTABLE,expected_cache_filename1)
 
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
@@ -2291,7 +2291,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
-        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from %s:::%s+-"' % (N2, Q_EXECUTABLE,expected_cache_filename1,tmpfile1_expected_table_name)
+        cmd = 'seq 1 %s | %s -t -c 1 "select count(*),sum(c1) from (select * from %s:::%s UNION ALL select * from -)"' % (N2, Q_EXECUTABLE,expected_cache_filename1,tmpfile1_expected_table_name)
 
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
@@ -2339,7 +2339,7 @@ class QsqlUsageTests(AbstractQTestCase):
 
         # csv and qsql files prepared. now test all four combinations
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s"' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s union all select * from %s)"' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o),2)
@@ -2347,7 +2347,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
         self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s.qsql"' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s union all select * from %s.qsql)"' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o),2)
@@ -2355,7 +2355,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
         self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s"' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s.qsql union all select * from %s)"' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o),2)
@@ -2363,7 +2363,7 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(o[0],six.b('cnt\tsum_aa\tsum_bb\tsum_cc'))
         self.assertEqual(o[1],six.b('10010\t50005055\t50005055\t50005055'))
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s.qsql"' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s.qsql union all select * from %s.qsql)"' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o),2)
@@ -2394,59 +2394,84 @@ class QsqlUsageTests(AbstractQTestCase):
 
         # csv and qsql files prepared. now test *the analysis results* all four combinations
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s" -A' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s UNION ALL select * from %s)" -A' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),8)
+        self.assertEqual(len(o),14)
         self.assertEqual(len(e),0)
         self.assertEqual(o, [
-            six.b('Table: %s+%s' % (tmpfile1.name,tmpfile2.name)),
+            six.b('Table: %s' % tmpfile1.name),
             six.b('  Data Loads:'),
             six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile1.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int'),
+            six.b('Table: %s' % tmpfile2.name),
+            six.b('  Data Loads:'),
             six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
             six.b('    `cc` - int')])
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s+%s.qsql" -A' % (tmpfile1.name,tmpfile2.name)
+
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s UNION ALL select * from %s.qsql)" -A' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),8)
+        self.assertEqual(len(o),14)
         self.assertEqual(o, [
-            six.b('Table: %s+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
+            six.b('Table: %s' % tmpfile1.name),
             six.b('  Data Loads:'),
             six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile1.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int'),
+            six.b('Table: %s.qsql' % tmpfile2.name),
+            six.b('  Data Loads:'),
             six.b('    source_type: qsql-file source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
             six.b('    `cc` - int')])
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s" -A' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s.qsql union all select * from %s)" -A' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),8)
+        self.assertEqual(len(o),14)
         self.assertEqual(len(e),0)
         self.assertEqual(o, [
-            six.b('Table: %s.qsql+%s' % (tmpfile1.name,tmpfile2.name)),
+            six.b('Table: %s.qsql' % tmpfile1.name),
             six.b('  Data Loads:'),
             six.b('    source_type: qsql-file source: %s.qsql' % tmpfile1.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int'),
+            six.b('Table: %s' % tmpfile2.name),
+            six.b('  Data Loads:'),
             six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
             six.b('    `bb` - int'),
             six.b('    `cc` - int')])
 
-        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from %s.qsql+%s.qsql" -A' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -t "select count(*) cnt,sum(aa) sum_aa,sum(bb) sum_bb,sum(cc) sum_cc from (select * from %s.qsql union all select * from %s.qsql)" -A' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o),8)
+        self.assertEqual(len(o),14)
         self.assertEqual(len(e),0)
         self.assertEqual(o, [
-            six.b('Table: %s.qsql+%s.qsql' % (tmpfile1.name,tmpfile2.name)),
+            six.b('Table: %s.qsql' % tmpfile1.name),
             six.b('  Data Loads:'),
             six.b('    source_type: qsql-file source: %s.qsql' % tmpfile1.name),
+            six.b('  Fields:'),
+            six.b('    `aa` - int'),
+            six.b('    `bb` - int'),
+            six.b('    `cc` - int'),
+            six.b('Table: %s.qsql' % tmpfile2.name),
+            six.b('  Data Loads:'),
             six.b('    source_type: qsql-file source: %s.qsql' % tmpfile2.name),
             six.b('  Fields:'),
             six.b('    `aa` - int'),
@@ -2463,14 +2488,14 @@ class QsqlUsageTests(AbstractQTestCase):
         csv_file_data2 = self.arrays_to_csv_file_content(six.b('\t'),[six.b('aa'), six.b('bb'), six.b('cc')], numbers2)
         tmpfile2 = self.create_file_with_data(csv_file_data2)
 
-        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from %s+%s"' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -t "select sum(aa),sum(bb),sum(cc) from (select * from %s union all select * from %s)"' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 35)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 2)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 1)
         self.assertEqual(e[0],six.b('Warning - There seems to be header line in the file, but -H has not been specified. All fields will be detected as text fields, and the header line will appear as part of the data'))
-        self.assertEqual(e[1],six.b('Bad header row: Column names differ for table %s+%s: aa,bb,cc vs c1,c2,c3' % (tmpfile1.name,tmpfile2.name)))
+        self.assertEqual(o[0],six.b('50005055.0\t50005055.0\t50005055.0'))
 
     def test_qsql_with_multiple_tables_direct_use(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
@@ -2881,7 +2906,7 @@ class CachingTests(AbstractQTestCase):
         tmpfile2_filename = os.path.basename(tmpfile2.name)
         expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
 
-        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from %s+%s" -C readwrite' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -O -H -d , "select * from (select * from %s UNION ALL select * from %s)" -C readwrite' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -3176,9 +3201,9 @@ class MultiHeaderTests(AbstractQTestCase):
         TMPFILE_COUNT = 5
         tmpfiles = [self.create_file_with_data(sample_data_with_header) for x in range(TMPFILE_COUNT)]
 
-        tmpfilenames = "+".join(map(lambda x:x.name, tmpfiles))
+        tmpfilenames = " UNION ALL ".join(map(lambda x:"select * from %s" % x.name, tmpfiles))
 
-        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s order by name" -H -O' % tmpfilenames
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from (%s) order by name" -H -O' % tmpfilenames
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -3202,13 +3227,21 @@ class MultiHeaderTests(AbstractQTestCase):
         tmpfile1 = self.create_file_with_data(sample_data_with_header)
         tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('othername,value1,value2')))
 
-        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from (select * from %s union all select * from %s) order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 35)
-        self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 1)
-        self.assertTrue(e[0].startswith(six.b("Bad header row:")))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 7)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o, [
+            six.b('name,value1,value2'),
+            six.b('a,1,0'),
+            six.b('a,1,0'),
+            six.b('b,2,0'),
+            six.b('b,2,0'),
+            six.b('c,,0'),
+            six.b('c,,0')
+        ])
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
@@ -3217,10 +3250,24 @@ class MultiHeaderTests(AbstractQTestCase):
         tmpfile1 = self.create_file_with_data(sample_data_with_header)
         tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('name,value1')))
 
-        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from %s+%s order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
+        cmd = Q_EXECUTABLE + ' -d , "select name,value1,value2 from (select * from %s UNION ALL select * from %s) order by name" -H -O' % (tmpfile1.name,tmpfile2.name)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 35)
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 7)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o, [
+            six.b('name,value1,value2'),
+            six.b('a,1,0'),
+            six.b('a,1,0'),
+            six.b('b,2,0'),
+            six.b('b,2,0'),
+            six.b('c,,0'),
+            six.b('c,,0')
+        ])
+
+        self.cleanup(tmpfile1)
+        self.cleanup(tmpfile2)
 
 
 class ParsingModeTests(AbstractQTestCase):

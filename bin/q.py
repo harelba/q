@@ -852,14 +852,16 @@ class Sql(object):
                     self.sql_parts.insert(idx + 2, leftover)
                     qtable_name = qtable_name[:qtable_name.index(')')]
                     self.sql_parts[idx + 1] = qtable_name
+                if qtable_name[0] != '(':
+                    self.qtable_names += [qtable_name]
 
-                self.qtable_names += [qtable_name]
+                    if qtable_name not in self.qtable_name_positions.keys():
+                        self.qtable_name_positions[qtable_name] = []
 
-                if qtable_name not in self.qtable_name_positions.keys():
-                    self.qtable_name_positions[qtable_name] = []
-
-                self.qtable_name_positions[qtable_name].append(idx + 1)
-                idx += 2
+                    self.qtable_name_positions[qtable_name].append(idx + 1)
+                    idx += 2
+                else:
+                    idx += 1
             else:
                 idx += 1
 
@@ -2354,46 +2356,43 @@ class QTextAsData(object):
     def get_dialect_id(self,filename):
         return 'q_dialect_%s' % filename
 
-    def _open_files_and_get_mfss(self,full_qtable_name,input_params,dialect):
+    def _open_files_and_get_mfss(self,qtable_name,input_params,dialect):
         materialized_file_dict = OrderedDict()
 
-        qtable_name_parts = full_qtable_name.split('+')
+        data_stream = self.data_streams.get_for_filename(qtable_name)
+        xprint("Found data stream %s" % data_stream)
 
-        for qtable_name in qtable_name_parts:
-            data_stream = self.data_streams.get_for_filename(qtable_name)
-            xprint("Found data stream %s" % data_stream)
-
-            if data_stream is not None:
-                ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-                if data_stream.stream_id not in materialized_file_dict:
-                    materialized_file_dict[data_stream.stream_id] = [ms]
-                else:
-                    materialized_file_dict[data_stream.stream_id] = materialized_file_dict[data_stream.stream_id] + [ms]
+        if data_stream is not None:
+            ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
+            if data_stream.stream_id not in materialized_file_dict:
+                materialized_file_dict[data_stream.stream_id] = [ms]
             else:
-                qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
-                if qsql_filename is not None:
-                    xprint("Table name %s has been detected" % table_name)
-                    ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
-                                               engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
+                materialized_file_dict[data_stream.stream_id] = materialized_file_dict[data_stream.stream_id] + [ms]
+        else:
+            qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
+            if qsql_filename is not None:
+                xprint("Table name %s has been detected" % table_name)
+                ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
+                                           engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
 
-                    x = '%s:::%s' % (qsql_filename,table_name)
-                    if x not in materialized_file_dict:
-                        materialized_file_dict[x] = [ms]
-                    else:
-                        materialized_file_dict[x] = materialized_file_dict[x] + [ms]
+                x = '%s:::%s' % (qsql_filename,table_name)
+                if x not in materialized_file_dict:
+                    materialized_file_dict[x] = [ms]
                 else:
-                    materialized_file_list = self.materialize_file_list(qtable_name)
+                    materialized_file_dict[x] = materialized_file_dict[x] + [ms]
+            else:
+                materialized_file_list = self.materialize_file_list(qtable_name)
 
-                    # For each match
-                    for atomic_fn in materialized_file_list:
-                        # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
+                # For each match
+                for atomic_fn in materialized_file_list:
+                    # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
 
-                        ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
-                        # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
-                        if atomic_fn not in materialized_file_dict:
-                            materialized_file_dict[atomic_fn] = [ms]
-                        else:
-                            materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
+                    ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
+                    # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
+                    if atomic_fn not in materialized_file_dict:
+                        materialized_file_dict[atomic_fn] = [ms]
+                    else:
+                        materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
 
         xprint("MS dict: %s" % str(materialized_file_dict))
 
@@ -2585,7 +2584,7 @@ class QTextAsData(object):
             # If it exists, then just use it
             found_files = [qtable_name]
         else:
-            # If not, then try with globs
+            # If not, then try with globs (and sort for predictability)
             found_files = list(sorted(glob.glob(qtable_name)))
             # If no files
             if len(found_files) == 0:

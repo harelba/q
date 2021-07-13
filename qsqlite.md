@@ -39,6 +39,8 @@ Insights
 * python refactoring is nice and helps readability, but can be misleading, as it propagates mutability down the stack
 * no way this could have been done without e2e testing
 * had to improve the reproducability of e2e test bugs in order to actually be effective
+* The non sql-like '+' operator created a lot of issues - It forced skewing the internal data model, and caused a lot of issues. Eventually had to decide to quite supporting it, making a breaking change, and provide similar functionality using UNION ALL. This led to a bit weaker error checking for headers in multiple files. There was always and issue with it, since files with '+' in the filename were not supported anyway. This also led to the understanding that merging globs behavior (e.g. multiple data loads for the same table) and file-concatenation was not good. Very scary, breaking existing e2e tests
+
 
 
 Deprecated earlier - needs to be removed

@@ -1267,9 +1267,23 @@ class TableSourceType(object):
     QSQL_FILE = 'qsql-file'
     DATA_STREAM = 'data-stream'
 
+def skip_BOM(f):
+    try:
+        if six.PY2:
+            BOM = f.read(3)
+        else:
+            BOM = f.buffer.read(3)
+            # TESTING BOM = self.f.buffer.read(3)
+
+        if BOM != six.b('\xef\xbb\xbf'):
+            raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
+    except Exception as e:
+        raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
+
+
 class DelimitedFileReader(object):
-    def __init__(self,atomic_fn, input_params, dialect, f = None):
-        self.atomic_fn = atomic_fn
+    def __init__(self,atomic_fns, input_params, dialect, f = None):
+        self.atomic_fns = atomic_fns
         self.input_params = input_params
         self.dialect = dialect
 
@@ -1279,26 +1293,46 @@ class DelimitedFileReader(object):
 
         self.is_open = f is not None
 
+    def get_size_hash(self):
+        # TODO RLRL real size hash for all files
+        return sum([os.stat(atomic_fn).st_size for atomic_fn in self.atomic_fns])
+
+    def get_last_modification_time_hash(self):
+        # TODO RLRL has of all modification times
+        return os.stat(self.atomic_fns[0]).st_mtime_ns
+
     def open_file(self):
         if self.f is not None or self.is_open:
             raise Exception('File is already open %s' % self.f)
 
         # TODO Support universal newlines for gzipped and stdin data as well
 
-        if self.input_params.gzipped_input or self.atomic_fn.endswith('.gz'):
-            f = codecs.iterdecode(gzip.GzipFile(fileobj=io.open(self.atomic_fn,'rb')),encoding=self.input_params.input_encoding)
-        else:
-            if six.PY3:
-                if self.input_params.with_universal_newlines:
-                    f = io.open(self.atomic_fn, 'rU',newline=None,encoding=self.input_params.input_encoding)
-                else:
-                    f = io.open(self.atomic_fn, 'r', newline=None, encoding=self.input_params.input_encoding)
+        xprint("XX Opening file %s" % ",".join(self.atomic_fns))
+        import fileinput
+
+        def q_openhook(filename, mode):
+            if self.input_params.gzipped_input or filename.endswith('.gz'):
+                import gzip
+                f = gzip.open(filename,mode='rt',encoding=self.input_params.input_encoding)
             else:
-                if self.input_params.with_universal_newlines:
-                    file_opening_mode = 'rbU'
+                if six.PY3:
+                    if self.input_params.with_universal_newlines:
+                        f = io.open(filename, 'rU', newline=None, encoding=self.input_params.input_encoding)
+                    else:
+                        f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
                 else:
-                    file_opening_mode = 'rb'
-                f = open(self.atomic_fn, file_opening_mode)
+                    if self.input_params.with_universal_newlines:
+                        file_opening_mode = 'rbU'
+                    else:
+                        file_opening_mode = 'rb'
+                    f = open(filename, file_opening_mode)
+
+            if self.input_params.input_encoding == 'utf-8-sig' and not self.skipped_bom:
+                skip_BOM(f)
+
+            return f
+
+        f = fileinput.input(self.atomic_fns,mode='rb',openhook=q_openhook)
 
         self.f = f
         self.is_open = True
@@ -1307,36 +1341,23 @@ class DelimitedFileReader(object):
 
     def close_file(self):
         if not self.is_open:
-            raise Exception("Bug - file should already be open: %s" % self.atomic_fn)
+            raise Exception("Bug - file should already be open: %s" % ",".join(self.atomic_fns))
 
         self.f.close()
+        xprint("XX Closed file %s" % ",".join(self.atomic_fns))
 
     def generate_rows(self):
         # TODO RLRL Move up the stack
         # if not self.is_open:
         #     raise Exception('bug - not open: %s' % self.atomic_fn)
 
-        # This is a hack for utf-8 with BOM encoding in order to skip the BOM. python's csv module
-        # has a bug which prevents fixing it using the proper encoding, and it has been encountered by
-        # multiple people.
-        if self.input_params.input_encoding == 'utf-8-sig' and self.lines_read == 0 and not self.skipped_bom:
-            try:
-                if six.PY2:
-                    BOM = self.f.read(3)
-                else:
-                    BOM = self.f.buffer.read(3)
-
-                if BOM != six.b('\xef\xbb\xbf'):
-                    raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
-            except Exception as e:
-                raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
         csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
                 yield col_vals
         except ColumnMaxLengthLimitExceededException as e:
-            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (self.atomic_fn,self.lines_read + 1,self.input_params.input_encoding)
+            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
         except UniversalNewlinesExistException as e2:
             # No need to translate the exception, but we want it to be explicitly defined here for clarity
@@ -1378,7 +1399,7 @@ class MaterializedState(object):
         return filename.replace("-","_").replace(".","_")
 
     def get_planned_table_name(self):
-        return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
+        raise Exception('xxx')
 
     def autodetect_table_name(self):
         existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results]
@@ -1415,19 +1436,17 @@ class MaterializedState(object):
 
 class MaterializedDelimitedFileState(MaterializedState):
     def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id,target_table_name=None):
+        assert atomic_fn is None # Deprecated, needs to be removed all around
         super().__init__(qtable_name,atomic_fn,engine_id)
 
         self.input_params = input_params
         self.dialect_id = dialect_id
         self.target_table_name = target_table_name
 
-        self.delimited_file_reader = None
-
         # TODO RLRL content signature is initialized during __analyze_delimited_file
         self.content_signature = None
 
-        self.size = 0
-        self.last_modification_time = 0
+        self.atomic_fns = None
 
     def get_table_source_type(self):
         return TableSourceType.DELIMITED_FILE
@@ -1454,15 +1473,49 @@ class MaterializedDelimitedFileState(MaterializedState):
     def initialize(self):
         super(MaterializedDelimitedFileState, self).initialize()
 
-        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn,self.input_params,self.dialect_id)
-
-        self.size = os.stat(self.atomic_fn).st_size
-        self.last_modification_time = os.stat(self.atomic_fn).st_mtime_ns
+        self.atomic_fns = self.materialize_file_list(self.qtable_name)
+        self.delimited_file_reader = DelimitedFileReader(self.atomic_fns,self.input_params,self.dialect_id)
 
         self.source_type = 'file'
-        self.source = self.atomic_fn
+        self.source = ",".join(self.atomic_fns)
 
-        return self.delimited_file_reader.open_file()
+        return
+
+    def materialize_file_list(self,qtable_name):
+        materialized_file_list = []
+
+        unfound_files = []
+        # First check if the file exists without globbing. This will ensure that we don't support non-existent files
+        if os.path.exists(qtable_name):
+            # If it exists, then just use it
+            found_files = [qtable_name]
+        else:
+            # If not, then try with globs (and sort for predictability)
+            found_files = list(sorted(glob.glob(qtable_name)))
+            # If no files
+            if len(found_files) == 0:
+                unfound_files += [qtable_name]
+        materialized_file_list += found_files
+
+        # If there are no files to go over,
+        if len(unfound_files) == 1:
+            raise FileNotFoundException(
+                "No files matching '%s' have been found" % unfound_files[0])
+        elif len(unfound_files) > 1:
+            # TODO RLRL Add test for this
+            raise FileNotFoundException(
+                "The following files have not been found for table %s: %s" % (qtable_name,",".join(unfound_files)))
+
+        l = len(materialized_file_list)
+        # If this proves to be a problem for users in terms of usability, then we'll just materialize the files
+        # into the adhoc db, as with the db attach limit of sqlite
+        if l > 500:
+            current_folder = os.path.abspath(".")
+            msg = "Maximum source files for table must be 500. Table is name is %s (current folder %s). Number of actual files is %s" % (qtable_name,current_folder,l)
+            raise MaximumSourceFilesExceededException(msg)
+
+        absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
+        return absolute_path_list
 
     def choose_db_to_use(self,db_to_use=None):
         if db_to_use is not None:
@@ -1470,7 +1523,7 @@ class MaterializedDelimitedFileState(MaterializedState):
             self.db_to_use = db_to_use
             return
 
-        self.db_id = '%s' % self._generate_db_name(self.atomic_fn)
+        self.db_id = '%s' % self._generate_db_name(self.atomic_fns[0])
         xprint("Database id is %s" % self.db_id)
         self.db_to_use = Sqlite3DB(self.db_id, 'file:%s?mode=memory&cache=shared' % self.db_id, 'memory<%s>' % self.db_id,create_metaq=True)
 
@@ -1479,6 +1532,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
 
     def __analyze_delimited_file(self,database_info):
+        xprint("Analyzing delimited file")
         if self.target_table_name is not None:
             target_sqlite_table_name = self.target_table_name
         else:
@@ -1488,6 +1542,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         table_creator = TableCreator(self, self.input_params, sqlite_db=database_info.sqlite_db,
                                      target_sqlite_table_name=target_sqlite_table_name)
         table_creator.perform_analyze(self.dialect_id)
+        xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
         return table_creator
 
@@ -1503,10 +1558,13 @@ class MaterializedDelimitedFileState(MaterializedState):
         return should_read_from_cache
 
     def calculate_should_read_from_cache(self):
-        disk_db_filename = self._generate_disk_db_filename(self.atomic_fn)
+        disk_db_filename = self._generate_disk_db_filename(self.atomic_fns[0])
         should_read_from_cache = self._get_should_read_from_cache(disk_db_filename)
         xprint("should read from cache %s" % should_read_from_cache)
         return disk_db_filename,should_read_from_cache
+
+    def get_planned_table_name(self):
+        return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fns[0]))
 
     def make_data_available(self,stop_after_analysis):
         xprint("In make_data_available. db_id %s db_to_use %s" % (self.db_id,self.db_to_use))
@@ -1517,6 +1575,9 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         database_info = DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True)
         xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
+
+        if type(self) == MaterializedDelimitedFileState:
+            self.delimited_file_reader.open_file()
 
         table_creator = self.__analyze_delimited_file(database_info)
 
@@ -1540,6 +1601,8 @@ class MaterializedDelimitedFileState(MaterializedState):
 
             self.save_cache_to_disk_if_needed(disk_db_filename, table_creator)
 
+        self.delimited_file_reader.close_file()
+
         return database_info, relevant_table
 
     def save_cache_to_disk_if_needed(self, disk_db_filename, table_creator):
@@ -1558,16 +1621,8 @@ class MaterializedDelimitedFileState(MaterializedState):
     def _generate_db_name(self, qtable_name):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(qtable_name)).hexdigest())
 
-    def read_file_using_csv(self):
-        for x in self.delimited_file_reader.generate_rows():
-            yield x
-
     def get_lines_read(self):
         return self.delimited_file_reader.lines_read
-
-    def finalize(self):
-        self.delimited_file_reader.close_file()
-        super(MaterializedDelimitedFileState, self).finalize()
 
 
 class MaterialiedDataStreamState(MaterializedDelimitedFileState):
@@ -1596,7 +1651,7 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
         self.source_type = 'data-stream'
         self.source = self.data_stream.stream_id
 
-        self.delimited_file_reader = DelimitedFileReader(self.atomic_fn, self.input_params, self.dialect_id, f=self.data_stream.stream)
+        self.delimited_file_reader = DelimitedFileReader([], self.input_params, self.dialect_id, f=self.data_stream.stream)
 
     def choose_db_to_use(self,forced_db_to_use=None):
         assert forced_db_to_use is None
@@ -1611,10 +1666,6 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
     def calculate_should_read_from_cache(self):
         # No disk_db_filename, and no reading from cache when reading a datastream
         return None, False
-
-    def read_file_using_csv(self):
-        for x in self.delimited_file_reader.generate_rows():
-            yield x
 
     def finalize(self):
         super(MaterialiedDataStreamState, self).finalize()
@@ -1792,7 +1843,7 @@ class MaterializedQsqlState(MaterializedState):
     def _read_table_from_cache(self, stop_after_analysis):
         if self._backing_original_file_exists():
             xprint("Found a matching source file for qsql file. Checking content signature by creating a temp MFDS + analysis")
-            mdfs = MaterializedDelimitedFileState(self.qtable_name,self.atomic_fn,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
+            mdfs = MaterializedDelimitedFileState(self.qtable_name,None,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
             mdfs.initialize()
             mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
@@ -1870,8 +1921,13 @@ class TableCreator(object):
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
             raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
-        size = self.mfs.size
-        last_modification_time = self.mfs.last_modification_time
+
+        if type(self.mfs) == MaterializedDelimitedFileState:
+            size = self.mfs.delimited_file_reader.get_size_hash()
+            last_modification_time = self.mfs.delimited_file_reader.get_last_modification_time_hash()
+        else:
+            size = 0
+            last_modification_time = 0
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1920,15 +1976,19 @@ class TableCreator(object):
 
         try:
             try:
-                for col_vals in self.mfs.read_file_using_csv():
+                for col_vals in self.mfs.delimited_file_reader.generate_rows():
                     #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
                     if self._should_skip_extra_headers(0,self.mfs.atomic_fn,self.mfs,col_vals):
                         continue
                     self._insert_row(self.mfs.atomic_fn, col_vals)
-                    if stop_after_analysis and self.column_inferer.inferred:
-                        return
+                    if stop_after_analysis:
+                        if self.column_inferer.inferred:
+                            xprint("Stopping after analysis")
+                            return
+                        else:
+                            xprint("Not yet inferred. Continuing")
                 if self.mfs.get_lines_read() == 0 and self.skip_header:
-                    raise MissingHeaderException("Header line is expected but missing in file %s" % self.mfs.atomic_fn)
+                    raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.mfs.atomic_fns))
 
                 total_data_lines_read += self.mfs.delimited_file_reader.lines_read - (1 if self.skip_header else 0)
             except StrictModeColumnCountMismatchException as e:
@@ -2368,7 +2428,7 @@ class QTextAsData(object):
         xprint("Found data stream %s" % data_stream)
 
         if data_stream is not None:
-            ms = MaterialiedDataStreamState(qtable_name,qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
+            ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
             if data_stream.stream_id not in materialized_file_dict:
                 materialized_file_dict[data_stream.stream_id] = [ms]
             else:
@@ -2386,18 +2446,12 @@ class QTextAsData(object):
                 else:
                     materialized_file_dict[x] = materialized_file_dict[x] + [ms]
             else:
-                materialized_file_list = self.materialize_file_list(qtable_name)
-
-                # For each match
-                for atomic_fn in materialized_file_list:
-                    # TODO RLRL Add test on not supporting select from qsql:::table+qsql:::table - should say "not supported"
-
-                    ms = MaterializedDelimitedFileState(qtable_name,atomic_fn,input_params,dialect,self.engine_id)
-                    # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
-                    if atomic_fn not in materialized_file_dict:
-                        materialized_file_dict[atomic_fn] = [ms]
-                    else:
-                        materialized_file_dict[atomic_fn] = materialized_file_dict[atomic_fn] + [ms]
+                ms = MaterializedDelimitedFileState(qtable_name,None,input_params,dialect,self.engine_id)
+                # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
+                if qtable_name not in materialized_file_dict:
+                    materialized_file_dict[qtable_name] = [ms]
+                else:
+                    materialized_file_dict[qtable_name] = materialized_file_dict[qtable_name] + [ms]
 
         xprint("MS dict: %s" % str(materialized_file_dict))
 
@@ -2580,41 +2634,6 @@ class QTextAsData(object):
 
         return new_table_structures
 
-    def materialize_file_list(self,qtable_name):
-        materialized_file_list = []
-
-        unfound_files = []
-        # First check if the file exists without globbing. This will ensure that we don't support non-existent files
-        if os.path.exists(qtable_name):
-            # If it exists, then just use it
-            found_files = [qtable_name]
-        else:
-            # If not, then try with globs (and sort for predictability)
-            found_files = list(sorted(glob.glob(qtable_name)))
-            # If no files
-            if len(found_files) == 0:
-                unfound_files += [qtable_name]
-        materialized_file_list += found_files
-
-        # If there are no files to go over,
-        if len(unfound_files) == 1:
-            raise FileNotFoundException(
-                "No files matching '%s' have been found" % unfound_files[0])
-        elif len(unfound_files) > 1:
-            # TODO RLRL Add test for this
-            raise FileNotFoundException(
-                "The following files have not been found for table %s: %s" % (qtable_name,",".join(unfound_files)))
-
-        l = len(materialized_file_list)
-        # If this proves to be a problem for users in terms of usability, then we'll just materialize the files
-        # into the adhoc db, as with the db attach limit of sqlite
-        if l > 500:
-            current_folder = os.path.abspath(".")
-            msg = "Maximum source files for table must be 500. Table is name is %s (current folder %s). Number of actual files is %s" % (qtable_name,current_folder,l)
-            raise MaximumSourceFilesExceededException(msg)
-
-        absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
-        return absolute_path_list
 
     def propose_stored_table_name(self,qtable_name,source_database,actual_table_name_in_db):
         # TODO RLRL PXPX Perhaps return a full metaq object from here and use it during storing

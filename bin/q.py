@@ -1364,11 +1364,10 @@ class DelimitedFileReader(object):
             raise UniversalNewlinesExistException()
 
 class MaterializedState(object):
-    def __init__(self, qtable_name, atomic_fn, engine_id):
+    def __init__(self, qtable_name, engine_id):
         xprint("Creating new MS: %s %s" % (id(self), qtable_name))
 
         self.qtable_name = qtable_name
-        self.atomic_fn = atomic_fn
         self.engine_id = engine_id
 
         self.db_to_use = None
@@ -1435,9 +1434,8 @@ class MaterializedState(object):
     # TODO RLRL Copy complete interface for clarity
 
 class MaterializedDelimitedFileState(MaterializedState):
-    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id,engine_id,target_table_name=None):
-        assert atomic_fn is None # Deprecated, needs to be removed all around
-        super().__init__(qtable_name,atomic_fn,engine_id)
+    def __init__(self, qtable_name, input_params, dialect_id,engine_id,target_table_name=None):
+        super().__init__(qtable_name,engine_id)
 
         self.input_params = input_params
         self.dialect_id = dialect_id
@@ -1608,7 +1606,7 @@ class MaterializedDelimitedFileState(MaterializedState):
     def save_cache_to_disk_if_needed(self, disk_db_filename, table_creator):
         effective_write_caching = self.input_params.write_caching
         if effective_write_caching:
-            xprint("Going to write file cache for %s. Disk filename is %s" % (self.atomic_fn, disk_db_filename))
+            xprint("Going to write file cache for %s. Disk filename is %s" % (",".join(self.atomic_fns), disk_db_filename))
             self._store_qsql(table_creator.sqlite_db, disk_db_filename)
 
     def _store_qsql(self, source_sqlite_db, disk_db_filename):
@@ -1626,10 +1624,10 @@ class MaterializedDelimitedFileState(MaterializedState):
 
 
 class MaterialiedDataStreamState(MaterializedDelimitedFileState):
-    def __init__(self, qtable_name, atomic_fn, input_params, dialect_id, engine_id, data_stream, stream_target_db): ## should pass adhoc_db
+    def __init__(self, qtable_name, input_params, dialect_id, engine_id, data_stream, stream_target_db): ## should pass adhoc_db
         assert data_stream is not None
 
-        super().__init__(qtable_name, atomic_fn, input_params, dialect_id, engine_id,target_table_name=None)
+        super().__init__(qtable_name, input_params, dialect_id, engine_id,target_table_name=None)
 
         self.data_stream = data_stream
 
@@ -1651,6 +1649,7 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
         self.source_type = 'data-stream'
         self.source = self.data_stream.stream_id
 
+        # TODO RLRL Cleanup empty list of files
         self.delimited_file_reader = DelimitedFileReader([], self.input_params, self.dialect_id, f=self.data_stream.stream)
 
     def choose_db_to_use(self,forced_db_to_use=None):
@@ -1672,8 +1671,8 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
 
 class MaterializedQsqlState(MaterializedState):
-    def __init__(self,qtable_name,atomic_fn,qsql_filename,table_name, engine_id,input_params,dialect_id):
-        super(MaterializedQsqlState, self).__init__(qtable_name,atomic_fn,engine_id)
+    def __init__(self,qtable_name,qsql_filename,table_name, engine_id,input_params,dialect_id):
+        super(MaterializedQsqlState, self).__init__(qtable_name,engine_id)
         self.qsql_filename = qsql_filename
         self.table_name = table_name
 
@@ -1697,7 +1696,7 @@ class MaterializedQsqlState(MaterializedState):
 
     def get_planned_table_name(self):
         if self.table_name_autodetected:
-            return self.normalize_filename_to_table_name(os.path.basename(self.atomic_fn))
+            return self.normalize_filename_to_table_name(os.path.basename(self.qtable_name))
         else:
             return self.table_name
 
@@ -1754,14 +1753,14 @@ class MaterializedQsqlState(MaterializedState):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
 
     def choose_db_to_use(self,forced_db_to_use=None):
-        if '%s.qsql' % self.atomic_fn == self.qsql_filename:
+        if '%s.qsql' % self.qtable_name == self.qsql_filename:
             self.source = self.qsql_filename
             self.source_type = 'qsql-file-with-original'
         else:
             self.source = self.qsql_filename
             self.source_type = 'qsql-file'
 
-        self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.atomic_fn)
+        self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.qtable_name)
 
         x = 'file:%s?immutable=1' % self.qsql_filename
         self.db_to_use = Sqlite3DB(self.db_id, x, self.qsql_filename,create_metaq=False)
@@ -1781,7 +1780,7 @@ class MaterializedQsqlState(MaterializedState):
 
         column_names,column_types = self._extract_information()
 
-        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fn, self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
                                                              self.source_type,self.source)
@@ -1838,12 +1837,12 @@ class MaterializedQsqlState(MaterializedState):
                         raise ContentSignatureDiffersException(original_filename, other_filename, self.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
 
     def _backing_original_file_exists(self):
-        return '%s.qsql' % self.atomic_fn == self.qsql_filename
+        return '%s.qsql' % self.qtable_name == self.qsql_filename
 
     def _read_table_from_cache(self, stop_after_analysis):
         if self._backing_original_file_exists():
             xprint("Found a matching source file for qsql file. Checking content signature by creating a temp MFDS + analysis")
-            mdfs = MaterializedDelimitedFileState(self.qtable_name,None,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
+            mdfs = MaterializedDelimitedFileState(self.qtable_name,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
             mdfs.initialize()
             mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
@@ -1851,7 +1850,7 @@ class MaterializedQsqlState(MaterializedState):
             # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
             actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature'])
             original_file_content_signature = mdfs.content_signature
-            self.validate_content_signature(self.atomic_fn, original_file_content_signature, self.qsql_filename, actual_content_signature)
+            self.validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature)
             mdfs.finalize()
         return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
 
@@ -1888,7 +1887,6 @@ class TableCreator(object):
 
         self.mfs = mfs
         self.qtable_name = mfs.qtable_name
-        self.atomic_fn = mfs.atomic_fn
         self.db_id = sqlite_db.db_id
 
         self.sqlite_db = sqlite_db
@@ -1964,10 +1962,10 @@ class TableCreator(object):
         if is_extra_header:
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
                 raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
-                    ",".join(col_vals),mfs.atomic_fn,
+                    ",".join(col_vals),",".join(mfs.atomic_fns),
                     ",".join(self.column_inferer.header_row),
                     self.column_inferer.header_row_filename,
-                    self.mfs.atomic_fn))
+                    ",".join(self.mfs.atomic_fns)))
 
         return is_extra_header
 
@@ -1978,9 +1976,9 @@ class TableCreator(object):
             try:
                 for col_vals in self.mfs.delimited_file_reader.generate_rows():
                     #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
-                    if self._should_skip_extra_headers(0,self.mfs.atomic_fn,self.mfs,col_vals):
+                    if self._should_skip_extra_headers(0,self.mfs.qtable_name,self.mfs,col_vals):
                         continue
-                    self._insert_row(self.mfs.atomic_fn, col_vals)
+                    self._insert_row(self.mfs.qtable_name, col_vals)
                     if stop_after_analysis:
                         if self.column_inferer.inferred:
                             xprint("Stopping after analysis")
@@ -2005,7 +2003,7 @@ class TableCreator(object):
         # TODO RLRL - Not sure if this needs to pushed up the stack
         if not self.table_created:
             self.column_inferer.force_analysis()
-            self._do_create_table(self.mfs.atomic_fn)
+            self._do_create_table(self.mfs.qtable_name)
 
         self.sqlite_db.conn.commit()
 
@@ -2105,7 +2103,7 @@ class TableCreator(object):
         actual_col_count = len(col_vals)
         if self.mode == 'strict':
             if actual_col_count != expected_col_count:
-                raise StrictModeColumnCountMismatchException(self.mfs.atomic_fn, expected_col_count,actual_col_count,self.mfs.get_lines_read())
+                raise StrictModeColumnCountMismatchException(",".join(self.mfs.atomic_fns), expected_col_count,actual_col_count,self.mfs.get_lines_read())
             return col_vals
 
         # in all non strict mode, we add dummy data to missing columns
@@ -2126,7 +2124,7 @@ class TableCreator(object):
 
         if self.mode == 'fluffy':
             if actual_col_count > expected_col_count:
-                raise FluffyModeColumnCountMismatchException(self.mfs.atomic_fn,expected_col_count,actual_col_count,self.mfs.get_lines_read())
+                raise FluffyModeColumnCountMismatchException(",".join(self.mfs.atomic_fns),expected_col_count,actual_col_count,self.mfs.get_lines_read())
             return col_vals
 
         raise Exception("Unidentified parsing mode %s" % self.mode)
@@ -2428,7 +2426,7 @@ class QTextAsData(object):
         xprint("Found data stream %s" % data_stream)
 
         if data_stream is not None:
-            ms = MaterialiedDataStreamState(qtable_name,None,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
+            ms = MaterialiedDataStreamState(qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
             if data_stream.stream_id not in materialized_file_dict:
                 materialized_file_dict[data_stream.stream_id] = [ms]
             else:
@@ -2437,7 +2435,7 @@ class QTextAsData(object):
             qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
             if qsql_filename is not None:
                 xprint("Table name %s has been detected" % table_name)
-                ms = MaterializedQsqlState(qtable_name,original_filename,qsql_filename=qsql_filename,table_name=table_name,
+                ms = MaterializedQsqlState(qtable_name,qsql_filename=qsql_filename,table_name=table_name,
                                            engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
 
                 x = '%s:::%s' % (qsql_filename,table_name)
@@ -2446,7 +2444,7 @@ class QTextAsData(object):
                 else:
                     materialized_file_dict[x] = materialized_file_dict[x] + [ms]
             else:
-                ms = MaterializedDelimitedFileState(qtable_name,None,input_params,dialect,self.engine_id)
+                ms = MaterializedDelimitedFileState(qtable_name,input_params,dialect,self.engine_id)
                 # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
                 if qtable_name not in materialized_file_dict:
                     materialized_file_dict[qtable_name] = [ms]

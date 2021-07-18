@@ -73,9 +73,13 @@ if DEBUG:
 
     def iprint(*args,**kwargs):
         print(datetime.datetime.utcnow().isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
+
+    def sqlprint(*args,**kwargs):
+        print(datetime.datetime.utcnow().isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
 else:
     def xprint(*args,**kwargs): pass
     def iprint(*args,**kwargs): pass
+    def sqlprint(*args,**kwargs): pass
 
 MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
@@ -477,8 +481,7 @@ class Sqlite3DB(object):
 
     def update_many(self, sql, params):
         try:
-            if self.show_sql:
-                print(sql, " params: " + str(params))
+            sqlprint(sql, " params: " + str(params))
             self.cursor.executemany(sql, params)
             _ = self.cursor.fetchall()
         finally:
@@ -1167,6 +1170,7 @@ class TableColumnInferer(object):
         self.infer_column_types()
 
     def infer_column_types(self):
+        assert self.column_count > -1
         self.column_types = []
         self.column_types2 = []
         for column_number in range(self.column_count):
@@ -2295,6 +2299,7 @@ class QTextAsData(object):
         self.engine_id = str(uuid.uuid4()).replace("-","_")
 
         self.default_input_params = default_input_params
+        xprint("Default input params: %s" % self.default_input_params)
 
         self.loaded_table_structures_dict = OrderedDict()
         self.databases = OrderedDict()
@@ -3426,6 +3431,9 @@ def parse_options(args, options):
         sys.exit(56)
     if options.column_count is not None:
         expected_column_count = int(options.column_count)
+        if expected_column_count < 1 or expected_column_count > int(options.max_column_length_limit):
+            print("Column count must be between 1 and %s" % int(options.max_column_length_limit))
+            sys.exit(90) # TODO RLRL Check uniqueness
     else:
         # infer automatically
         expected_column_count = None

@@ -3889,7 +3889,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r.metadata.table_structures[tmpfile1.name]),1)
         self.assertEqual(len(r.metadata.new_table_structures[tmpfile1.name]),1)
-        self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].atomic_fn,tmpfile1.name)
+        self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].atomic_fns,[tmpfile1.name])
         self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].source_type,'file')
         self.assertEqual(r.metadata.table_structures[tmpfile1.name][0].source,tmpfile1.name)
 
@@ -3905,7 +3905,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r2.metadata.table_structures[tmpfile1.name]),1)
         self.assertEqual(len(r2.metadata.new_table_structures[tmpfile1.name]),1)
-        self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].atomic_fn,tmpfile1.name)
+        self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].atomic_fns,[tmpfile1.name])
         self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].source_type,'file')
         self.assertEqual(r2.metadata.table_structures[tmpfile1.name][0].source,tmpfile1.name)
 
@@ -3921,7 +3921,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r3.data,[(10,20,30),(40,50,60)])
         self.assertEqual(len(r3.metadata.table_structures[tmpfile2.name]),1)
         self.assertEqual(len(r3.metadata.new_table_structures[tmpfile2.name]),1)
-        self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].atomic_fn,tmpfile2.name)
+        self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].atomic_fns,[tmpfile2.name])
         self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].source,tmpfile2.name)
         self.assertEqual(r3.metadata.table_structures[tmpfile2.name][0].source_type,'file')
 
@@ -3944,7 +3944,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r.metadata.table_structures[tmpfile.name]),1)
         self.assertEqual(len(r.metadata.new_table_structures[tmpfile.name]),1)
-        self.assertEqual(r.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r.metadata.table_structures[tmpfile.name][0].atomic_fns,[tmpfile.name])
         self.assertEqual(r.metadata.table_structures[tmpfile.name][0].source_type,'file')
         self.assertEqual(r.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
 
@@ -3966,7 +3966,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r1.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r1.metadata.table_structures[tmpfile.name]),1)
         self.assertEqual(len(r1.metadata.new_table_structures[tmpfile.name]),1)
-        self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].atomic_fns,[tmpfile.name])
         self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].source_type,'file')
         self.assertEqual(r1.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
 
@@ -4189,7 +4189,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(r2.data,[(1,2,3),(4,5,6)])
         self.assertEqual(len(r2.metadata.table_structures[tmpfile.name]),1)
         self.assertEqual(len(r2.metadata.new_table_structures[tmpfile.name]),1)
-        self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].atomic_fn,tmpfile.name)
+        self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].atomic_fns,[tmpfile.name])
         self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].source,tmpfile.name)
         self.assertEqual(r2.metadata.table_structures[tmpfile.name][0].source_type,'file')
 
@@ -4246,7 +4246,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.python_column_types,[ int,int,int])
         self.assertEqual(table_structure.sqlite_column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        self.assertEqual(table_structure.atomic_fn,tmpfile.name)
+        self.assertEqual(table_structure.atomic_fns,[tmpfile.name])
         self.assertEqual(table_structure.source_type,'file')
         self.assertEqual(table_structure.source,tmpfile.name)
 
@@ -4279,7 +4279,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertEqual(table_structure.python_column_types,[ int,int,int])
         self.assertEqual(table_structure.sqlite_column_types,[ 'int','int','int'])
         self.assertEqual(table_structure.qtable_name, tmpfile.name)
-        self.assertEqual(table_structure.atomic_fn,tmpfile.name)
+        self.assertEqual(table_structure.atomic_fns,[tmpfile.name])
         self.assertEqual(table_structure.source_type,'file')
         self.assertEqual(table_structure.source,tmpfile.name)
 

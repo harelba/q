@@ -1581,7 +1581,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         table_creator = self.__analyze_delimited_file(database_info)
 
-        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fn, self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fns, self.db_id,
                                                              table_creator.column_inferer.get_column_names(),
                                                              table_creator.column_inferer.get_column_types(),
                                                              self.get_table_name_for_querying(),
@@ -1858,10 +1858,10 @@ class MaterializedQsqlState(MaterializedState):
 
 class MaterializedStateTableStructure(object):
     # TODO ms is temporary, need to leave this structure-only later on
-    def __init__(self,ms,qtable_name, atomic_fn, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
+    def __init__(self,ms,qtable_name, atomic_fns, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
         self.ms = ms
         self.qtable_name = qtable_name
-        self.atomic_fn = atomic_fn
+        self.atomic_fns = atomic_fns
         self.db_id = db_id
         self.column_names = column_names
         self.python_column_types = python_column_types
@@ -2862,7 +2862,7 @@ class QTextAsData(object):
 
     def unload(self):
         # TODO RLRL Will fail, as now the table structures do not contain drop_table
-        for atomic_fn,table_creator in six.iteritems(self.loaded_table_structures_dict):
+        for qtable_name,table_creator in six.iteritems(self.loaded_table_structures_dict):
             try:
                 table_creator.drop_table()
             except:

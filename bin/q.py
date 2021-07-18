@@ -2491,11 +2491,11 @@ class QTextAsData(object):
         f.close()
         return magic == six.b("SQLite format 3\x00")
 
-    def _load_mfs(self,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
+    def _load_mfs(self,mfs,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
 
         table_type = mfs.get_table_source_type()
-        xprint("Detected table type for %s: %s" % (atomic_fn,table_type))
+        xprint("Detected table type for %s: %s" % (mfs.qtable_name,table_type))
 
         mfs.initialize()
 
@@ -2587,14 +2587,13 @@ class QTextAsData(object):
         all_new_table_structures = []
 
         for mfs in mfss:
-            atomic_fn = mfs.atomic_fn
-            if atomic_fn in self.loaded_table_structures_dict.keys():
-                xprint("Atomic filename %s found. no need to load" % atomic_fn)
+            if qtable_name in self.loaded_table_structures_dict.keys():
+                xprint("Atomic filename %s found. no need to load" % qtable_name)
                 continue
 
-            xprint("Atomic Filename %s not found - loading" % atomic_fn)
+            xprint("qtable %s not found - loading" % qtable_name)
 
-            self._load_mfs(mfs, atomic_fn, input_params, dialect_id, stop_after_analysis)
+            self._load_mfs(mfs, input_params, dialect_id, stop_after_analysis)
             xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
 
             if qtable_name not in self.loaded_table_structures_dict:

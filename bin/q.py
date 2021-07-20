@@ -2427,10 +2427,9 @@ class QTextAsData(object):
 
         if data_stream is not None:
             ms = MaterialiedDataStreamState(qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-            if data_stream.stream_id not in materialized_file_dict:
-                materialized_file_dict[data_stream.stream_id] = [ms]
-            else:
-                materialized_file_dict[data_stream.stream_id] = materialized_file_dict[data_stream.stream_id] + [ms]
+            if data_stream.stream_id in materialized_file_dict:
+                raise Exception('xxx')
+            materialized_file_dict[data_stream.stream_id] = [ms]
         else:
             qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
             if qsql_filename is not None:
@@ -2439,17 +2438,14 @@ class QTextAsData(object):
                                            engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
 
                 x = '%s:::%s' % (qsql_filename,table_name)
-                if x not in materialized_file_dict:
-                    materialized_file_dict[x] = [ms]
-                else:
-                    materialized_file_dict[x] = materialized_file_dict[x] + [ms]
+                if x in materialized_file_dict:
+                    raise Exception('yyy')
+                materialized_file_dict[x] = [ms]
             else:
                 ms = MaterializedDelimitedFileState(qtable_name,input_params,dialect,self.engine_id)
-                # TODO RLRL Perhaps a test that shows the contract around using data streams along with concatenated files
-                if qtable_name not in materialized_file_dict:
-                    materialized_file_dict[qtable_name] = [ms]
-                else:
-                    materialized_file_dict[qtable_name] = materialized_file_dict[qtable_name] + [ms]
+                if qtable_name in materialized_file_dict:
+                    raise Exception('zzz')
+                materialized_file_dict[qtable_name] = [ms]
 
         xprint("MS dict: %s" % str(materialized_file_dict))
 

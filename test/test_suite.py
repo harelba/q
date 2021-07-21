@@ -1262,7 +1262,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
 
     def test_that_globs_dont_max_out_sqlite_attached_database_limits(self):
-        # TODO RLRL Should add max-attached-databases parameter to the command line
+        # TODO RLRL Should add a test that makes sure that analysis shows which files have been attached and which have been copied
         BATCH_SIZE = 50
         FILE_COUNT = 40
 
@@ -1276,7 +1276,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
         #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
-        cmd = 'cd %s && %s -c 1 "select count(*) from *" -C none' % (tmpfolder,Q_EXECUTABLE)
+        cmd = 'cd %s && %s -c 1 "select count(*) from *" -C none --max-attached-sqlite-databases=10' % (tmpfolder,Q_EXECUTABLE)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -1287,8 +1287,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         self.cleanup_folder(tmpfolder)
 
-    def test_maxing_out_max_attached_database_limits(self):
-        # TODO RLRL Should add max-attached-databases parameter to the command line
+    def test_maxing_out_max_attached_database_limits__regular_files(self):
         BATCH_SIZE = 50
         FILE_COUNT = 40
 
@@ -1303,13 +1302,135 @@ class ManyOpenFilesTests(AbstractQTestCase):
         #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         unioned_subquery = " UNION ALL ".join(["select * from %s/%s" % (tmpfolder,filename) for filename in filename_list])
-        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C none' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C none --max-attached-sqlite-databases=10' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_maxing_out_max_attached_database_limits__with_qsql_files_below_attached_limit(self):
+        MAX_ATTACHED_SQLITE_DATABASES = 10
+
+        BATCH_SIZE = 50
+        FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES - 1
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        # Execute the query with -C readwrite, so all qsql files will be created
+        unioned_subquery = " UNION ALL ".join(["select * from %s/%s" % (tmpfolder,filename) for filename in filename_list])
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite --max-attached-sqlite-databases=%s' % (tmpfolder,Q_EXECUTABLE,unioned_subquery,MAX_ATTACHED_SQLITE_DATABASES)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        # Now execute the same query with -C readwrite, so all files will be read directly from the qsql files
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_maxing_out_max_attached_database_limits__with_qsql_files_above_attached_limit(self):
+        MAX_ATTACHED_SQLITE_DATABASES = 10
+
+        BATCH_SIZE = 50
+        # Here's the difference from test_maxing_out_max_attached_database_limits__with_qsql_files_below_attached_limit
+        # We're trying to cache 2 times the number of files than the number of databases that can be attached.
+        # Expectation is that only a part of the files will be cached
+        FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES * 2
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        # Execute the query with -C readwrite, so all qsql files will be created
+        unioned_subquery = " UNION ALL ".join(["select * from %s/%s" % (tmpfolder,filename) for filename in filename_list])
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite --max-attached-sqlite-databases=%s' % (tmpfolder,Q_EXECUTABLE,unioned_subquery,MAX_ATTACHED_SQLITE_DATABASES)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        # Now execute the same query with -C readwrite, so all files will be read directly from the qsql files
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        from glob import glob
+        files_in_folder = [os.path.basename(x) for x in glob('%s/*' % (tmpfolder))]
+
+        expected_files_in_folder = filename_list + list(map(lambda x: 'file-%s.qsql' % x,range(MAX_ATTACHED_SQLITE_DATABASES-2)))
+
+        self.assertEqual(sorted(files_in_folder),sorted(expected_files_in_folder))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_maxing_out_max_attached_database_limits__with_directly_using_qsql_files(self):
+        MAX_ATTACHED_SQLITE_DATABASES = 10
+
+        BATCH_SIZE = 50
+        FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES * 2
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        # Prepare qsql for each of the files (separately, just for simplicity)
+        for fn in filename_list:
+            cmd = 'cd %s && %s -c 1 "select count(*) from %s" -C readwrite' % (tmpfolder,Q_EXECUTABLE,fn)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(o), 1)
+            self.assertEqual(len(e), 0)
+
+        # Now execute a big query which uses the created qsql files
+        unioned_subquery = " UNION ALL ".join(["select * from %s/%s.qsql" % (tmpfolder,filename) for filename in filename_list])
+
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
         self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
@@ -2262,6 +2383,7 @@ gzipped=True
 input_quoting_mode=all
 keep_leading_whitespace_in_values=True
 list_user_functions=True
+max_attached_sqlite_databases=888
 max_column_length_limit=8888
 mode=strict
 output_delimiter=|
@@ -2284,10 +2406,8 @@ with_universal_newlines=True
         cmd = Q_EXECUTABLE + ' --dump-defaults'
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 
-        print("OO",o)
-        print("EE",e)
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 34)
+        self.assertEqual(len(o), 35)
         self.assertEqual(len(e), 0)
 
         self.assertEqual(o[0],six.b('[options]'))
@@ -2312,6 +2432,7 @@ with_universal_newlines=True
         self.assertEqual(m[six.b('input_quoting_mode')],six.b('all'))
         self.assertEqual(m[six.b('keep_leading_whitespace_in_values')],six.b('True'))
         self.assertEqual(m[six.b('list_user_functions')],six.b('True'))
+        self.assertEqual(m[six.b('max_attached_sqlite_databases')],six.b('888'))
         self.assertEqual(m[six.b('max_column_length_limit')],six.b('8888'))
         self.assertEqual(m[six.b('mode')],six.b('strict'))
         self.assertEqual(m[six.b('output_delimiter')],six.b('|'))

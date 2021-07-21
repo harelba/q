@@ -81,9 +81,6 @@ else:
     def iprint(*args,**kwargs): pass
     def sqlprint(*args,**kwargs): pass
 
-# TODO RLRL Should move this to input params and qrc file
-MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
-
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
        return encoding_override
@@ -291,6 +288,7 @@ user_functions = [
                     1)
 ]
 
+# TODO RLRL Add test for this
 def print_user_functions():
     for udf in user_functions:
         print("Function: %s" % udf.name)
@@ -355,6 +353,7 @@ class Sqlite3DB(object):
                 xprint("Found free table name %s in db %s for planned table name %s" % (table_name_attempt,self.db_id,planned_table_name))
                 return table_name_attempt
 
+        # TODO RLRL Add test for this
         raise Exception('Cannot find free table name in db %s for planned table name %s' % (self.db_id,planned_table_name))
 
     def create_metaq_table(self):
@@ -419,6 +418,7 @@ class Sqlite3DB(object):
         xprint("Query from metaq %s" % q)
         r = self.execute_and_fetch(q,(temp_table_name,))
 
+        # TODO RLRL Convert these to asserts
         if r is None:
             return None
 
@@ -474,6 +474,7 @@ class Sqlite3DB(object):
             elif type(udf.func_or_obj) == type(md5):
                 self.conn.create_function(udf.name,udf.param_count,udf.func_or_obj)
             else:
+                # TODO RLRL Convert to assertion
                 raise Exception("Invalid user function definition %s" % str(udf))
 
     def is_numeric_type(self, column_type):
@@ -514,6 +515,7 @@ class Sqlite3DB(object):
     def _get_as_list_str(self, l):
         return ",".join(['"%s"' % x.replace('"', '""') for x in l])
 
+    # TODO RLRL Ensure this is not needed, and remove
     def _get_col_values_as_list_str(self, col_vals, col_types):
         result = []
         for col_val, col_type in zip(col_vals, col_types):
@@ -614,6 +616,7 @@ class SqliteOperationalErrorException(Exception):
     def __str(self):
         return repr(self.msg) + "//" + repr(self.original_error)
 
+# TODO RLRL Add test for incorrect default values
 class IncorrectDefaultValueException(Exception):
 
     def __init__(self, option_type,option,actual_value):
@@ -787,25 +790,6 @@ class MaximumSourceFilesExceededException(Exception):
 # Simplistic Sql "parsing" class... We'll eventually require a real SQL parser which will provide us with a parse tree
 #
 # A "qtable" is a filename which behaves like an SQL table...
-
-
-class QTableMetadata(object):
-    def __init__(self,qtable_type,qtable_name,materialized_file_list=None,data_stream=None):
-        self.qtable_type = qtable_type
-        self.qtable_name = qtable_name
-        self.materialized_file_list = materialized_file_list
-        self.data_stream = data_stream
-
-    def __str__(self):
-        return "<QTableMetadata<type=%s,name=%s,materialized_file_list=%s,data_stream=%s" % \
-               (self.qtable_type,
-                self.qtable_name,
-                self.materialized_file_list,
-                self.data_stream)
-    __repr__ = __str__
-
-
-
 class Sql(object):
 
     def __init__(self, sql):
@@ -1452,6 +1436,8 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         self.atomic_fns = None
 
+        self.can_store_as_cached = None
+
     def get_table_source_type(self):
         return TableSourceType.DELIMITED_FILE
 
@@ -1521,11 +1507,15 @@ class MaterializedDelimitedFileState(MaterializedState):
         absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
         return absolute_path_list
 
+    # TODO RLRL should the param be called force_db_to_use? probably yes
     def choose_db_to_use(self,db_to_use=None):
         if db_to_use is not None:
             self.db_id = db_to_use.db_id
             self.db_to_use = db_to_use
+            self.can_store_as_cached = False
             return
+
+        self.can_store_as_cached = True
 
         self.db_id = '%s' % self._generate_db_name(self.atomic_fns[0])
         xprint("Database id is %s" % self.db_id)
@@ -1606,6 +1596,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
             self.save_cache_to_disk_if_needed(disk_db_filename, table_creator)
 
+
         self.delimited_file_reader.close_file()
 
         return database_info, relevant_table
@@ -1613,8 +1604,11 @@ class MaterializedDelimitedFileState(MaterializedState):
     def save_cache_to_disk_if_needed(self, disk_db_filename, table_creator):
         effective_write_caching = self.input_params.write_caching
         if effective_write_caching:
-            xprint("Going to write file cache for %s. Disk filename is %s" % (",".join(self.atomic_fns), disk_db_filename))
-            self._store_qsql(table_creator.sqlite_db, disk_db_filename)
+            if self.can_store_as_cached:
+                xprint("Going to write file cache for %s. Disk filename is %s" % (",".join(self.atomic_fns), disk_db_filename))
+                self._store_qsql(table_creator.sqlite_db, disk_db_filename)
+            else:
+                xprint("Database has been provided externally. Skipping storing a cached version of the data")
 
     def _store_qsql(self, source_sqlite_db, disk_db_filename):
         xprint("Storing data as disk db")
@@ -2279,7 +2273,8 @@ class QInputParams(object):
             input_quoting_mode='minimal',stdin_file=None,stdin_filename='-',
             max_column_length_limit=131072,
             read_caching=False,
-            write_caching=False):
+            write_caching=False,
+            max_attached_sqlite_databases = 10):
         self.skip_header = skip_header
         self.delimiter = delimiter
         self.input_encoding = input_encoding
@@ -2295,6 +2290,7 @@ class QInputParams(object):
         self.max_column_length_limit = max_column_length_limit
         self.read_caching = read_caching
         self.write_caching = write_caching
+        self.max_attached_sqlite_databases = max_attached_sqlite_databases
 
     def merged_with(self,input_params):
         params = QInputParams(**self.__dict__)
@@ -2490,7 +2486,7 @@ class QTextAsData(object):
 
         mfs.initialize()
 
-        if self.should_copy_instead_of_attach() and not mfs.get_table_source_type() in [TableSourceType.DATA_STREAM]:
+        if self.should_copy_instead_of_attach(input_params) and not mfs.get_table_source_type() in [TableSourceType.DATA_STREAM]:
             xprint("Should copy instead of attaching. Forcing db to use to adhoc db")
             forced_db_to_use = self.adhoc_db
         else:
@@ -2501,7 +2497,7 @@ class QTextAsData(object):
 
         database_info,relevant_table = mfs.make_data_available(stop_after_analysis)
 
-        if not self.is_adhoc_db(mfs.db_to_use) and not self.should_copy_instead_of_attach():
+        if not self.is_adhoc_db(mfs.db_to_use) and not self.should_copy_instead_of_attach(input_params):
             if not self.already_attached_to_query_level_db(mfs.db_to_use):
                 self.attach_to_db(mfs.db_to_use, self.query_level_db)
                 self.add_db_to_database_list(database_info)
@@ -2555,9 +2551,9 @@ class QTextAsData(object):
     def is_adhoc_db(self,db_to_use):
         return db_to_use.db_id == self.adhoc_db_id
 
-    def should_copy_instead_of_attach(self):
+    def should_copy_instead_of_attach(self,input_params):
         attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
-        x = attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
+        x = attached_database_count >= input_params.max_attached_sqlite_databases
         xprint("should_copy_instead_of_attach: attached_database_count=%s should_copy=%s" % (attached_database_count,x))
         return x
 
@@ -2794,7 +2790,7 @@ class QTextAsData(object):
         except FileNotFoundException as e:
             error = QError(e,e.msg,30)
         except SqliteOperationalErrorException as e:
-            xprint("Operational error: %s" % e)
+            xprint("Sqlite Operational error: %s" % e)
             msg = str(e.original_error)
             error = QError(e,"query error: %s" % msg,1)
             if "no such column" in msg and effective_input_params.skip_header:
@@ -2868,14 +2864,6 @@ class QTextAsData(object):
         q_output = self._execute(query_str,input_params,data_streams=data_streams,stop_after_analysis=True)
 
         return q_output
-
-    def store_qsql(self, source_sqlite_db, disk_db_filename):
-        xprint("Storing data as disk db")
-        disk_db_conn = sqlite3.connect(disk_db_filename)
-        sqlitebck.copy(source_sqlite_db.conn,disk_db_conn)
-        xprint("Written db to disk: disk db filename %s" % (disk_db_filename))
-        disk_db_conn.close()
-
 
 def escape_double_quotes_if_needed(v):
     x = v.replace(six.u('"'), six.u('""'))
@@ -3204,6 +3192,7 @@ def initialize_command_line_parser(p, qrc_filename):
 
         default_query_filename = get_option_with_default(p, 'string', 'query_filename', None)
         default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
+        default_max_attached_sqlite_databases = get_option_with_default(p,'int','max_attached_sqlite_databases', 10)
     except IncorrectDefaultValueException as e:
         print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (
         e.actual_value, e.option, qrc_filename, e.option_type))
@@ -3221,6 +3210,8 @@ def initialize_command_line_parser(p, qrc_filename):
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
     parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False, action="store_true",
                       help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
+    parser.add_option("", "--max-attached-sqlite-databases", dest="max_attached_sqlite_databases", default=default_max_attached_sqlite_databases,type="int",
+                      help="Set the maximum number of concurrently-attached sqlite dbs. This is a compile time definition of sqlite. q's performance will slow down once this limit is reached for a query, since it will perform table copies in order to avoid that limit.")
     # -----------------------------------------------
     input_data_option_group = OptionGroup(parser, "Input Data Options")
     input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header,
@@ -3474,10 +3465,14 @@ def parse_options(args, options):
                   file=sys.stderr)
             sys.exit(78)
     if options.caching_mode not in ['none', 'read', 'readwrite']:
-        print("caching mode must be none,read or readwrite")
+        print("caching mode must be none,read or readwrite",file=sys.stderr)
         sys.exit(85)
     read_caching = options.caching_mode in ['read', 'readwrite']
     write_caching = options.caching_mode in ['readwrite']
+
+    if options.max_attached_sqlite_databases <= 3:
+        print("Max attached sqlite databases must be larger than 3")
+        sys.exit(99) # TODO RLRL Ensure uniqueness
 
     default_input_params = QInputParams(skip_header=options.skip_header,
                                         delimiter=options.delimiter,
@@ -3493,7 +3488,8 @@ def parse_options(args, options):
                                         disable_column_type_detection=options.disable_column_type_detection,
                                         max_column_length_limit=max_column_length_limit,
                                         read_caching=read_caching,
-                                        write_caching=write_caching)
+                                        write_caching=write_caching,
+                                        max_attached_sqlite_databases=options.max_attached_sqlite_databases)
 
     output_params = QOutputParams(
         delimiter=options.output_delimiter,

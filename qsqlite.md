@@ -33,6 +33,7 @@ TODO
 * Add sqlitebck as dependency to brew installation
 * Better naming in -A for the difference between a disk-file and a qsql file (perhaps consolidate?)
 * qsql with multiple tables, the user needs to provide a table name with QSQLFILE:::TABLE_NAME
+* -A should provide information about reading/writing to disk
 
 Insights
 * Was surprised at how imperative I was 8 years ago
@@ -40,6 +41,12 @@ Insights
 * no way this could have been done without e2e testing
 * had to improve the reproducability of e2e test bugs in order to actually be effective
 * The non sql-like '+' operator created a lot of issues - It forced skewing the internal data model, and caused a lot of issues. Eventually had to decide to quite supporting it, making a breaking change, and provide similar functionality using UNION ALL. This led to a bit weaker error checking for headers in multiple files. There was always and issue with it, since files with '+' in the filename were not supported anyway. This also led to the understanding that merging globs behavior (e.g. multiple data loads for the same table) and file-concatenation was not good. Very scary, breaking existing e2e tests
+* Breaking something actually did a lot of good. Started to make progress again
+* Turns out that moving globs to the MFS layer eliminated the usage of max-attached-sqlite-databases, even though the tests were still working. This means that the tests did not do a good job. Anyway, fixed the tests, and found out as well that auto-storing qsql files during read cannot work out of the box for above-the-limit csv files, as they are using the adhoc db. Writing them as cached files actually wrote the entire adhoc db as the cached file name, making it larger and not native to query (and less reusable for other queries). Theoretically, this could have been solved, but since this is an optimization, I won't bother with it now. It would just skip the cache-storing of the extra files, and will cache only the below-the-attached-limit files.
+* Turns out that probably the UNION ALL capability of concatenating multiple files, which was complex to create, is not needed anymore, since the globs are handled within the TableCreator/DelimitedFileReader. Previously, the mess of exposing it up the stack, forced to create it. It allowed some progress, but the technical debt was probably worth fixing at that point.
+
+
+
 
 
 

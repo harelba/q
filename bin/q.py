@@ -893,25 +893,15 @@ class Sql(object):
         xprint("Materializing sql object: %s" % str(self.qtable_names))
         xprint("loaded table structures dict %s" % loaded_table_structures_dict)
         for qtable_name in self.qtable_names:
-            effective_table_names_list = []
-            for table_structure in loaded_table_structures_dict[qtable_name]:
-                table_name_in_disk_db = table_structure.get_table_name_for_querying()
+            table_structure = loaded_table_structures_dict[qtable_name]
 
-                effective_table_name = '%s.%s' % (table_structure.db_id, table_name_in_disk_db)
-                effective_table_names_list += [effective_table_name]
-                xprint("Effective table name list is now: %s" % effective_table_names_list)
+            table_name_in_disk_db = table_structure.get_table_name_for_querying()
 
-            if len(effective_table_names_list) == 1:
-                # for a single file - no need to create a union, just use the table name
-                self.set_effective_table_name(qtable_name, effective_table_names_list[0])
-                xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_names_list[0]))
-            else:
-                xprint("Effective table names for all subtables: %s" % effective_table_names_list)
-                # For multiple files - create a UNION ALL subquery with the content of all subtables
-                union_parts = ['select * from %s' % x for x in effective_table_names_list]
-                union_as_table_name = "(%s)" % ' UNION ALL '.join(union_parts)
-                self.set_effective_table_name(qtable_name,union_as_table_name)
-                xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,union_as_table_name))
+            effective_table_name = '%s.%s' % (table_structure.db_id, table_name_in_disk_db)
+
+            # for a single file - no need to create a union, just use the table name
+            self.set_effective_table_name(qtable_name, effective_table_name)
+            xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_name))
 
 class LineSplitter(object):
 
@@ -2588,9 +2578,9 @@ class QTextAsData(object):
             xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
 
             if qtable_name not in self.loaded_table_structures_dict:
-                self.loaded_table_structures_dict[qtable_name] = [mfs.mfs_structure]
+                self.loaded_table_structures_dict[qtable_name] = mfs.mfs_structure
             else:
-                self.loaded_table_structures_dict[qtable_name] += [mfs.mfs_structure]
+                assert False, "loaded_table_structures_dict has been changed to have a non-list value"
 
             all_new_table_structures += [mfs.mfs_structure]
 
@@ -2635,12 +2625,10 @@ class QTextAsData(object):
             metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(actual_table_name_in_db)
             return metaq_data
 
-        l = []
-        for ts in self.loaded_table_structures_dict[qtable_name]:
-            planned_table_name = ts.ms.get_planned_table_name()
-            xprint("KKK",planned_table_name)
-            l += [planned_table_name]
-        return "_".join(l)
+        ts = self.loaded_table_structures_dict[qtable_name]
+        planned_table_name = ts.ms.get_planned_table_name()
+        xprint("Planned table name is %s" % planned_table_name)
+        return planned_table_name
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
@@ -2685,9 +2673,7 @@ class QTextAsData(object):
     def validate_query(self,sql_object,table_structures):
 
         for qtable_name in sql_object.qtable_names:
-            relevant_table_structures = []
-            for ts in table_structures[qtable_name]:
-                relevant_table_structures += [ts]
+            relevant_table_structures = [table_structures[qtable_name]]
 
             column_names = None
             column_types = None
@@ -2953,8 +2939,7 @@ class QOutputPrinter(object):
             for dl in results.metadata.new_table_structures[qtable_name]:
                 print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
             print("  Fields:",file=f_out)
-            # TODO RLRL How to handle multi mfs in terms of field structure?
-            for n,t in zip(table_structures[0].column_names,table_structures[0].sqlite_column_types):
+            for n,t in zip(table_structures.column_names,table_structures.sqlite_column_types):
                 print("    `%s` - %s" % (n,t), file=f_out)
 
     def print_output(self,f_out,f_err,results):

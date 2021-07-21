@@ -233,17 +233,17 @@ class AbstractQTestCase(unittest.TestCase):
 
     def create_folder_with_files(self,filename_to_content_dict,prefix, suffix):
         name = self.random_tmp_filename(prefix,suffix)
-        os.mkdir(name)
+        os.makedirs(name)
         for filename,content in six.iteritems(filename_to_content_dict):
             if os.path.sep in filename:
-                os.mkdir('%s/%s' % (name,os.path.split(filename)[0]))
+                os.makedirs('%s/%s' % (name,os.path.split(filename)[0]))
             f = open(os.path.join(name,filename),'wb')
             f.write(content)
             f.close()
         return name
 
     def cleanup_folder(self,tmpfolder):
-        if not tmpfolder.startswith('/var/tmp/'):
+        if not tmpfolder.startswith('/var/tmp/tmqp'):
             raise Exception('Guard against accidental folder deletions: %s' % tmpfolder)
         global DEBUG
         if not DEBUG:
@@ -257,7 +257,7 @@ class AbstractQTestCase(unittest.TestCase):
 
     def random_tmp_filename(self,prefix,postfix):
         # TODO Use more robust method for this
-        path = '/var/tmp'
+        path = '/var/tmp/tmqp'
         return '%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix)
 
 class SaveDbToDiskTests(AbstractQTestCase):
@@ -500,6 +500,23 @@ class SaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
         self.assertEqual(e[0],six.b('Could not autodetect table name in qsql file. Existing Tables %s,%s' % (expected_stored_table_name1,expected_stored_table_name2)))
+
+    def test_error_when_not_specifying_table_name_in_multi_table_sqlite(self):
+        sqlite_with_multiple_tables = self.generate_tmpfile_name(suffix='.sqlite')
+
+        c = sqlite3.connect(sqlite_with_multiple_tables)
+        c.execute('create table my_table_1 (x int, y int)').fetchall()
+        c.execute('create table my_table_2 (x int, y int)').fetchall()
+        c.close()
+
+        cmd = '%s "select count(*) from %s"' % (Q_EXECUTABLE,sqlite_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 87)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        print(e[0])
+        self.assertEqual(e[0],six.b('Could not autodetect table name in sqlite file %s . Existing tables: my_table_1,my_table_2' % sqlite_with_multiple_tables))
 
 
     def test_error_when_specifying_nonexistent_table_name_in_multi_table_qsql(self):
@@ -1243,13 +1260,15 @@ class ManyOpenFilesTests(AbstractQTestCase):
             r += [iterable[ndx:min(ndx + n, l)]]
         return r
 
-    def test_maxing_out_sqlite_attached_database_limits(self):
+
+    def test_that_globs_dont_max_out_sqlite_attached_database_limits(self):
+        # TODO RLRL Should add max-attached-databases parameter to the command line
         BATCH_SIZE = 50
         FILE_COUNT = 40
 
         numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -1258,6 +1277,33 @@ class ManyOpenFilesTests(AbstractQTestCase):
         #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
 
         cmd = 'cd %s && %s -c 1 "select count(*) from *" -C none' % (tmpfolder,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+
+        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_maxing_out_max_attached_database_limits(self):
+        # TODO RLRL Should add max-attached-databases parameter to the command line
+        BATCH_SIZE = 50
+        FILE_COUNT = 40
+
+        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+
+        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d,'split-files','attach-limit')
+        #expected_cache_filename = os.path.join(tmpfile_folder,tmpfile_filename + '.qsql')
+
+        unioned_subquery = " UNION ALL ".join(["select * from %s/%s" % (tmpfolder,filename) for filename in filename_list])
+        cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C none' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -2915,9 +2961,9 @@ class CachingTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_reading_the_wrong_cache(self):
+    # TODO RLRL Change the name to qsql instead of "cache" all around
+    def test_reading_the_wrong_cache__original_file_having_different_data(self):
         file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
-        CONTENT_SIGNATURE_KEY = '745cce4f58d334eda6b878cdbb4cf2ffc91f9976' # Precalculated
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -2948,6 +2994,42 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0], six.b('%s vs %s.qsql: Content Signatures differ at inferer.rows (actual analysis data differs)' % \
                                      (tmpfile1.name,tmpfile1.name)))
+
+
+    def test_reading_the_wrong_cache__original_file_having_different_delimiter(self):
+        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename))
+
+        # Overwrite the original file
+        file_data2 = six.b("a\tb\tc\n10\t20\t30\n30\t40\t50")
+        self.write_file(tmpfile1.name,file_data2)
+
+        cmd = Q_EXECUTABLE + ' -H -t "select a from %s" -C read' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 80)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        x = six.b("%s vs %s.qsql: Content Signatures for table %s differ at line_splitter.delimiter (source value '\t' disk signature value ',')" % \
+                                     (tmpfile1.name,tmpfile1.name,tmpfile1.name))
+        self.assertEqual(e[0], x)
+
 
 
     # def test_read_directly_from_cache_with_one_table(self):

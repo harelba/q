@@ -81,6 +81,7 @@ else:
     def iprint(*args,**kwargs): pass
     def sqlprint(*args,**kwargs): pass
 
+# TODO RLRL Should move this to input params and qrc file
 MAX_ALLOWED_ATTACHED_SQLITE_DATABASES = 10
 
 def get_stdout_encoding(encoding_override=None):
@@ -372,8 +373,7 @@ class Sqlite3DB(object):
         return metaq_table_results[0][0] == 1
 
     def calculate_content_signature_key(self,content_signature):
-        if type(content_signature) != OrderedDict:
-            raise Exception('bug - content_signature should be a dictionary')
+        assert type(content_signature) == OrderedDict
         pp = json.dumps(content_signature,sort_keys=True)
         xprint("Calculating content signature for:",pp,six.b(pp))
         return hashlib.sha1(six.b(pp)).hexdigest()
@@ -1540,6 +1540,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         if self.target_table_name is not None:
             target_sqlite_table_name = self.target_table_name
         else:
+            # TODO RLRL Can probably be removed, as we're getting the table name from up the stack, or autodetecting it
             target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
         # Create the matching database table and populate it
@@ -1624,9 +1625,6 @@ class MaterializedDelimitedFileState(MaterializedState):
 
     def _generate_db_name(self, qtable_name):
         return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(qtable_name)).hexdigest())
-
-    def get_lines_read(self):
-        return self.delimited_file_reader.lines_read
 
 
 class MaterialiedDataStreamState(MaterializedDelimitedFileState):
@@ -1840,7 +1838,7 @@ class MaterializedQsqlState(MaterializedState):
                         raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
                     else:
                         # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(original_filename, other_filename, self.atomic_fn,".".join(scope + [k]),source_signature[k],content_signature[k])
+                        raise ContentSignatureDiffersException(original_filename, other_filename, self.qtable_name,".".join(scope + [k]),source_signature[k],content_signature[k])
 
     def _backing_original_file_exists(self):
         return '%s.qsql' % self.qtable_name == self.qsql_filename
@@ -2493,6 +2491,7 @@ class QTextAsData(object):
         mfs.initialize()
 
         if self.should_copy_instead_of_attach() and not mfs.get_table_source_type() in [TableSourceType.DATA_STREAM]:
+            xprint("Should copy instead of attaching. Forcing db to use to adhoc db")
             forced_db_to_use = self.adhoc_db
         else:
             forced_db_to_use = None
@@ -2558,7 +2557,9 @@ class QTextAsData(object):
 
     def should_copy_instead_of_attach(self):
         attached_database_count = len(self.query_level_db.execute_and_fetch('pragma database_list').results)
-        return attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
+        x = attached_database_count >= MAX_ALLOWED_ATTACHED_SQLITE_DATABASES
+        xprint("should_copy_instead_of_attach: attached_database_count=%s should_copy=%s" % (attached_database_count,x))
+        return x
 
     # TODO RLRL It's ensure_ now
     def _load_atomic_fn(self,qtable_name,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
@@ -2837,7 +2838,7 @@ class QTextAsData(object):
             msg = "Could not autodetect table name in qsql file. Existing Tables %s" % ",".join(e.existing_table_names)
             error = QError(e,msg,86)
         except TooManyTablesInSqliteException as e:
-            msg = "Could not autodetect table name in sqlite file %s" % ",".join(e.existing_table_names)
+            msg = "Could not autodetect table name in sqlite file %s . Existing tables: %s" % (e.qsql_filename,",".join(e.existing_table_names))
             error = QError(e,msg,87)
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
@@ -2845,7 +2846,6 @@ class QTextAsData(object):
             global DEBUG
             if DEBUG:
                 xprint(traceback.format_exc())
-            xprint(traceback.format_exc())
             error = QError(e,repr(e),199)
 
         return QOutput(warnings = warnings,error = error , metadata=QMetadata(table_structures=table_structures))

@@ -1208,6 +1208,7 @@ class TableColumnInferer(object):
 def py3_encoded_csv_reader(encoding, f, dialect, **kwargs):
     try:
         xprint("f is %s" % str(f))
+        xprint("dialect is %s" % dialect)
         csv_reader = csv.reader(f, dialect, **kwargs)
 
         for row in csv_reader:
@@ -1293,13 +1294,21 @@ class DelimitedFileReader(object):
 
         self.is_open = f is not None
 
+    def get_lines_read(self):
+        return self.lines_read
+
     def get_size_hash(self):
-        # TODO RLRL real size hash for all files
-        return sum([os.stat(atomic_fn).st_size for atomic_fn in self.atomic_fns])
+        if self.atomic_fns is None:
+            return "data-stream-size"
+        else:
+            return ",".join(map(str,[os.stat(atomic_fn).st_size for atomic_fn in self.atomic_fns]))
 
     def get_last_modification_time_hash(self):
-        # TODO RLRL has of all modification times
-        return os.stat(self.atomic_fns[0]).st_mtime_ns
+        if self.atomic_fns is None:
+            return "data stream-lmt"
+        else:
+            x = ",".join(map(str,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
+            return hashlib.sha1(six.b(x)).hexdigest()
 
     def open_file(self):
         if self.f is not None or self.is_open:
@@ -1347,11 +1356,8 @@ class DelimitedFileReader(object):
         xprint("XX Closed file %s" % ",".join(self.atomic_fns))
 
     def generate_rows(self):
-        # TODO RLRL Move up the stack
-        # if not self.is_open:
-        #     raise Exception('bug - not open: %s' % self.atomic_fn)
-
         csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
+        xprint("XXXXXXX")
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -1395,7 +1401,7 @@ class MaterializedState(object):
             filename = filename[:-5]
         # TODO RLRL PXPX - Planned table name now works, but metaq content is wrong
         #  since it is taken from the original metaq data !!
-        return filename.replace("-","_").replace(".","_")
+        return filename.replace("-","_dash_").replace(".","_period_").replace('?','_qm_')
 
     def get_planned_table_name(self):
         raise Exception('xxx')
@@ -1537,9 +1543,9 @@ class MaterializedDelimitedFileState(MaterializedState):
             target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
         # Create the matching database table and populate it
-        table_creator = TableCreator(self, self.input_params, sqlite_db=database_info.sqlite_db,
+        table_creator = TableCreator(self.qtable_name, self.delimited_file_reader,self.input_params, sqlite_db=database_info.sqlite_db,
                                      target_sqlite_table_name=target_sqlite_table_name)
-        table_creator.perform_analyze(self.dialect_id)
+        table_creator.perform_analyze(self.dialect_id,self.source_type,self.source)
         xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
         return table_creator
@@ -1710,7 +1716,7 @@ class MaterializedQsqlState(MaterializedState):
                 if len(metaq_entries) == 1:
                     return metaq_entries[0]['temp_table_name']
                 else:
-                    table_names = list(sorted(map(lambda x:x[0],[x['temp_table_name'] for x in metaq_entries])))
+                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
                     raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
             else:
                 table_names = list(sorted(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results)))
@@ -1882,11 +1888,11 @@ class TableCreator(object):
         return "TableCreator<db=%s>" % str(self.sqlite_db)
     __repr__ = __str__
 
-    def __init__(self, mfs, input_params,sqlite_db=None,target_sqlite_table_name=None):
-        xprint("Initializing table creator for %s" % mfs)
+    def __init__(self, qtable_name, delimited_file_reader,input_params,sqlite_db=None,target_sqlite_table_name=None):
 
-        self.mfs = mfs
-        self.qtable_name = mfs.qtable_name
+        self.qtable_name = qtable_name
+        self.delimited_file_reader = delimited_file_reader
+
         self.db_id = sqlite_db.db_id
 
         self.sqlite_db = sqlite_db
@@ -1920,12 +1926,8 @@ class TableCreator(object):
         if self.state != TableCreatorState.ANALYZED:
             raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
 
-        if type(self.mfs) == MaterializedDelimitedFileState:
-            size = self.mfs.delimited_file_reader.get_size_hash()
-            last_modification_time = self.mfs.delimited_file_reader.get_last_modification_time_hash()
-        else:
-            size = 0
-            last_modification_time = 0
+        size = self.delimited_file_reader.get_size_hash()
+        last_modification_time = self.delimited_file_reader.get_last_modification_time_hash()
 
         m = OrderedDict({
             "_signature_version": "v1",
@@ -1944,11 +1946,7 @@ class TableCreator(object):
 
         return m
 
-    # def get_table_name(self):
-    #     return self.target_sqlite_table_name
-    #
-
-    def _should_skip_extra_headers(self, filenumber, filename, mfs, col_vals):
+    def _should_skip_extra_headers(self, filenumber, filename, col_vals):
         if not self.skip_header:
             return False
 
@@ -1957,15 +1955,15 @@ class TableCreator(object):
 
         header_already_exists = self.column_inferer.header_row is not None
 
-        is_extra_header = self.skip_header and mfs.lines_read == 1 and header_already_exists
+        is_extra_header = self.skip_header and self.delimited_file_reader.lines_read == 1 and header_already_exists
 
         if is_extra_header:
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
                 raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
-                    ",".join(col_vals),",".join(mfs.atomic_fns),
+                    ",".join(col_vals),",".join(self.delimited_file_reader.atomic_fns),
                     ",".join(self.column_inferer.header_row),
                     self.column_inferer.header_row_filename,
-                    ",".join(self.mfs.atomic_fns)))
+                    ",".join(self.delimited_file_reader.atomic_fns)))
 
         return is_extra_header
 
@@ -1974,21 +1972,21 @@ class TableCreator(object):
 
         try:
             try:
-                for col_vals in self.mfs.delimited_file_reader.generate_rows():
+                for col_vals in self.delimited_file_reader.generate_rows():
                     #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
-                    if self._should_skip_extra_headers(0,self.mfs.qtable_name,self.mfs,col_vals):
+                    if self._should_skip_extra_headers(0,self.qtable_name,col_vals):
                         continue
-                    self._insert_row(self.mfs.qtable_name, col_vals)
+                    self._insert_row(self.qtable_name, col_vals)
                     if stop_after_analysis:
                         if self.column_inferer.inferred:
                             xprint("Stopping after analysis")
                             return
                         else:
                             xprint("Not yet inferred. Continuing")
-                if self.mfs.get_lines_read() == 0 and self.skip_header:
-                    raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.mfs.atomic_fns))
+                if self.delimited_file_reader.get_lines_read() == 0 and self.skip_header:
+                    raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.delimited_file_reader.atomic_fns))
 
-                total_data_lines_read += self.mfs.delimited_file_reader.lines_read - (1 if self.skip_header else 0)
+                total_data_lines_read += self.delimited_file_reader.lines_read - (1 if self.skip_header else 0)
             except StrictModeColumnCountMismatchException as e:
                 raise ColumnCountMismatchException(
                     'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
@@ -2003,11 +2001,11 @@ class TableCreator(object):
         # TODO RLRL - Not sure if this needs to pushed up the stack
         if not self.table_created:
             self.column_inferer.force_analysis()
-            self._do_create_table(self.mfs.qtable_name)
+            self._do_create_table(self.qtable_name)
 
         self.sqlite_db.conn.commit()
 
-    def perform_analyze(self, dialect):
+    def perform_analyze(self, dialect,source_type,source):
         xprint("Analyzing... %s" % dialect)
         if self.state == TableCreatorState.INITIALIZED:
             self._populate(dialect,stop_after_analysis=True)
@@ -2019,11 +2017,12 @@ class TableCreator(object):
 
             now = datetime.datetime.utcnow().isoformat()
 
+            # TODO RLRL Move up the stack so TableCreator won't handle metaq stuff
             self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
                                               self.content_signature,
                                               now,
-                                              self.mfs.source_type,
-                                              self.mfs.source)
+                                              source_type,
+                                              source)
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
@@ -2103,7 +2102,7 @@ class TableCreator(object):
         actual_col_count = len(col_vals)
         if self.mode == 'strict':
             if actual_col_count != expected_col_count:
-                raise StrictModeColumnCountMismatchException(",".join(self.mfs.atomic_fns), expected_col_count,actual_col_count,self.mfs.get_lines_read())
+                raise StrictModeColumnCountMismatchException(",".join(self.delimited_file_reader.atomic_fns), expected_col_count,actual_col_count,self.delimited_file_reader.get_lines_read())
             return col_vals
 
         # in all non strict mode, we add dummy data to missing columns
@@ -2124,7 +2123,7 @@ class TableCreator(object):
 
         if self.mode == 'fluffy':
             if actual_col_count > expected_col_count:
-                raise FluffyModeColumnCountMismatchException(",".join(self.mfs.atomic_fns),expected_col_count,actual_col_count,self.mfs.get_lines_read())
+                raise FluffyModeColumnCountMismatchException(",".join(self.delimited_file_reader.atomic_fns),expected_col_count,actual_col_count,self.delimited_file_reader.get_lines_read())
             return col_vals
 
         raise Exception("Unidentified parsing mode %s" % self.mode)
@@ -2429,7 +2428,7 @@ class QTextAsData(object):
             ms = MaterialiedDataStreamState(qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
             if data_stream.stream_id in materialized_file_dict:
                 raise Exception('xxx')
-            materialized_file_dict[data_stream.stream_id] = [ms]
+            materialized_file_dict[data_stream.stream_id] = ms
         else:
             qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
             if qsql_filename is not None:
@@ -2440,16 +2439,16 @@ class QTextAsData(object):
                 x = '%s:::%s' % (qsql_filename,table_name)
                 if x in materialized_file_dict:
                     raise Exception('yyy')
-                materialized_file_dict[x] = [ms]
+                materialized_file_dict[x] = ms
             else:
                 ms = MaterializedDelimitedFileState(qtable_name,input_params,dialect,self.engine_id)
                 if qtable_name in materialized_file_dict:
                     raise Exception('zzz')
-                materialized_file_dict[qtable_name] = [ms]
+                materialized_file_dict[qtable_name] = ms
 
         xprint("MS dict: %s" % str(materialized_file_dict))
 
-        return list([item for sublist in materialized_file_dict.values() for item in sublist])
+        return list([item for item in materialized_file_dict.values()])
 
     def try_qsql_table_reference(self,filename):
         # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
@@ -2569,6 +2568,7 @@ class QTextAsData(object):
         xprint("Attempting to load data for materialized file names %s" % qtable_name)
 
         q_dialect = self.determine_proper_dialect(input_params)
+        xprint("Dialect is %s" % q_dialect)
         dialect_id = self.get_dialect_id(qtable_name)
         csv.register_dialect(dialect_id, **q_dialect)
 
@@ -2834,7 +2834,7 @@ class QTextAsData(object):
             msg = "Table %s could not be found in sqlite file %s . Existing table names: %s" % (e.table_name,e.qsql_filename,",".join(e.existing_table_names))
             error = QError(e,msg,85)
         except TooManyTablesInQsqlException as e:
-            msg = "Could not autodetect table name in qsql file %s" % ",".join(e.existing_table_names)
+            msg = "Could not autodetect table name in qsql file. Existing Tables %s" % ",".join(e.existing_table_names)
             error = QError(e,msg,86)
         except TooManyTablesInSqliteException as e:
             msg = "Could not autodetect table name in sqlite file %s" % ",".join(e.existing_table_names)
@@ -3425,14 +3425,17 @@ def parse_options(args, options):
             options.output_delimiter = " "
     try:
         max_column_length_limit = int(options.max_column_length_limit)
-        if max_column_length_limit < 1:
-            raise Exception()
-        csv.field_size_limit(max_column_length_limit)
-        xprint("Max column length limit is %s" % options.max_column_length_limit)
     except:
-        print("Max column length limit must be a positive integer (%s)" % options.max_column_length_limit,
+        print("Max column length limit must be an integer larger than 2 (%s)" % options.max_column_length_limit,
               file=sys.stderr)
         sys.exit(31)
+    if max_column_length_limit < 3:
+        print("Maximum column length must be larger than 2",file=sys.stderr)
+        sys.exit(31)
+
+    csv.field_size_limit(max_column_length_limit)
+    xprint("Max column length limit is %s" % options.max_column_length_limit)
+
     if options.input_quoting_mode not in list(QTextAsData.input_quoting_modes.keys()):
         print("Input quoting mode can only be one of %s. It cannot be set to '%s'" % (
         ",".join(sorted(QTextAsData.input_quoting_modes.keys())), options.input_quoting_mode), file=sys.stderr)
@@ -3444,7 +3447,7 @@ def parse_options(args, options):
     if options.column_count is not None:
         expected_column_count = int(options.column_count)
         if expected_column_count < 1 or expected_column_count > int(options.max_column_length_limit):
-            print("Column count must be between 1 and %s" % int(options.max_column_length_limit))
+            print("Column count must be between 1 and %s" % int(options.max_column_length_limit),file=sys.stderr)
             sys.exit(90) # TODO RLRL Check uniqueness
     else:
         # infer automatically

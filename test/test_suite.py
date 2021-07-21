@@ -463,6 +463,128 @@ class SaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(metaq, [('filename1', 'file', '%s/filename1' % new_tmp_folder),
                                  ('filename1_2', 'file', '%s/otherfolder/filename1' % new_tmp_folder)])
 
+
+    def test_error_when_not_specifying_table_name_in_multi_table_qsql(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        new_tmp_folder = self.create_folder_with_files({
+            'filename1': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'otherfolder/filename1' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/filename1' % new_tmp_folder
+        effective_filename2 = '%s/otherfolder/filename1' % new_tmp_folder
+
+        expected_stored_table_name1 = 'filename1'
+        expected_stored_table_name2 = 'filename1_2'
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+              (effective_filename1,effective_filename2,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        # Actual tests
+
+        cmd = '%s "select count(*) from %s"' % (Q_EXECUTABLE,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 86)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b('Could not autodetect table name in qsql file. Existing Tables %s,%s' % (expected_stored_table_name1,expected_stored_table_name2)))
+
+
+    def test_error_when_specifying_nonexistent_table_name_in_multi_table_qsql(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        new_tmp_folder = self.create_folder_with_files({
+            'filename1': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'otherfolder/filename1' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/filename1' % new_tmp_folder
+        effective_filename2 = '%s/otherfolder/filename1' % new_tmp_folder
+
+        expected_stored_table_name1 = 'filename1'
+        expected_stored_table_name2 = 'filename1_2'
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+              (effective_filename1,effective_filename2,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        # Actual tests
+
+        cmd = '%s "select count(*) from %s:::non_existent_table"' % (Q_EXECUTABLE,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 84)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b('Table non_existent_table could not be found in qsql file %s . Existing table names: %s,%s' % \
+                                    (qsql_with_multiple_tables,expected_stored_table_name1,expected_stored_table_name2)))
+
+    def test_querying_multi_table_qsql_file(self):
+        numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+        numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+
+        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+
+        qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
+
+        new_tmp_folder = self.create_folder_with_files({
+            'filename1': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
+            'otherfolder/filename1' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
+        },prefix='xx',suffix='yy')
+
+        effective_filename1 = '%s/filename1' % new_tmp_folder
+        effective_filename2 = '%s/otherfolder/filename1' % new_tmp_folder
+
+        expected_stored_table_name1 = 'filename1'
+        expected_stored_table_name2 = 'filename1_2'
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select sum(large_file.aa),sum(large_file.bb),sum(large_file.cc) from %s small_file left join %s large_file on (large_file.aa == small_file.bb)" -S %s' % \
+              (effective_filename1,effective_filename2,qsql_with_multiple_tables)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        # Actual tests
+
+        cmd = '%s "select count(*) from %s:::%s"' % (Q_EXECUTABLE,qsql_with_multiple_tables,expected_stored_table_name1)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('10000'))
+
+        cmd = '%s "select count(*) from %s:::%s"' % (Q_EXECUTABLE,qsql_with_multiple_tables,expected_stored_table_name2)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('10'))
+
     # TODO RLRL - test save-to-db with over-the-limit number of databases
 
     def test_preventing_db_overwrite(self):
@@ -995,15 +1117,14 @@ class BasicTests(AbstractQTestCase):
         file_data = six.b("a,b,c\nvery-long-text,2,3\n")
         tmpfile = self.create_file_with_data(file_data)
 
-        cmd = Q_EXECUTABLE + ' -H -d , -M 0 "select a from %s"' % tmpfile.name
+        cmd = Q_EXECUTABLE + ' -H -d , -M xx "select a from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 31)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
 
-        self.assertTrue(e[0].startswith(six.b('Max column length limit must be a positive integer')))
-
+        self.assertEqual(e[0],six.b('Max column length limit must be an integer larger than 2 (xx)'))
 
         self.cleanup(tmpfile)
 
@@ -1071,6 +1192,47 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile1)
         self.cleanup(tmpfile2)
+
+    def test_out_of_range_expected_column_count(self):
+        cmd = '%s "select count(*) from some_table" -c -1' % Q_EXECUTABLE
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 90)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0], six.b('Column count must be between 1 and 131072'))
+
+    def test_out_of_range_expected_column_count__with_explicit_limit(self):
+        cmd = '%s "select count(*) from some_table" -c -1 -M 100' % Q_EXECUTABLE
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 90)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0], six.b('Column count must be between 1 and 100'))
+
+    def test_other_out_of_range_expected_column_count__with_explicit_limit(self):
+        cmd = '%s "select count(*) from some_table" -c 101 -M 100' % Q_EXECUTABLE
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 90)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e[0], six.b('Column count must be between 1 and 100'))
+
+    def test_explicit_limit_of_columns__data_is_ok(self):
+        file_data1 = six.b("191\n192\n")
+        tmpfile1 = self.create_file_with_data(file_data1)
+
+        cmd = '%s "select count(*) from %s" -c 1 -M 3' % (Q_EXECUTABLE,tmpfile1.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], six.b('2'))
+
+        self.cleanup(tmpfile1)
 
 class ManyOpenFilesTests(AbstractQTestCase):
 
@@ -2165,7 +2327,6 @@ caching_mode=readwrite
 
 
 class QsqlUsageTests(AbstractQTestCase):
-
 
     def test_concatenate_same_qsql_file_with_single_table(self):
         numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]

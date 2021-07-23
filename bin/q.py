@@ -903,28 +903,6 @@ class Sql(object):
             self.set_effective_table_name(qtable_name, effective_table_name)
             xprint("PP: Materialized filename %s to effective table name %s" % (qtable_name,effective_table_name))
 
-class LineSplitter(object):
-
-    def __init__(self, delimiter, expected_column_count):
-        self.delimiter = delimiter
-        self.expected_column_count = expected_column_count
-        if delimiter is not None:
-            escaped_delimiter = re.escape(delimiter)
-            self.split_regexp = re.compile('(?:%s)+' % escaped_delimiter)
-        else:
-            self.split_regexp = re.compile(r'\s+')
-
-    def split(self, line):
-        if line and line[-1] == '\n':
-            line = line[:-1]
-        return self.split_regexp.split(line, max_split=self.expected_column_count)
-
-    def _generate_content_signature(self):
-        return OrderedDict({
-            "delimiter": self.delimiter,
-            "expected_column_count": self.expected_column_count
-        })
-
 
 class TableColumnInferer(object):
 
@@ -953,6 +931,7 @@ class TableColumnInferer(object):
 
     def analyze(self, filename, col_vals):
         if self.inferred:
+            # TODO Convert to assertion
             raise Exception("Already inferred columns")
 
         if self.skip_header and self.header_row is None:
@@ -1031,6 +1010,7 @@ class TableColumnInferer(object):
         self.infer_column_names()
         self.inferred = True
 
+    # TODO RLRL Add test to validate proper column names
     def validate_column_names(self, value_list):
         column_name_errors = []
         for v in value_list:
@@ -1095,10 +1075,12 @@ class TableColumnInferer(object):
                         ['c%s' % (x + len(self.header_row) + 1)
                          for x in range(self.column_count - len(self.header_row))]
             elif len(self.header_row) > self.column_count:
+                # TODO RLRL Add test for this
                 if self.mode == 'strict':
                     raise ColumnCountMismatchException("Strict mode. Header row contains more columns than expected column count (%s vs %s)" % (
                         len(self.header_row), self.column_count))
                 elif self.mode in ['relaxed', 'fluffy']:
+                    # TODO RLRL Add test for this
                     # In relaxed mode, just cut the extra column names
                     self.header_row = self.header_row[:self.column_count]
             self.column_names = self.header_row
@@ -1188,6 +1170,7 @@ def py3_encoded_csv_reader(encoding, f, dialect, **kwargs):
         for row in csv_reader:
             yield row
     except ValueError as e:
+        # TODO RLRL Add test for this
         if e.message is not None and e.message.startswith('could not convert string to'):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
@@ -1242,6 +1225,7 @@ class TableSourceType(object):
     QSQL_FILE = 'qsql-file'
     DATA_STREAM = 'data-stream'
 
+# TODO RLRL Add test for multi-files each with a BOM
 def skip_BOM(f):
     try:
         if six.PY2:
@@ -1286,6 +1270,7 @@ class DelimitedFileReader(object):
 
     def open_file(self):
         if self.f is not None or self.is_open:
+            # TODO RLRL Convert to assertion
             raise Exception('File is already open %s' % self.f)
 
         # TODO Support universal newlines for gzipped and stdin data as well
@@ -1324,6 +1309,7 @@ class DelimitedFileReader(object):
 
     def close_file(self):
         if not self.is_open:
+            # TODO RLRL Convert to assertion
             raise Exception("Bug - file should already be open: %s" % ",".join(self.atomic_fns))
 
         self.f.close()
@@ -1331,7 +1317,6 @@ class DelimitedFileReader(object):
 
     def generate_rows(self):
         csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
-        xprint("XXXXXXX")
         try:
             for col_vals in csv_reader:
                 self.lines_read += 1
@@ -1792,14 +1777,17 @@ class MaterializedQsqlState(MaterializedState):
             if len(table_list) == 1:
                 table_name = table_list[0][0]
                 xprint("Only one table in sqlite database, choosing it: %s" % table_name)
-                table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
-                xprint('Table info is %s' % table_info)
-                column_names = list(map(lambda x: x[1], table_info))
-                column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
-                xprint("Column names and types for table %s: %s" % (table_name, list(zip(column_names, column_types))))
-                self.content_signature = OrderedDict()
             else:
-                raise Exception('bug - Multiple tables in sqlite database not yet supported')
+                # self.table_name has either beein autodetected, or validated as an existing table up the stack
+                table_name = self.table_name
+                xprint("Multiple tables in sqlite file. Using provided table name %s" % self.table_name)
+
+            table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
+            xprint('Table info is %s' % table_info)
+            column_names = list(map(lambda x: x[1], table_info))
+            column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
+            xprint("Column names and types for table %s: %s" % (table_name, list(zip(column_names, column_types))))
+            self.content_signature = OrderedDict()
 
         return column_names, column_types
 
@@ -1867,7 +1855,7 @@ class MaterializedStateTableStructure(object):
 
 class TableCreator(object):
     def __str__(self):
-        return "TableCreator<db=%s>" % str(self.sqlite_db)
+        return "TableCreator<%s>" % str(self)
     __repr__ = __str__
 
     def __init__(self, qtable_name, delimited_file_reader,input_params,sqlite_db=None,target_sqlite_table_name=None):
@@ -1883,7 +1871,7 @@ class TableCreator(object):
         self.skip_header = input_params.skip_header
         self.gzipped = input_params.gzipped_input
         self.table_created = False
-        self.line_splitter = LineSplitter(input_params.delimiter, input_params.expected_column_count)
+
         self.encoding = input_params.input_encoding
         self.mode = input_params.parsing_mode
         self.expected_column_count = input_params.expected_column_count
@@ -1906,6 +1894,7 @@ class TableCreator(object):
 
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
+            # TODO RLRL Change to assertion
             raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
 
         size = self.delimited_file_reader.get_size_hash()
@@ -1913,7 +1902,6 @@ class TableCreator(object):
 
         m = OrderedDict({
             "_signature_version": "v1",
-            "line_splitter": self.line_splitter._generate_content_signature(),
             "skip_header": self.skip_header,
             "gzipped": self.gzipped,
             "with_universal_newlines": self.with_universal_newlines,
@@ -2563,28 +2551,27 @@ class QTextAsData(object):
         mfss = self._open_files_and_get_mfss(qtable_name,
                                              input_params,
                                              dialect_id)
+        assert len(mfss) == 1, "one MS now encapsulated an entire table"
+        mfs = mfss[0]
 
         xprint("MFSs to load: %s" % mfss)
-        all_new_table_structures = []
 
-        for mfs in mfss:
-            if qtable_name in self.loaded_table_structures_dict.keys():
-                xprint("Atomic filename %s found. no need to load" % qtable_name)
-                continue
+        if qtable_name in self.loaded_table_structures_dict.keys():
+            xprint("Atomic filename %s found. no need to load" % qtable_name)
+            return None
 
-            xprint("qtable %s not found - loading" % qtable_name)
+        xprint("qtable %s not found - loading" % qtable_name)
 
-            self._load_mfs(mfs, input_params, dialect_id, stop_after_analysis)
-            xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
 
-            if qtable_name not in self.loaded_table_structures_dict:
-                self.loaded_table_structures_dict[qtable_name] = mfs.mfs_structure
-            else:
-                assert False, "loaded_table_structures_dict has been changed to have a non-list value"
+        self._load_mfs(mfs, input_params, dialect_id, stop_after_analysis)
+        xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
 
-            all_new_table_structures += [mfs.mfs_structure]
+        if qtable_name not in self.loaded_table_structures_dict:
+            self.loaded_table_structures_dict[qtable_name] = mfs.mfs_structure
+        else:
+            assert False, "loaded_table_structures_dict has been changed to have a non-list value"
 
-        return all_new_table_structures
+        return mfs.mfs_structure
 
     def already_attached_to_query_level_db(self,db_to_attach):
         attached_dbs = list(map(lambda x:x[1],self.query_level_db.execute_and_fetch('pragma database_list').results))
@@ -2606,11 +2593,12 @@ class QTextAsData(object):
         # For each "table name"
         for qtable_name in sql_object.qtable_names:
             tss = self._load_data(qtable_name,input_params,stop_after_analysis=stop_after_analysis)
-            xprint("New Table Structures:",new_table_structures)
-            if qtable_name not in new_table_structures:
-                new_table_structures[qtable_name] = tss
-            else:
-                new_table_structures[qtable_name] = new_table_structures[qtable_name] + tss
+            if tss is not None:
+                xprint("New Table Structures:",new_table_structures)
+                if qtable_name not in new_table_structures:
+                    new_table_structures[qtable_name] = tss
+                else:
+                    assert False, "new_table_structures was changed not to contain a list as a value"
 
         return new_table_structures
 
@@ -2936,8 +2924,9 @@ class QOutputPrinter(object):
             table_structures = results.metadata.table_structures[qtable_name]
             print("Table: %s" % qtable_name,file=f_out)
             print("  Data Loads:",file=f_out)
-            for dl in results.metadata.new_table_structures[qtable_name]:
-                print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
+            dl = results.metadata.new_table_structures[qtable_name]
+            # TODO RLRL Split multiple source files to separate rows
+            print("    source_type: %s source: %s" % (dl.source_type,dl.source),file=f_out)
             print("  Fields:",file=f_out)
             for n,t in zip(table_structures.column_names,table_structures.sqlite_column_types):
                 print("    `%s` - %s" % (n,t), file=f_out)

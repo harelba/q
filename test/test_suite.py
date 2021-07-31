@@ -728,6 +728,21 @@ class BasicTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
+    def test_different_header_in_second_file(self):
+        folder_name = self.create_folder_with_files({
+            'file1': self.arrays_to_csv_file_content(six.b(','),[six.b('a'),six.b('b')],[[six.b(str(x)),six.b(str(x))] for x in range(1,6)]),
+            'file2': self.arrays_to_csv_file_content(six.b(','),[six.b('c'),six.b('d')],[[six.b(str(x)),six.b(str(x))] for x in range(1,6)])
+        },prefix="xx",suffix="aa")
+
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s/*" -H' % (folder_name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 35)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b("Bad header row: Extra header 'c,d' in file '%s/file2' mismatches original header 'a,b' from file '%s/file1'. Table name is '%s/*'" % (folder_name,folder_name,folder_name)))
+
+        # TODO Cleanup folder
+
     def test_data_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_with_header)
         cmd = Q_EXECUTABLE + ' -d , "select name from %s" -H' % tmpfile.name
@@ -3663,7 +3678,7 @@ class MultiHeaderTests(AbstractQTestCase):
         for i in range(TMPFILE_COUNT):
             self.cleanup(tmpfiles[i])
 
-    def test_output_header_when_extra_header_column_names_are_different(self):
+    def test_output_header_when_extra_header_column_names_are_different__concatenation_replacement(self):
         tmpfile1 = self.create_file_with_data(sample_data_with_header)
         tmpfile2 = self.create_file_with_data(generate_sample_data_with_header(six.b('othername,value1,value2')))
 

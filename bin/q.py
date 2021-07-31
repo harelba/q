@@ -890,7 +890,7 @@ class Sql(object):
 
         effective_sql = [x for x in self.sql_parts]
 
-        xprint("XXX",self.qtable_name_effective_table_names)
+        xprint("Effective table names",self.qtable_name_effective_table_names)
         for qtable_name, positions in six.iteritems(self.qtable_name_positions):
             xprint("Positions for qtable name %s are %s" % (qtable_name,positions))
             for pos in positions:
@@ -1193,8 +1193,12 @@ def py3_encoded_csv_reader(encoding, f, dialect,row_data_only=False,**kwargs):
             for row in csv_reader:
                 yield row
         else:
+            file_number = -1
             for row in csv_reader:
-                yield (f.fileno(),f.isfirstline(),row)
+                if f.isfirstline():
+                    xprint("HHX first line",row)
+                    file_number = file_number + 1
+                yield (f.filename(),file_number,f.isfirstline(),row)
 
     except ValueError as e:
         # TODO RLRL Add test for this
@@ -1262,9 +1266,9 @@ def skip_BOM(f):
             BOM = f.read(3)
         else:
             BOM = f.buffer.read(3)
-            # TESTING BOM = self.f.buffer.read(3)
 
         if BOM != six.b('\xef\xbb\xbf'):
+            # TODO RLRL Add test for this (propagates to try:except)
             raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
     except Exception as e:
         # TODO RLRL Add a test for this
@@ -1304,8 +1308,27 @@ def is_sqlite_file(filename):
     f.close()
     return magic == six.b("SQLite format 3\x00")
 
+
+def validate_content_signature(original_filename, source_signature,other_filename, content_signature,scope=None):
+    s = "%s vs %s:" % (original_filename,other_filename)
+    if scope is None:
+        scope = []
+    for k in source_signature:
+        if type(source_signature[k]) == OrderedDict:
+            return validate_content_signature(original_filename, source_signature[k],other_filename, content_signature[k],scope + [k])
+        else:
+            if k not in content_signature:
+                # TODO RLRL Add test for this
+                raise ContentSignatureDataDiffersException("%s Content Signatures differ. %s is missing from content signature" % (s,k))
+            if source_signature[k] != content_signature[k]:
+                if k == 'rows':
+                    raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
+                else:
+                    # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
+                    raise ContentSignatureDiffersException(original_filename, other_filename, original_filename,".".join(scope + [k]),source_signature[k],content_signature[k])
+
 class DelimitedFileReader(object):
-    def __init__(self,atomic_fns, input_params, dialect, f = None):
+    def __init__(self,atomic_fns, input_params, dialect, f = None,external_f_name = None):
         if f is not None:
             assert len(atomic_fns) == 0
 
@@ -1320,6 +1343,7 @@ class DelimitedFileReader(object):
         self.is_open = f is not None
 
         self.external_f = f is not None
+        self.external_f_name = external_f_name
 
     def get_lines_read(self):
         return self.lines_read
@@ -1391,11 +1415,11 @@ class DelimitedFileReader(object):
             if self.external_f:
                 for col_vals in csv_reader:
                     self.lines_read += 1
-                    yield 0, self.lines_read == 0, col_vals
+                    yield self.external_f_name,0, self.lines_read == 0, col_vals
             else:
-                for file_number,is_first_line,col_vals in csv_reader:
+                for file_name,file_number,is_first_line,col_vals in csv_reader:
                     self.lines_read += 1
-                    yield file_number,is_first_line,col_vals
+                    yield file_name,file_number,is_first_line,col_vals
         except ColumnMaxLengthLimitExceededException as e:
             msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
@@ -1430,7 +1454,8 @@ class MaterializedState(object):
 
     def normalize_filename_to_table_name(self,filename):
         if filename[0].isdigit():
-            filename = 't%s' % filename
+            # TODO RLRL Add test for this
+            filename = 't_%s' % filename
         if filename.lower().endswith(".qsql"):
             filename = filename[:-5]
         # TODO RLRL PXPX - Planned table name now works, but metaq content is wrong
@@ -1707,7 +1732,7 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
         self.source = self.data_stream.stream_id
 
         # TODO RLRL Cleanup empty list of files
-        self.delimited_file_reader = DelimitedFileReader([], self.input_params, self.dialect_id, f=self.data_stream.stream)
+        self.delimited_file_reader = DelimitedFileReader([], self.input_params, self.dialect_id, f=self.data_stream.stream,external_f_name=self.source)
 
     def choose_db_to_use(self,forced_db_to_use=None):
         assert forced_db_to_use is None
@@ -1890,25 +1915,6 @@ class MaterializedQsqlState(MaterializedState):
 
     # TODO RLRL Add test that checks analysis=false and effective_read_caching=true
 
-    def validate_content_signature(self,original_filename, source_signature,other_filename, content_signature,scope=None):
-        s = "%s vs %s:" % (original_filename,other_filename)
-        if scope is None:
-            scope = []
-        for k in source_signature:
-            if type(source_signature[k]) == OrderedDict:
-                r = self.validate_content_signature(original_filename, source_signature[k],other_filename, content_signature[k],scope + [k])
-                if r:
-                    return True
-            else:
-                if k not in content_signature:
-                    raise ContentSignatureDataDiffersException("%s Content Signatures differ. %s is missing from content signature" % (s,k))
-                if source_signature[k] != content_signature[k]:
-                    if k == 'rows':
-                        raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
-                    else:
-                        # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
-                        raise ContentSignatureDiffersException(original_filename, other_filename, self.qtable_name,".".join(scope + [k]),source_signature[k],content_signature[k])
-
     def _backing_original_file_exists(self):
         return '%s.qsql' % self.qtable_name == self.qsql_filename
 
@@ -1923,7 +1929,8 @@ class MaterializedQsqlState(MaterializedState):
             # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
             actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature'])
             original_file_content_signature = mdfs.content_signature
-            self.validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature)
+
+            validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature)
             mdfs.finalize()
         return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
 
@@ -2014,25 +2021,26 @@ class TableCreator(object):
         return m
 
     # TODO RLRL add test for this
-    def validate_extra_header_if_needed(self, file_number, filename, col_vals):
-        xprint("HH Validating extra header: file_number=%s filename=%s, col_vals=%s" % (file_number,filename,col_vals))
+    def validate_extra_header_if_needed(self, file_number, filename,col_vals):
+        xprint("HHX validate",file_number,filename,col_vals)
         if not self.skip_header:
             xprint("HH No need to validate header")
             return False
 
         if file_number == 0:
-            xprint("HH First file, no need to validate extra header")
+            xprint("HHX First file, no need to validate extra header")
             return False
 
         header_already_exists = self.column_inferer.header_row is not None
 
         if header_already_exists:
+            xprint("HHX Validating extra header")
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
-                raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
-                    ",".join(col_vals),",".join(self.delimited_file_reader.atomic_fns),
+                raise BadHeaderException("Extra header '{}' in file '{}' mismatches original header '{}' from file '{}'. Table name is '{}'".format(
+                    ",".join(col_vals),filename,
                     ",".join(self.column_inferer.header_row),
                     self.column_inferer.header_row_filename,
-                    ",".join(self.delimited_file_reader.atomic_fns)))
+                    self.qtable_name))
             xprint("HH header already exists: %s" % self.column_inferer.header_row)
         else:
             xprint("HH Header doesn't already exist")
@@ -2043,11 +2051,12 @@ class TableCreator(object):
         total_data_lines_read = 0
         try:
             try:
-                for file_number,is_first_line,col_vals in self.delimited_file_reader.generate_rows():
+                for file_name,file_number,is_first_line,col_vals in self.delimited_file_reader.generate_rows():
+                    xprint("HHX Out",file_name,file_number,is_first_line,col_vals)
                     if is_first_line:
-                        if self.validate_extra_header_if_needed(file_number,self.qtable_name,col_vals):
+                        if self.validate_extra_header_if_needed(file_number,file_name,col_vals):
                             continue
-                    self._insert_row(self.qtable_name, col_vals)
+                    self._insert_row(file_name, col_vals)
                     if stop_after_analysis:
                         if self.column_inferer.inferred:
                             xprint("Stopping after analysis")
@@ -2092,13 +2101,6 @@ class TableCreator(object):
     def perform_read_fully(self, dialect):
         if self.state == TableCreatorState.ANALYZED:
             self._populate(dialect,stop_after_analysis=False)
-            self.state = TableCreatorState.FULLY_READ
-        else:
-            raise Exception('Bug - Wrong state %s' % self.state)
-
-    def perform_load_data_from_disk(self, db_id, disk_db_filename,forced = False):
-        if self.state == TableCreatorState.ANALYZED or forced:
-            self.load_qsql(db_id, disk_db_filename, self.content_signature)
             self.state = TableCreatorState.FULLY_READ
         else:
             raise Exception('Bug - Wrong state %s' % self.state)

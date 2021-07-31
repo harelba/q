@@ -1193,12 +1193,8 @@ def py3_encoded_csv_reader(encoding, f, dialect,row_data_only=False,**kwargs):
             for row in csv_reader:
                 yield row
         else:
-            file_number = -1
             for row in csv_reader:
-                if f.isfirstline():
-                    xprint("HHX first line",row)
-                    file_number = file_number + 1
-                yield (f.filename(),file_number,f.isfirstline(),row)
+                yield (f.filename(),f.isfirstline(),row)
 
     except ValueError as e:
         # TODO RLRL Add test for this
@@ -1338,6 +1334,8 @@ class DelimitedFileReader(object):
 
         self.f = f
         self.lines_read = 0
+        self.file_number = -1
+
         self.skipped_bom = False
 
         self.is_open = f is not None
@@ -1417,9 +1415,11 @@ class DelimitedFileReader(object):
                     self.lines_read += 1
                     yield self.external_f_name,0, self.lines_read == 0, col_vals
             else:
-                for file_name,file_number,is_first_line,col_vals in csv_reader:
+                for file_name,is_first_line,col_vals in csv_reader:
+                    if is_first_line:
+                        self.file_number = self.file_number + 1
                     self.lines_read += 1
-                    yield file_name,file_number,is_first_line,col_vals
+                    yield file_name,self.file_number,is_first_line,col_vals
         except ColumnMaxLengthLimitExceededException as e:
             msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
@@ -1629,6 +1629,7 @@ class MaterializedDelimitedFileState(MaterializedState):
     def _generate_disk_db_filename(self, filenames_str):
         fn = '%s.qsql' % (os.path.abspath(filenames_str).replace("+","__"))
         return fn
+
 
     def _get_should_read_from_cache(self, disk_db_filename):
         disk_db_file_exists = os.path.exists(disk_db_filename)
@@ -2096,6 +2097,7 @@ class TableCreator(object):
             content_signature_key = self.sqlite_db.calculate_content_signature_key(self.content_signature)
             xprint("Setting content signature after analysis: %s" % content_signature_key)
         else:
+            # TODO RLRL Convert to assertion
             raise Exception('Bug - Wrong state %s' % self.state)
 
     def perform_read_fully(self, dialect):
@@ -2103,6 +2105,7 @@ class TableCreator(object):
             self._populate(dialect,stop_after_analysis=False)
             self.state = TableCreatorState.FULLY_READ
         else:
+            # TODO RLRL Convert to assertion
             raise Exception('Bug - Wrong state %s' % self.state)
 
     # TODO RLRL - "qsql db version" should be managed at the db layer as well, and compared pre-signature validation
@@ -2191,6 +2194,7 @@ class TableCreator(object):
                 raise FluffyModeColumnCountMismatchException(",".join(self.delimited_file_reader.atomic_fns),expected_col_count,actual_col_count,self.delimited_file_reader.get_lines_read())
             return col_vals
 
+        # TODO RLRL Convert to assertion
         raise Exception("Unidentified parsing mode %s" % self.mode)
 
     def _insert_row_i(self, col_vals):
@@ -2225,6 +2229,7 @@ class TableCreator(object):
 
     def try_to_create_table(self, filename, col_vals):
         if self.table_created:
+            # TODO RLRL Convert to assertion
             raise Exception('Table is already created')
 
         # Add that line to the column inferer
@@ -2255,13 +2260,10 @@ class TableCreator(object):
         self.table_created = True
         self._flush_pre_creation_rows(filename)
 
-    def drop_table(self):
-        if self.table_created:
-            self.sqlite_db.drop_table(self.target_sqlite_table_name)
-
-    # store_qsql and load_qsql should be moved to the engine layer
+    # TODO RLRL store_qsql and load_qsql should be moved to the engine layer
 
 
+# TODO RLRL Add a test for this
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     if len(m) == 0:
         return []
@@ -2391,11 +2393,9 @@ class DataStream(object):
 
 class DataStreams(object):
     def __init__(self, data_streams_dict):
-        if data_streams_dict is not None:
-            self.validate(data_streams_dict)
-            self.data_streams_dict = data_streams_dict
-        else:
-            self.data_streams_dict = {}
+        assert type(data_streams_dict) == dict
+        self.validate(data_streams_dict)
+        self.data_streams_dict = data_streams_dict
 
     def validate(self,d):
         for k in d:
@@ -2496,8 +2496,7 @@ class QTextAsData(object):
 
         if data_stream is not None:
             ms = MaterialiedDataStreamState(qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-            if data_stream.stream_id in materialized_file_dict:
-                raise Exception('xxx')
+            assert data_stream.stream_id not in materialized_file_dict
             materialized_file_dict[data_stream.stream_id] = ms
         else:
             qsql_filename, table_name, original_filename = try_qsql_table_reference(qtable_name)
@@ -2507,13 +2506,11 @@ class QTextAsData(object):
                                            engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
 
                 x = '%s:::%s' % (qsql_filename,table_name)
-                if x in materialized_file_dict:
-                    raise Exception('yyy')
+                assert x not in materialized_file_dict
                 materialized_file_dict[x] = ms
             else:
                 ms = MaterializedDelimitedFileState(qtable_name,input_params,dialect,self.engine_id)
-                if qtable_name in materialized_file_dict:
-                    raise Exception('zzz')
+                assert qtable_name not in materialized_file_dict
                 materialized_file_dict[qtable_name] = ms
 
         xprint("MS dict: %s" % str(materialized_file_dict))
@@ -2565,31 +2562,6 @@ class QTextAsData(object):
                 return
         self.databases[db_id] = database_info
 
-    def get_should_read_from_cache(self, mfs, input_params, atomic_fn, disk_db_filename):
-        disk_db_file_exists = os.path.exists(disk_db_filename)
-
-        if isinstance(mfs,MaterialiedDataStreamState):
-            should_read_from_cache = False
-        else:
-            should_read_from_cache = input_params.read_caching and disk_db_file_exists
-
-        return should_read_from_cache
-
-    # Moved to MS
-    # def choose_db_to_use(self, mfs, atomic_fn):
-    #     db_id = None
-    #     if isinstance(mfs,MaterialiedDataStreamState):
-    #         db_to_use = self.adhoc_db
-    #         source_type = 'data-stream'
-    #         source = mfs.data_stream.stream_id
-    #     else:
-    #         db_id = '%s' % self._generate_db_name(atomic_fn)
-    #         xprint("Database id is %s" % db_id)
-    #         db_to_use = Sqlite3DB(db_id, 'file:%s?mode=memory&cache=shared' % db_id, 'memory<%s>' % db_id,create_metaq=True)
-    #         source_type = 'file'
-    #         source = atomic_fn
-    #     return source,source_type, db_id, db_to_use
-
     def is_adhoc_db(self,db_to_use):
         return db_to_use.db_id == self.adhoc_db_id
 
@@ -2598,10 +2570,6 @@ class QTextAsData(object):
         x = attached_database_count >= input_params.max_attached_sqlite_databases
         xprint("should_copy_instead_of_attach: attached_database_count=%s should_copy=%s" % (attached_database_count,x))
         return x
-
-    # TODO RLRL It's ensure_ now
-    def _load_atomic_fn(self,qtable_name,mfs,atomic_fn,input_params,dialect_id,stop_after_analysis):
-        pass
 
     def _load_data(self,qtable_name,input_params=QInputParams(),stop_after_analysis=False):
         xprint("Attempting to load data for materialized file names %s" % qtable_name)
@@ -2630,16 +2598,13 @@ class QTextAsData(object):
         self._load_mfs(mfs, input_params, dialect_id, stop_after_analysis)
         xprint("Loaded: source-type %s source %s mfs_structure %s" % (mfs.source_type, mfs.source, mfs.mfs_structure))
 
-        if qtable_name not in self.loaded_table_structures_dict:
-            self.loaded_table_structures_dict[qtable_name] = mfs.mfs_structure
-        else:
-            assert False, "loaded_table_structures_dict has been changed to have a non-list value"
+        assert qtable_name not in self.loaded_table_structures_dict, "loaded_table_structures_dict has been changed to have a non-list value"
+        self.loaded_table_structures_dict[qtable_name] = mfs.mfs_structure
 
         return mfs.mfs_structure
 
     def already_attached_to_query_level_db(self,db_to_attach):
         attached_dbs = list(map(lambda x:x[1],self.query_level_db.execute_and_fetch('pragma database_list').results))
-        xprint("PPPP",attached_dbs,db_to_attach.db_id)
         return db_to_attach.db_id in attached_dbs
 
     def attach_to_db(self, target_db, source_db):
@@ -2659,10 +2624,8 @@ class QTextAsData(object):
             tss = self._load_data(qtable_name,input_params,stop_after_analysis=stop_after_analysis)
             if tss is not None:
                 xprint("New Table Structures:",new_table_structures)
-                if qtable_name not in new_table_structures:
-                    new_table_structures[qtable_name] = tss
-                else:
-                    assert False, "new_table_structures was changed not to contain a list as a value"
+                assert qtable_name not in new_table_structures, "new_table_structures was changed not to contain a list as a value"
+                new_table_structures[qtable_name] = tss
 
         return new_table_structures
 

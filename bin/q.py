@@ -333,7 +333,6 @@ class Sqlite3DB(object):
         if create_metaq:
             self.create_metaq_table()
         else:
-
             xprint('Not creating metaq for db_id %s' % db_id)
 
     def find_new_table_name(self,planned_table_name):
@@ -358,14 +357,19 @@ class Sqlite3DB(object):
 
     def create_metaq_table(self):
         with self.conn as cursor:
-            r = cursor.execute('CREATE TABLE metaq ( \
-                               content_signature_key text not null primary key, \
-                               temp_table_name text, \
-                               content_signature text, \
-                               creation_time text, \
-                               source_type text, \
-                               source text)')
-            _ = r.fetchall()
+            metaq_table = cursor.execute("select count(*) from sqlite_master where type='table' and tbl_name == 'metaq'").fetchall()
+            if metaq_table[0][0] == 0:
+                xprint("metaq table does not exist. Creating it")
+                r = cursor.execute('CREATE TABLE metaq ( \
+                                   content_signature_key text not null primary key, \
+                                   temp_table_name text, \
+                                   content_signature text, \
+                                   creation_time text, \
+                                   source_type text, \
+                                   source text)').fetchall()
+            else:
+                xprint("metaq table already exists. No need to create it")
+
 
     def metaq_table_exists(self):
         metaq_table_results = self.execute_and_fetch("select count(*) from sqlite_master where type='table' and tbl_name == 'metaq'").results
@@ -792,13 +796,14 @@ class MaximumSourceFilesExceededException(Exception):
 # A "qtable" is a filename which behaves like an SQL table...
 class Sql(object):
 
-    def __init__(self, sql):
+    def __init__(self, sql, data_streams):
         # Currently supports only standard SELECT statements
 
         # Holds original SQL
         self.sql = sql
         # Holds sql parts
         self.sql_parts = sql.split()
+        self.data_streams = data_streams
 
         self.qtable_metadata_dict = OrderedDict()
 
@@ -839,18 +844,33 @@ class Sql(object):
                     self.sql_parts.insert(idx + 2, leftover)
                     qtable_name = qtable_name[:qtable_name.index(')')]
                     self.sql_parts[idx + 1] = qtable_name
+
                 if qtable_name[0] != '(':
-                    self.qtable_names += [qtable_name]
+                    normalized_qtable_name = self.normalize_qtable_name(qtable_name)
+                    xprint("Normalized qtable name for %s is %s" % (qtable_name,normalized_qtable_name))
+                    self.qtable_names += [normalized_qtable_name]
 
-                    if qtable_name not in self.qtable_name_positions.keys():
-                        self.qtable_name_positions[qtable_name] = []
+                    if normalized_qtable_name not in self.qtable_name_positions.keys():
+                        self.qtable_name_positions[normalized_qtable_name] = []
 
-                    self.qtable_name_positions[qtable_name].append(idx + 1)
+                    self.qtable_name_positions[normalized_qtable_name].append(idx + 1)
+                    self.sql_parts[idx + 1] = normalized_qtable_name
                     idx += 2
                 else:
                     idx += 1
             else:
                 idx += 1
+        xprint("Final sql parts: %s" % self.sql_parts)
+
+    def normalize_qtable_name(self,qtable_name):
+        if self.data_streams.is_data_stream(qtable_name):
+            return qtable_name
+
+        if ':::' in qtable_name:
+            qsql_filename, table_name = qtable_name.split(":::", 1)
+            return '%s:::%s' % (os.path.realpath(os.path.abspath(qsql_filename)),table_name)
+        else:
+            return os.path.realpath(os.path.abspath(qtable_name))
 
     def set_effective_table_name(self, qtable_name, effective_table_name):
         if qtable_name in self.qtable_name_effective_table_names.keys():
@@ -865,12 +885,14 @@ class Sql(object):
 
     def get_effective_sql(self,table_name_mapping=None):
         if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
+            # TODO RLRL Convert to assertion
             raise Exception('There are qtables without effective tables')
 
         effective_sql = [x for x in self.sql_parts]
 
         xprint("XXX",self.qtable_name_effective_table_names)
         for qtable_name, positions in six.iteritems(self.qtable_name_positions):
+            xprint("Positions for qtable name %s are %s" % (qtable_name,positions))
             for pos in positions:
                 if table_name_mapping is not None:
                     x = self.qtable_name_effective_table_names[qtable_name]
@@ -1161,14 +1183,19 @@ class TableColumnInferer(object):
         return self.column_types
 
 
-def py3_encoded_csv_reader(encoding, f, dialect, **kwargs):
+def py3_encoded_csv_reader(encoding, f, dialect,row_data_only=False,**kwargs):
     try:
         xprint("f is %s" % str(f))
         xprint("dialect is %s" % dialect)
         csv_reader = csv.reader(f, dialect, **kwargs)
 
-        for row in csv_reader:
-            yield row
+        if row_data_only:
+            for row in csv_reader:
+                yield row
+        else:
+            for row in csv_reader:
+                yield (f.fileno(),f.isfirstline(),row)
+
     except ValueError as e:
         # TODO RLRL Add test for this
         if e.message is not None and e.message.startswith('could not convert string to'):
@@ -1184,14 +1211,17 @@ def py3_encoded_csv_reader(encoding, f, dialect, **kwargs):
             raise
 
 
-def py2_encoded_csv_reader(encoding, f, dialect, **kwargs):
+def py2_encoded_csv_reader(encoding, f, dialect, row_data_only=False,**kwargs):
     try:
+        # TODO RLRL Apply row_data_only support for py2
         csv_reader = csv.reader(f, dialect, **kwargs)
         if encoding is not None and encoding != 'none':
             for row in csv_reader:
+                # TODO RLRL Untested py2
                 yield [unicode(x, encoding) for x in row]
         else:
             for row in csv_reader:
+                # TODO RLRL Untested py2
                 yield row
     except ValueError as e:
         if e.message is not None and e.message.startswith('could not convert string to'):
@@ -1237,11 +1267,48 @@ def skip_BOM(f):
         if BOM != six.b('\xef\xbb\xbf'):
             raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
     except Exception as e:
+        # TODO RLRL Add a test for this
         raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
 
+def try_qsql_table_reference(filename):
+    # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
+
+    if ':::' in filename:
+        qsql_filename,table_name = filename.split(":::",1)
+        if os.path.exists(qsql_filename):
+            if not is_sqlite_file(qsql_filename):
+                # TODO RLRL Specific Exception and error handling.
+                raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
+            return qsql_filename,table_name,filename
+        else:
+            raise Exception('Bug - Unhandled missing file logic')
+    else:
+        attempted_qsql_filename = '%s.qsql' % filename
+        if os.path.exists(filename) and is_sqlite_file(attempted_qsql_filename):
+            return attempted_qsql_filename, None, filename
+        else:
+            if is_sqlite_file(filename):
+                return filename, None, filename
+            else:
+                if is_sqlite_file(attempted_qsql_filename):
+                    return attempted_qsql_filename, None, filename
+
+    return None, None, None
+
+def is_sqlite_file(filename):
+    if not os.path.exists(filename):
+        return False
+
+    f = open(filename,'rb')
+    magic = f.read(16)
+    f.close()
+    return magic == six.b("SQLite format 3\x00")
 
 class DelimitedFileReader(object):
     def __init__(self,atomic_fns, input_params, dialect, f = None):
+        if f is not None:
+            assert len(atomic_fns) == 0
+
         self.atomic_fns = atomic_fns
         self.input_params = input_params
         self.dialect = dialect
@@ -1252,26 +1319,28 @@ class DelimitedFileReader(object):
 
         self.is_open = f is not None
 
+        self.external_f = f is not None
+
     def get_lines_read(self):
         return self.lines_read
 
     def get_size_hash(self):
-        if self.atomic_fns is None:
+        if self.atomic_fns is None or len(self.atomic_fns) == 0:
             return "data-stream-size"
         else:
             return ",".join(map(str,[os.stat(atomic_fn).st_size for atomic_fn in self.atomic_fns]))
 
     def get_last_modification_time_hash(self):
-        if self.atomic_fns is None:
+        if self.atomic_fns is None or len(self.atomic_fns) == 0:
             return "data stream-lmt"
         else:
             x = ",".join(map(str,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
             return hashlib.sha1(six.b(x)).hexdigest()
 
     def open_file(self):
-        if self.f is not None or self.is_open:
-            # TODO RLRL Convert to assertion
-            raise Exception('File is already open %s' % self.f)
+        if self.external_f:
+            xprint("External f has been provided. No need to open the file")
+            return
 
         # TODO Support universal newlines for gzipped and stdin data as well
 
@@ -1316,11 +1385,17 @@ class DelimitedFileReader(object):
         xprint("XX Closed file %s" % ",".join(self.atomic_fns))
 
     def generate_rows(self):
-        csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
+        csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect,row_data_only=self.external_f)
         try:
-            for col_vals in csv_reader:
-                self.lines_read += 1
-                yield col_vals
+            # TODO RLRL Some order with regard to separating data-streams for actual files
+            if self.external_f:
+                for col_vals in csv_reader:
+                    self.lines_read += 1
+                    yield 0, self.lines_read == 0, col_vals
+            else:
+                for file_number,is_first_line,col_vals in csv_reader:
+                    self.lines_read += 1
+                    yield file_number,is_first_line,col_vals
         except ColumnMaxLengthLimitExceededException as e:
             msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
             raise ColumnMaxLengthLimitExceededException(msg)
@@ -1366,7 +1441,9 @@ class MaterializedState(object):
         raise Exception('xxx')
 
     def autodetect_table_name(self):
+        xprint("Autodetecting table name. db_to_use=%s" % self.db_to_use)
         existing_table_names = [x[0] for x in self.db_to_use.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results]
+        xprint("Existing table names: %s" % existing_table_names)
 
         possible_indices = range(1,1000)
 
@@ -1377,6 +1454,7 @@ class MaterializedState(object):
                 suffix = '_%s' % index
 
             table_name_attempt = '%s%s' % (self.get_planned_table_name(),suffix)
+            xprint("Table name attempt: index=%s name=%s" % (index,table_name_attempt))
 
             if table_name_attempt not in existing_table_names:
                 xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,self.source_type,self.source))
@@ -1475,8 +1553,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         # If this proves to be a problem for users in terms of usability, then we'll just materialize the files
         # into the adhoc db, as with the db attach limit of sqlite
         if l > 500:
-            current_folder = os.path.abspath(".")
-            msg = "Maximum source files for table must be 500. Table is name is %s (current folder %s). Number of actual files is %s" % (qtable_name,current_folder,l)
+            msg = "Maximum source files for table must be 500. Table is name is %s Number of actual files is %s" % (qtable_name,l)
             raise MaximumSourceFilesExceededException(msg)
 
         absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
@@ -1511,9 +1588,17 @@ class MaterializedDelimitedFileState(MaterializedState):
         # Create the matching database table and populate it
         table_creator = TableCreator(self.qtable_name, self.delimited_file_reader,self.input_params, sqlite_db=database_info.sqlite_db,
                                      target_sqlite_table_name=target_sqlite_table_name)
-        table_creator.perform_analyze(self.dialect_id,self.source_type,self.source)
+        table_creator.perform_analyze(self.dialect_id)
         xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
+
+        now = datetime.datetime.utcnow().isoformat()
+
+        database_info.sqlite_db.add_to_metaq_table(target_sqlite_table_name,
+                                          self.content_signature,
+                                          now,
+                                          self.source_type,
+                                          self.source)
         return table_creator
 
     def _generate_disk_db_filename(self, filenames_str):
@@ -1546,8 +1631,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         database_info = DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True)
         xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
 
-        if type(self) == MaterializedDelimitedFileState:
-            self.delimited_file_reader.open_file()
+        self.delimited_file_reader.open_file()
 
         table_creator = self.__analyze_delimited_file(database_info)
 
@@ -1641,6 +1725,19 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
 
     def finalize(self):
         super(MaterialiedDataStreamState, self).finalize()
+
+    def generate_rows(self):
+        csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
+        try:
+            for file_number,is_first_line,col_vals in csv_reader:
+                self.lines_read += 1
+                yield file_number,is_first_line,col_vals
+        except ColumnMaxLengthLimitExceededException as e:
+            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
+            raise ColumnMaxLengthLimitExceededException(msg)
+        except UniversalNewlinesExistException as e2:
+            # No need to translate the exception, but we want it to be explicitly defined here for clarity
+            raise UniversalNewlinesExistException()
 
 
 class MaterializedQsqlState(MaterializedState):
@@ -1916,36 +2013,40 @@ class TableCreator(object):
 
         return m
 
-    def _should_skip_extra_headers(self, filenumber, filename, col_vals):
+    # TODO RLRL add test for this
+    def validate_extra_header_if_needed(self, file_number, filename, col_vals):
+        xprint("HH Validating extra header: file_number=%s filename=%s, col_vals=%s" % (file_number,filename,col_vals))
         if not self.skip_header:
+            xprint("HH No need to validate header")
             return False
 
-        if filenumber == 0:
+        if file_number == 0:
+            xprint("HH First file, no need to validate extra header")
             return False
 
         header_already_exists = self.column_inferer.header_row is not None
 
-        is_extra_header = self.skip_header and self.delimited_file_reader.lines_read == 1 and header_already_exists
-
-        if is_extra_header:
+        if header_already_exists:
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
                 raise BadHeaderException("Extra header {} in file {} mismatches original header {} from file {}. Table name is {}".format(
                     ",".join(col_vals),",".join(self.delimited_file_reader.atomic_fns),
                     ",".join(self.column_inferer.header_row),
                     self.column_inferer.header_row_filename,
                     ",".join(self.delimited_file_reader.atomic_fns)))
+            xprint("HH header already exists: %s" % self.column_inferer.header_row)
+        else:
+            xprint("HH Header doesn't already exist")
 
-        return is_extra_header
+        return header_already_exists
 
     def _populate(self,dialect,stop_after_analysis=False):
         total_data_lines_read = 0
-
         try:
             try:
-                for col_vals in self.delimited_file_reader.generate_rows():
-                    #if self._should_skip_extra_headers(filenumber,filename,mfs,col_vals):
-                    if self._should_skip_extra_headers(0,self.qtable_name,col_vals):
-                        continue
+                for file_number,is_first_line,col_vals in self.delimited_file_reader.generate_rows():
+                    if is_first_line:
+                        if self.validate_extra_header_if_needed(file_number,self.qtable_name,col_vals):
+                            continue
                     self._insert_row(self.qtable_name, col_vals)
                     if stop_after_analysis:
                         if self.column_inferer.inferred:
@@ -1957,6 +2058,7 @@ class TableCreator(object):
                     raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.delimited_file_reader.atomic_fns))
 
                 total_data_lines_read += self.delimited_file_reader.lines_read - (1 if self.skip_header else 0)
+                xprint("HH Total Data lines read %s" % total_data_lines_read)
             except StrictModeColumnCountMismatchException as e:
                 raise ColumnCountMismatchException(
                     'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
@@ -1975,7 +2077,7 @@ class TableCreator(object):
 
         self.sqlite_db.conn.commit()
 
-    def perform_analyze(self, dialect,source_type,source):
+    def perform_analyze(self, dialect):
         xprint("Analyzing... %s" % dialect)
         if self.state == TableCreatorState.INITIALIZED:
             self._populate(dialect,stop_after_analysis=True)
@@ -1984,15 +2086,6 @@ class TableCreator(object):
             self.content_signature = self._generate_content_signature()
             content_signature_key = self.sqlite_db.calculate_content_signature_key(self.content_signature)
             xprint("Setting content signature after analysis: %s" % content_signature_key)
-
-            now = datetime.datetime.utcnow().isoformat()
-
-            # TODO RLRL Move up the stack so TableCreator won't handle metaq stuff
-            self.sqlite_db.add_to_metaq_table(self.target_sqlite_table_name,
-                                              self.content_signature,
-                                              now,
-                                              source_type,
-                                              source)
         else:
             raise Exception('Bug - Wrong state %s' % self.state)
 
@@ -2313,6 +2406,9 @@ class DataStreams(object):
         x = self.data_streams_dict.get(filename)
         return x
 
+    def is_data_stream(self,filename):
+        return filename in self.data_streams_dict
+
 class DatabaseInfo(object):
     def __init__(self,db_id,sqlite_db,needs_closing):
         self.db_id = db_id
@@ -2402,7 +2498,7 @@ class QTextAsData(object):
                 raise Exception('xxx')
             materialized_file_dict[data_stream.stream_id] = ms
         else:
-            qsql_filename, table_name, original_filename = self.try_qsql_table_reference(qtable_name)
+            qsql_filename, table_name, original_filename = try_qsql_table_reference(qtable_name)
             if qsql_filename is not None:
                 xprint("Table name %s has been detected" % table_name)
                 ms = MaterializedQsqlState(qtable_name,qsql_filename=qsql_filename,table_name=table_name,
@@ -2421,40 +2517,6 @@ class QTextAsData(object):
         xprint("MS dict: %s" % str(materialized_file_dict))
 
         return list([item for item in materialized_file_dict.values()])
-
-    def try_qsql_table_reference(self,filename):
-        # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
-
-        if ':::' in filename:
-            qsql_filename,table_name = filename.split(":::",1)
-            if os.path.exists(qsql_filename):
-                if not self.is_sqlite_file(qsql_filename):
-                    # TODO RLRL Specific Exception and error handling.
-                    raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
-                return qsql_filename,table_name,filename
-            else:
-                raise Exception('Bug - Unhandled missing file logic')
-        else:
-            attempted_qsql_filename = '%s.qsql' % filename
-            if os.path.exists(filename) and self.is_sqlite_file(attempted_qsql_filename):
-                return attempted_qsql_filename, None, filename
-            else:
-                if self.is_sqlite_file(filename):
-                    return filename, None, filename
-                else:
-                    if self.is_sqlite_file(attempted_qsql_filename):
-                        return attempted_qsql_filename, None, filename
-
-        return None, None, None
-
-    def is_sqlite_file(self,filename):
-        if not os.path.exists(filename):
-            return False
-
-        f = open(filename,'rb')
-        magic = f.read(16)
-        f.close()
-        return magic == six.b("SQLite format 3\x00")
 
     def _load_mfs(self,mfs,input_params,dialect_id,stop_after_analysis):
         xprint("Loading MFS:", mfs)
@@ -2554,7 +2616,7 @@ class QTextAsData(object):
         assert len(mfss) == 1, "one MS now encapsulated an entire table"
         mfs = mfss[0]
 
-        xprint("MFSs to load: %s" % mfss)
+        xprint("MFS to load: %s" % mfs)
 
         if qtable_name in self.loaded_table_structures_dict.keys():
             xprint("Atomic filename %s found. no need to load" % qtable_name)
@@ -2707,7 +2769,7 @@ class QTextAsData(object):
                 return QOutput(error = error)
 
         # Create SQL statement
-        sql_object = Sql('%s' % query_str)
+        sql_object = Sql('%s' % query_str,self.data_streams)
 
         try:
             load_start_time = time.time()

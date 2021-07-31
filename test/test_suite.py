@@ -179,18 +179,20 @@ def sqlite_dict_factory(cursor, row):
 
 class AbstractQTestCase(unittest.TestCase):
 
-    def create_file_with_data(self, data, encoding=None,prefix=None,suffix=None):
+    def create_file_with_data(self, data, encoding=None,prefix=None,suffix=None,use_real_path=True):
         if encoding is not None:
             raise Exception('Deprecated: Encoding must be none')
         tmpfile = NamedTemporaryFile(delete=False,prefix=prefix,suffix=suffix)
         tmpfile.write(data)
         tmpfile.close()
+        if use_real_path:
+            tmpfile.name = os.path.realpath(tmpfile.name)
         return tmpfile
 
     def generate_tmpfile_name(self,prefix=None,suffix=None):
         tmpfile = NamedTemporaryFile(delete=False,prefix=prefix,suffix=suffix)
         os.remove(tmpfile.name)
-        return tmpfile.name
+        return os.path.realpath(tmpfile.name)
 
     def arrays_to_csv_file_content(self,delimiter,header_row_list,cell_list):
         all_rows = [delimiter.join(row) for row in [header_row_list] + cell_list]
@@ -243,7 +245,7 @@ class AbstractQTestCase(unittest.TestCase):
         return name
 
     def cleanup_folder(self,tmpfolder):
-        if not tmpfolder.startswith('/var/tmp/tmqp'):
+        if not tmpfolder.startswith(os.path.realpath('/var/tmp/tmqp')):
             raise Exception('Guard against accidental folder deletions: %s' % tmpfolder)
         global DEBUG
         if not DEBUG:
@@ -258,7 +260,7 @@ class AbstractQTestCase(unittest.TestCase):
     def random_tmp_filename(self,prefix,postfix):
         # TODO Use more robust method for this
         path = '/var/tmp/tmqp'
-        return '%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix)
+        return os.path.realpath('%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix))
 
 class SaveDbToDiskTests(AbstractQTestCase):
 
@@ -338,6 +340,20 @@ class SaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(o[0],six.b('50005000,55'))
 
+    # def test_creation_of_qsql_database(self):
+    #     numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
+    #     header = [six.b('aa'), six.b('bb'), six.b('cc')]
+    #
+    #     qsql_filename = self.create_qsql_file_with_content_and_return_filename(header,numbers)
+    #
+    #     conn = sqlite3.connect(qsql_filename)
+    #     metaq = conn.execute('select temp_table_name,source_type,source from metaq').fetchall()
+    #     print(metaq)
+    #
+    #     cmd = '%s "select count(*) from %s" -A' % (Q_EXECUTABLE,qsql_filename)
+    #     retcode, o, e = run_command(cmd)
+    #     print(o)
+
     def test_join_with_qsql_file_and_save(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
         numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
@@ -348,8 +364,12 @@ class SaveDbToDiskTests(AbstractQTestCase):
 
         new_tmp_folder = self.create_folder_with_files({
             'some_csv_file': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
-            'some_qsql_database.qsql' : self.arrays_to_qsql_file_content(header,numbers2)
+            'some_qsql_database' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
         },prefix='xx',suffix='yy')
+        cmd = '%s -d , -H "select count(*) from %s/some_qsql_database" -C readwrite' % (Q_EXECUTABLE,new_tmp_folder)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode,0)
+        os.remove('%s/some_qsql_database' % new_tmp_folder)
 
         effective_filename1 = '%s/some_csv_file' % new_tmp_folder
         effective_filename2 = '%s/some_qsql_database.qsql' % new_tmp_folder
@@ -1093,7 +1113,7 @@ class BasicTests(AbstractQTestCase):
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
 
-        self.assertEqual(e[0],six.b("No files matching 'non-existent-file' have been found"))
+        self.assertEqual(e[0],six.b("No files matching '%s/non-existent-file' have been found" % os.getcwd()))
 
     def test_default_column_max_length_parameter__short_enough(self):
         huge_text = six.b("x" * 131000)
@@ -1512,7 +1532,9 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 82)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertTrue(e[0].startswith(six.b('Maximum source files for table must be %s. Table is name is * (current folder' % MAX_ALLOWED_FILES)))
+        x = six.b('Maximum source files for table must be %s. Table is name is %s/* Number of actual files is %s' % (MAX_ALLOWED_FILES,os.path.realpath(tmpfolder),FILE_COUNT))
+        print(x)
+        self.assertEqual(e[0],x)
 
         self.cleanup_folder(tmpfolder)
 

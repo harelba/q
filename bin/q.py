@@ -734,6 +734,14 @@ class FileNotFoundException(Exception):
     def __str(self):
         return repr(self.msg)
 
+class UnknownFileTypeException(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str(self):
+        return repr(self.msg)
+
 
 class ColumnCountMismatchException(Exception):
 
@@ -1253,6 +1261,7 @@ class TableSourceType(object):
     UNKNOWN = 'unknown'
     DELIMITED_FILE = 'delimited-file'
     QSQL_FILE = 'qsql-file'
+    SQLITE_FILE = 'sqlite-file'
     DATA_STREAM = 'data-stream'
 
 # TODO RLRL Add test for multi-files each with a BOM
@@ -1269,6 +1278,34 @@ def skip_BOM(f):
     except Exception as e:
         # TODO RLRL Add a test for this
         raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
+
+def detect_qtable_name_source_info(qtable_name,data_streams):
+    data_stream = data_streams.get_for_filename(qtable_name)
+    xprint("Found data stream %s" % data_stream)
+
+    if data_stream is not None:
+        return TableSourceType.DATA_STREAM,(data_stream,)
+
+    if ':::' in qtable_name:
+        qsql_filename, table_name = qtable_name.split(":::", 1)
+        if not os.path.exists(qsql_filename):
+            raise FileNotFoundException("Could not find file %s" % qsql_filename)
+
+        if is_qsql_file(qsql_filename):
+            return TableSourceType.QSQL_FILE,(qsql_filename,table_name,)
+        if is_sqlite_file(qsql_filename):
+            return TableSourceType.SQLITE_FILE,(qsql_filename,table_name,)
+        raise UnknownFileTypeException("Type of table %s cannot be detected" % qtable_name)
+    else:
+        if is_qsql_file(qtable_name):
+            return TableSourceType.QSQL_FILE,(qtable_name,None)
+        if is_sqlite_file(qtable_name):
+            return TableSourceType.SQLITE_FILE,(qtable_name,None)
+        if is_qsql_file(qtable_name + '.qsql'):
+            return TableSourceType.QSQL_FILE,(qtable_name + '.qsql',None)
+
+        return TableSourceType.DELIMITED_FILE,(qtable_name,None)
+
 
 def try_qsql_table_reference(filename):
     # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
@@ -1304,6 +1341,15 @@ def is_sqlite_file(filename):
     f.close()
     return magic == six.b("SQLite format 3\x00")
 
+def is_qsql_file(filename):
+    if not is_sqlite_file(filename):
+        return False
+
+    c = sqlite3.connect(filename)
+    results = c.execute("select count(*) from sqlite_master where type='table' and tbl_name == 'metaq'").fetchall()
+    metaq_exists = results[0][0] == 1
+    c.close()
+    return metaq_exists
 
 def validate_content_signature(original_filename, source_signature,other_filename, content_signature,scope=None):
     s = "%s vs %s:" % (original_filename,other_filename)
@@ -1766,6 +1812,118 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
             raise UniversalNewlinesExistException()
 
 
+class MaterializedSqliteState(MaterializedState):
+    def __init__(self,qtable_name,sqlite_filename,table_name, engine_id):
+        super(MaterializedSqliteState, self).__init__(qtable_name,engine_id)
+        self.sqlite_filename = sqlite_filename
+        self.table_name = table_name
+
+        self.table_name_autodetected = None
+
+    def initialize(self):
+        super(MaterializedSqliteState, self).initialize()
+
+        self.table_name_autodetected = False
+        if self.table_name is None:
+            self.table_name = self.autodetect_table_name()
+            self.table_name_autodetected = True
+            return
+
+        self.validate_table_name()
+
+    def get_planned_table_name(self):
+        if self.table_name_autodetected:
+            return self.normalize_filename_to_table_name(os.path.basename(self.qtable_name))
+        else:
+            return self.table_name
+
+
+    def autodetect_table_name(self):
+        # TODO RLRL Randomize id?
+        db = Sqlite3DB('temp_db','file:%s?immutable=1' % self.sqlite_filename,self.sqlite_filename,create_metaq=False)
+        try:
+            table_names = list(sorted(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results)))
+            if len(table_names) == 1:
+                return table_names[0]
+            elif len(table_names) == 0:
+                raise TooManyTablesInSqliteException(self.sqlite_filename,table_names) #TODO RLRL Separate exception type
+            else:
+                raise TooManyTablesInSqliteException(self.sqlite_filename,table_names)
+        finally:
+            db.done()
+
+    def validate_table_name(self):
+        db = Sqlite3DB('temp_db', 'file:%s?immutable=1' % self.sqlite_filename, self.sqlite_filename,
+                       create_metaq=False)
+        try:
+            table_names = list(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results))
+            if self.table_name.lower() not in map(lambda x:x.lower(),table_names):
+                raise NonExistentTableNameInSqlite(self.sqlite_filename, self.table_name, table_names)
+        finally:
+            db.done()
+
+    def finalize(self):
+        super(MaterializedSqliteState, self).finalize()
+
+    def get_table_name_for_querying(self):
+        return self.table_name
+
+    def get_table_source_type(self):
+        return TableSourceType.SQLITE_FILE
+
+    def _generate_qsql_only_db_name__temp(self, filenames_str):
+        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
+
+    def choose_db_to_use(self,forced_db_to_use=None):
+        self.source = self.sqlite_filename
+        self.source_type = 'sqlite-file'
+
+        self.db_id = '%s' % self._generate_qsql_only_db_name__temp(self.qtable_name)
+
+        x = 'file:%s?immutable=1' % self.sqlite_filename
+        self.db_to_use = Sqlite3DB(self.db_id, x, self.sqlite_filename,create_metaq=False)
+
+        if forced_db_to_use:
+            new_table_name = forced_db_to_use.attach_and_copy_table(self.db_to_use,self.table_name) # PXPX physical table name or logical?
+            self.table_name = new_table_name
+            self.db_id = forced_db_to_use.db_id
+            self.db_to_use = forced_db_to_use
+
+        return
+
+    def make_data_available(self,stop_after_analysis):
+        xprint("db %s (%s) has been added to the database list" % (self.db_id, self.db_to_use))
+
+        database_info,relevant_table = DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
+
+        column_names,column_types = self._extract_information()
+
+        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, [self.qtable_name], self.db_id,
+                                                             column_names, column_types,
+                                                             self.get_table_name_for_querying(),
+                                                             self.source_type,self.source)
+        return database_info, relevant_table
+
+    def _extract_information(self):
+        table_list = self.db_to_use.execute_and_fetch("SELECT tbl_name FROM sqlite_master WHERE type='table'").results
+        if len(table_list) == 1:
+            table_name = table_list[0][0]
+            xprint("Only one table in sqlite database, choosing it: %s" % table_name)
+        else:
+            # self.table_name has either beein autodetected, or validated as an existing table up the stack
+            table_name = self.table_name
+            xprint("Multiple tables in sqlite file. Using provided table name %s" % self.table_name)
+
+        table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
+        xprint('Table info is %s' % table_info)
+        column_names = list(map(lambda x: x[1], table_info))
+        column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
+        xprint("Column names and types for table %s: %s" % (table_name, list(zip(column_names, column_types))))
+        self.content_signature = OrderedDict()
+
+        return column_names, column_types
+
+
 class MaterializedQsqlState(MaterializedState):
     def __init__(self,qtable_name,qsql_filename,table_name, engine_id,input_params,dialect_id):
         super(MaterializedQsqlState, self).__init__(qtable_name,engine_id)
@@ -1800,39 +1958,27 @@ class MaterializedQsqlState(MaterializedState):
     def autodetect_table_name(self):
         # TODO RLRL Randomize id?
         db = Sqlite3DB('temp_db','file:%s?immutable=1' % self.qsql_filename,self.qsql_filename,create_metaq=False)
+        assert db.metaq_table_exists()
         try:
-            if db.metaq_table_exists():
-                metaq_entries = db.get_all_from_metaq()
-                if len(metaq_entries) == 1:
-                    return metaq_entries[0]['temp_table_name']
-                else:
-                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
-                    raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
+            metaq_entries = db.get_all_from_metaq()
+            if len(metaq_entries) == 1:
+                return metaq_entries[0]['temp_table_name']
             else:
-                table_names = list(sorted(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results)))
-                if len(table_names) == 1:
-                    return table_names[0]
-                elif len(table_names) == 0:
-                    raise TooManyTablesInSqliteException(self.qsql_filename,table_names) #TODO RLRL Separate exception type
-                else:
-                    raise TooManyTablesInSqliteException(self.qsql_filename,table_names)
+                table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
+                raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
         finally:
             db.done()
 
     def validate_table_name(self):
         db = Sqlite3DB('temp_db', 'file:%s?immutable=1' % self.qsql_filename, self.qsql_filename,
                        create_metaq=False)
+        assert db.metaq_table_exists()
         try:
-            if db.metaq_table_exists():
-                entry = db.get_from_metaq_using_table_name(self.table_name)
-                if entry is None:
-                    metaq_entries = db.get_all_from_metaq()
-                    table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
-                    raise NonExistentTableNameInQsql(self.qsql_filename,self.table_name,table_names)
-            else:
-                table_names = list(map(lambda x:x[0],db.execute_and_fetch("select tbl_name from sqlite_master where type='table'").results))
-                if self.table_name.lower() not in map(lambda x:x.lower(),table_names):
-                    raise NonExistentTableNameInSqlite(self.qsql_filename, self.table_name, table_names)
+            entry = db.get_from_metaq_using_table_name(self.table_name)
+            if entry is None:
+                metaq_entries = db.get_all_from_metaq()
+                table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
+                raise NonExistentTableNameInQsql(self.qsql_filename,self.table_name,table_names)
         finally:
             db.done()
 
@@ -1883,34 +2029,17 @@ class MaterializedQsqlState(MaterializedState):
         return database_info, relevant_table
 
     def _extract_information(self):
-        if self.db_to_use.metaq_table_exists():
-            table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % self.table_name).results
-            xprint('table_name=%s Table info is %s' % (self.table_name,table_info))
+        assert self.db_to_use.metaq_table_exists()
+        table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % self.table_name).results
+        xprint('table_name=%s Table info is %s' % (self.table_name,table_info))
 
-            x = self.db_to_use.get_from_metaq_using_table_name(self.table_name)
+        x = self.db_to_use.get_from_metaq_using_table_name(self.table_name)
 
-            column_names = list(map(lambda x: x[1], table_info))
-            column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
-            self.content_signature = OrderedDict(
-                **json.loads(x['content_signature']))
-            xprint('Inferred column names and types from qsql: %s' % list(zip(column_names, column_types)))
-        else:
-            xprint("No metaq table - generic sqlite file")
-            table_list = self.db_to_use.execute_and_fetch("SELECT tbl_name FROM sqlite_master WHERE type='table'").results
-            if len(table_list) == 1:
-                table_name = table_list[0][0]
-                xprint("Only one table in sqlite database, choosing it: %s" % table_name)
-            else:
-                # self.table_name has either beein autodetected, or validated as an existing table up the stack
-                table_name = self.table_name
-                xprint("Multiple tables in sqlite file. Using provided table name %s" % self.table_name)
-
-            table_info = self.db_to_use.execute_and_fetch('PRAGMA table_info(%s)' % table_name).results
-            xprint('Table info is %s' % table_info)
-            column_names = list(map(lambda x: x[1], table_info))
-            column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
-            xprint("Column names and types for table %s: %s" % (table_name, list(zip(column_names, column_types))))
-            self.content_signature = OrderedDict()
+        column_names = list(map(lambda x: x[1], table_info))
+        column_types = list(map(lambda x: Sqlite3DB.SQLITE_TO_PYTHON_TYPE_NAMES[x[2].upper()], table_info))
+        self.content_signature = OrderedDict(
+            **json.loads(x['content_signature']))
+        xprint('Inferred column names and types from qsql: %s' % list(zip(column_names, column_types)))
 
         return column_names, column_types
 
@@ -2491,27 +2620,32 @@ class QTextAsData(object):
     def _open_files_and_get_mfss(self,qtable_name,input_params,dialect):
         materialized_file_dict = OrderedDict()
 
-        data_stream = self.data_streams.get_for_filename(qtable_name)
-        xprint("Found data stream %s" % data_stream)
+        source_type,source_info = detect_qtable_name_source_info(qtable_name,self.data_streams)
+        xprint("Detected source type %s source info %s" % (source_type,source_info))
 
-        if data_stream is not None:
+        if source_type == TableSourceType.DATA_STREAM:
+            (data_stream,) = source_info
             ms = MaterialiedDataStreamState(qtable_name,input_params,dialect,self.engine_id,data_stream,stream_target_db=self.adhoc_db)
-            assert data_stream.stream_id not in materialized_file_dict
-            materialized_file_dict[data_stream.stream_id] = ms
+            effective_qtable_name = data_stream.stream_id
+        elif source_type == TableSourceType.QSQL_FILE:
+            (qsql_filename,table_name) = source_info
+            ms = MaterializedQsqlState(qtable_name, qsql_filename=qsql_filename, table_name=table_name,
+                                       engine_id=self.engine_id, input_params=input_params, dialect_id=dialect)
+            effective_qtable_name = '%s:::%s' % (qsql_filename, table_name)
+        elif source_type == TableSourceType.SQLITE_FILE:
+            (sqlite_filename,table_name) = source_info
+            ms = MaterializedSqliteState(qtable_name, sqlite_filename=sqlite_filename, table_name=table_name,
+                                       engine_id=self.engine_id)
+            effective_qtable_name = '%s:::%s' % (sqlite_filename, table_name)
+        elif source_type == TableSourceType.DELIMITED_FILE:
+            (source_qtable_name,_) = source_info
+            ms = MaterializedDelimitedFileState(source_qtable_name, input_params, dialect, self.engine_id)
+            effective_qtable_name = source_qtable_name
         else:
-            qsql_filename, table_name, original_filename = try_qsql_table_reference(qtable_name)
-            if qsql_filename is not None:
-                xprint("Table name %s has been detected" % table_name)
-                ms = MaterializedQsqlState(qtable_name,qsql_filename=qsql_filename,table_name=table_name,
-                                           engine_id=self.engine_id,input_params=input_params,dialect_id=dialect)
+            assert False, "Unknown file type for qtable %s should have exited with an exception" % (qtable_name)
 
-                x = '%s:::%s' % (qsql_filename,table_name)
-                assert x not in materialized_file_dict
-                materialized_file_dict[x] = ms
-            else:
-                ms = MaterializedDelimitedFileState(qtable_name,input_params,dialect,self.engine_id)
-                assert qtable_name not in materialized_file_dict
-                materialized_file_dict[qtable_name] = ms
+        assert effective_qtable_name not in materialized_file_dict
+        materialized_file_dict[effective_qtable_name] = ms
 
         xprint("MS dict: %s" % str(materialized_file_dict))
 

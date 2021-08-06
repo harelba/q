@@ -13,6 +13,7 @@
 from __future__ import print_function
 
 import collections
+import functools
 import tempfile
 import unittest
 import random
@@ -57,6 +58,16 @@ DEBUG = '-v' in sys.argv
 if os.environ.get('Q_DEBUG'):
     DEBUG = True
 
+def batch(iterable, n=1):
+    r = []
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        r += [iterable[ndx:min(ndx + n, l)]]
+    return r
+
+def partition(pred, iterable):
+    t1, t2 = itertools.tee(iterable)
+    return list(itertools.filterfalse(pred, t1)), list(filter(pred, t2))
 
 def run_command(cmd_to_run,env_to_inject=None):
     global DEBUG
@@ -262,7 +273,300 @@ class AbstractQTestCase(unittest.TestCase):
         path = '/var/tmp/tmqp'
         return os.path.realpath('%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix))
 
-class SaveDbToDiskTests(AbstractQTestCase):
+
+
+def get_sqlite_table_list(c):
+    r = c.execute("select tbl_name from sqlite_master where type='table'").fetchall()
+    return r
+
+class SaveToSqliteTests(AbstractQTestCase):
+
+    # Returns a folder with files and a header in each, one column named 'a'
+    def generate_files_in_folder(self,batch_size, file_count):
+        numbers = list(range(1, 1 + batch_size * file_count))
+        numbers_as_text = batch([str(x) for x in numbers], n=batch_size)
+
+        content_list = list(map(six.b, ['a\n' + "\n".join(x) + '\n' for x in numbers_as_text]))
+
+        filename_list = list(map(lambda x: 'file-%s' % x, range(file_count)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d, 'split-files', 'sqlite-stuff')
+        return (tmpfolder,filename_list)
+
+    # 11074  3.8.2021 10:53  bin/q.py "select count(*) from xxxx/file-95 left join xxxx/file-96 left join xxxx/file-97 left join xxxx/file-97 left join xxxx/file-98 left join xxxx/*" -c 1 -C readwrite -A
+    # # fails because it takes qsql files as well
+
+    def test_save_glob_files_to_sqlite(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        cmd = '%s -H "select count(*) from %s/*" -c 1 -S %s' % (Q_EXECUTABLE,tmpfolder,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        c = sqlite3.connect(output_sqlite_file)
+        results = c.execute('select a from file_dash_0').fetchall()
+        self.assertEqual(len(results),BATCH_SIZE*FILE_COUNT)
+        self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1,BATCH_SIZE*FILE_COUNT+1)))
+        tables = get_sqlite_table_list(c)
+        self.assertEqual(len(tables),1)
+
+        c.close()
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_save_multiple_files_to_sqlite(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+        cmd = '%s -H "select count(*) from %s" -c 1 -S %s' % (Q_EXECUTABLE,tables_as_str,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        c = sqlite3.connect(output_sqlite_file)
+
+        tables = get_sqlite_table_list(c)
+        self.assertEqual(len(tables), FILE_COUNT)
+
+        for i in range(FILE_COUNT):
+            results = c.execute('select a from file_dash_%s' % i).fetchall()
+            self.assertEqual(len(results),BATCH_SIZE)
+            self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+
+        c.close()
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_save_multiple_files_to_sqlite_without_duplicates(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+
+        # duplicate the left-joins for all the files, so the query will contain each filename twice
+        tables_as_str = "%s left join %s" % (tables_as_str,tables_as_str)
+
+        cmd = '%s -H "select count(*) from %s" -c 1 -S %s' % (Q_EXECUTABLE,tables_as_str,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        c = sqlite3.connect(output_sqlite_file)
+
+        tables = get_sqlite_table_list(c)
+        # total table count should still be FILE_COUNT, even with the duplications
+        self.assertEqual(len(tables), FILE_COUNT)
+
+        for i in range(FILE_COUNT):
+            results = c.execute('select a from file_dash_%s' % i).fetchall()
+            self.assertEqual(len(results),BATCH_SIZE)
+            self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+
+        c.close()
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_sqlite_file_is_not_created_if_some_table_does_not_exist(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+
+        tables_as_str = tables_as_str + ' left join %s/non_existent_table' % (tmpfolder)
+
+        cmd = '%s -H "select count(*) from %s" -c 1 -S %s' % (Q_EXECUTABLE,tables_as_str,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 30)
+        self.assertEqual(len(e), 2)
+        self.assertEqual(e[0],six.b("Going to save data into a disk database: %s" % output_sqlite_file))
+        self.assertEqual(e[1],six.b("No files matching '%s/non_existent_table' have been found" % tmpfolder))
+
+        self.assertTrue(not os.path.exists(output_sqlite_file))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_recurring_glob_and_separate_files_in_same_query_when_writing_to_sqlite(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+        # The same files are left-joined in the query as an additional "left join <folder>/*". This should create an additional table
+        # in the sqlite file, with all the data in it
+        cmd = '%s -H "select count(*) from %s left join %s/*" -c 1 -S %s' % (Q_EXECUTABLE,tables_as_str,tmpfolder,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        c = sqlite3.connect(output_sqlite_file)
+
+        tables = get_sqlite_table_list(c)
+        # plus the additional table from the glob
+        self.assertEqual(len(tables), FILE_COUNT+1)
+
+        # check all the per-file tables
+        for i in range(FILE_COUNT):
+            results = c.execute('select a from file_dash_%s' % i).fetchall()
+            self.assertEqual(len(results),BATCH_SIZE)
+            self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+
+        # ensure the glob-based table exists, with an _2 added to the name, as the original "file_dash_0" already exists in the sqlite db
+        results = c.execute('select a from file_dash_0_2').fetchall()
+        self.assertEqual(len(results),FILE_COUNT*BATCH_SIZE)
+        self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1,1+FILE_COUNT*BATCH_SIZE)))
+        c.close()
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_save_multiple_files_to_sqlite_while_caching_them(self):
+        BATCH_SIZE = 50
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        output_sqlite_file = self.random_tmp_filename("x","sqlite")
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+        cmd = '%s -H "select count(*) from %s" -c 1 -S %s -C readwrite' % (Q_EXECUTABLE,tables_as_str,output_sqlite_file)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 0)
+        self.assertEqual(len(e), 4)
+
+        c = sqlite3.connect(output_sqlite_file)
+
+        tables = get_sqlite_table_list(c)
+        self.assertEqual(len(tables), FILE_COUNT)
+
+        for i,filename in enumerate(filename_list):
+            matching_table_name = 'file_dash_%s' % i
+
+            results = c.execute('select a from %s' % matching_table_name).fetchall()
+            self.assertEqual(len(results),BATCH_SIZE)
+            self.assertEqual(sum(map(lambda x:x[0],results)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+
+            # check actual resulting qsql file for the file
+            cmd = '%s -c 1 -H "select a from %s/%s"' % (Q_EXECUTABLE,tmpfolder,filename)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(o), BATCH_SIZE)
+            self.assertEqual(sum(map(int,o)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+            self.assertEqual(len(e), 0)
+
+            # check analysis returns proper qsql-with-original for each file
+            cmd = '%s -c 1 -H "select a from %s/%s" -A' % (Q_EXECUTABLE,tmpfolder,filename)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(o), 5)
+            self.assertEqual(o,[
+                six.b('Table: %s/file-%s' % (tmpfolder,i)),
+                six.b('  Data Loads:'),
+                six.b('    source_type: qsql-file-with-original source: %s/file-%s.qsql' % (tmpfolder,i)),
+                six.b('  Fields:'),
+                six.b('    `a` - int')
+            ])
+
+            # check qsql file is readable directly through q
+            cmd = '%s -c 1 -H "select a from %s/%s.qsql"' % (Q_EXECUTABLE,tmpfolder,filename)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(o), BATCH_SIZE)
+            self.assertEqual(sum(map(int,o)),sum(range(1+i*BATCH_SIZE,1+(i+1)*BATCH_SIZE)))
+            self.assertEqual(len(e), 0)
+
+            # check analysis returns proper qsql-with-original for each file when running directly against the qsql file
+            cmd = '%s -c 1 -H "select a from %s/%s.qsql" -A' % (Q_EXECUTABLE,tmpfolder,filename)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(len(o), 5)
+            self.assertEqual(o,[
+                six.b('Table: %s/file-%s.qsql' % (tmpfolder,i)),
+                six.b('  Data Loads:'),
+                six.b('    source_type: qsql-file source: %s/file-%s.qsql' % (tmpfolder,i)),
+                six.b('  Fields:'),
+                six.b('    `a` - int')
+            ])
+        c.close()
+
+        import glob
+        filename_list_with_qsql = list(map(lambda x: x+'.qsql',filename_list))
+
+        files_in_folder = glob.glob('%s/*' % tmpfolder)
+        regular_files,qsql_files = partition(lambda x: x.endswith('.qsql'),files_in_folder)
+
+        self.assertEqual(len(files_in_folder),2*FILE_COUNT)
+        self.assertEqual(sorted(list(map(os.path.basename,regular_files))),sorted(list(map(os.path.basename,filename_list))))
+        self.assertEqual(sorted(list(map(os.path.basename,qsql_files))),sorted(list(map(os.path.basename,filename_list_with_qsql))))
+
+        self.cleanup_folder(tmpfolder)
+
+    def test_globs_ignore_matching_qsql_files(self):
+        BATCH_SIZE = 10
+        FILE_COUNT = 5
+
+        tmpfolder,filename_list = self.generate_files_in_folder(BATCH_SIZE,FILE_COUNT)
+
+        tables_as_str = " left join ".join(["%s/%s" % (tmpfolder,x) for x in filename_list])
+        cmd = '%s -H "select count(*) from %s" -c 1 -C readwrite' % (Q_EXECUTABLE,tables_as_str)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0],six.b(str(pow(BATCH_SIZE,FILE_COUNT))))
+
+        # TODO RLRL -C readwrite causes to rewrite the cache without warning, and not only that - it's with the same
+        #  name as the first file, which causes the first cache file of file-0 to be overwritten with the entire dataset
+        #  Need to make sure that cache rewriting is a special opration and not the default one for working with caches.
+        #  perhaps a -C readrewrite separate from -C readwrite
+        cmd = '%s -H "select a from %s/*" -c 1 -C read' % (Q_EXECUTABLE,tmpfolder)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), BATCH_SIZE*FILE_COUNT)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(sum(map(int,o)),sum(range(1,1+BATCH_SIZE*FILE_COUNT)))
+
+        self.cleanup_folder(tmpfolder)
+
+class OldSaveDbToDiskTests(AbstractQTestCase):
 
     def test_join_with_stdin_and_save(self):
         x = [six.b(a) for a in map(str,range(1,101))]
@@ -270,7 +574,7 @@ class SaveDbToDiskTests(AbstractQTestCase):
         tmpfile = self.create_file_with_data(large_file_data)
         tmpfile_expected_table_name = os.path.basename(tmpfile.name)
 
-        disk_db_filename = self.random_tmp_filename('save-to-db','qsql')
+        disk_db_filename = self.random_tmp_filename('save-to-db','sqlite')
 
         cmd = '(echo id ; seq 1 2 10) | ' + Q_EXECUTABLE + ' -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)" -S %s' % \
             (tmpfile.name,disk_db_filename)
@@ -383,14 +687,12 @@ class SaveDbToDiskTests(AbstractQTestCase):
         conn = sqlite3.connect(saved_qsql_with_multiple_tables)
         c1 = conn.execute('select count(*) from some_csv_file').fetchall()
         c2 = conn.execute('select count(*) from some_qsql_database').fetchall()
-        metaq = conn.execute('select temp_table_name,source_type,source from metaq').fetchall()
 
         self.assertEqual(c1[0][0],10000)
         self.assertEqual(c2[0][0],10)
-        self.assertEqual(metaq, [('some_csv_file', 'file', '%s/some_csv_file' % new_tmp_folder),
-                                 ('some_qsql_database', 'file', '%s/some_qsql_database.qsql' % new_tmp_folder)])
 
 
+    # TODO RLRL Add test for the table naming of xxxx/* -> should it be the first file like it is now?
 
 
     # def test_join_with_qsql_file_and_save(self):
@@ -476,12 +778,9 @@ class SaveDbToDiskTests(AbstractQTestCase):
         conn = sqlite3.connect(qsql_with_multiple_tables)
         c1 = conn.execute('select count(*) from filename1').fetchall()
         c2 = conn.execute('select count(*) from filename1_2').fetchall()
-        metaq = conn.execute('select temp_table_name,source_type,source from metaq').fetchall()
 
         self.assertEqual(c1[0][0],10000)
         self.assertEqual(c2[0][0],10)
-        self.assertEqual(metaq, [('filename1', 'file', '%s/filename1' % new_tmp_folder),
-                                 ('filename1_2', 'file', '%s/otherfolder/filename1' % new_tmp_folder)])
 
 
     def test_error_when_not_specifying_table_name_in_multi_table_qsql(self):
@@ -516,10 +815,10 @@ class SaveDbToDiskTests(AbstractQTestCase):
         cmd = '%s "select count(*) from %s"' % (Q_EXECUTABLE,qsql_with_multiple_tables)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 86)
+        self.assertEqual(retcode, 87)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertEqual(e[0],six.b('Could not autodetect table name in qsql file. Existing Tables %s,%s' % (expected_stored_table_name1,expected_stored_table_name2)))
+        self.assertEqual(e[0],six.b('Could not autodetect table name in sqlite file %s . Existing tables: %s,%s' % (qsql_with_multiple_tables,expected_stored_table_name1,expected_stored_table_name2)))
 
     def test_error_when_not_specifying_table_name_in_multi_table_sqlite(self):
         sqlite_with_multiple_tables = self.generate_tmpfile_name(suffix='.sqlite')
@@ -600,10 +899,10 @@ class SaveDbToDiskTests(AbstractQTestCase):
         cmd = '%s "select count(*) from %s:::non_existent_table"' % (Q_EXECUTABLE,qsql_with_multiple_tables)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 84)
+        self.assertEqual(retcode, 85)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertEqual(e[0],six.b('Table non_existent_table could not be found in qsql file %s . Existing table names: %s,%s' % \
+        self.assertEqual(e[0],six.b('Table non_existent_table could not be found in sqlite file %s . Existing table names: %s,%s' % \
                                     (qsql_with_multiple_tables,expected_stored_table_name1,expected_stored_table_name2)))
 
     def test_querying_multi_table_qsql_file(self):
@@ -1317,20 +1616,13 @@ class BasicTests(AbstractQTestCase):
 
 class ManyOpenFilesTests(AbstractQTestCase):
 
-    def batch(self,iterable, n=1):
-        r = []
-        l = len(iterable)
-        for ndx in range(0, l, n):
-            r += [iterable[ndx:min(ndx + n, l)]]
-        return r
-
 
     def test_multi_file_header_skipping(self):
         BATCH_SIZE = 50
         FILE_COUNT = 5
 
         numbers = list(range(1,1+BATCH_SIZE*FILE_COUNT))
-        numbers_as_text = self.batch([str(x) for x in numbers],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in numbers],n=BATCH_SIZE)
 
         content_list = list(map(six.b,['a\n' + "\n".join(x)+'\n' for x in numbers_as_text]))
 
@@ -1355,7 +1647,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 50
         FILE_COUNT = 40
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
@@ -1380,7 +1672,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 50
         FILE_COUNT = 40
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
@@ -1408,7 +1700,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 50
         FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES - 1
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
@@ -1448,7 +1740,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         # Expectation is that only a part of the files will be cached
         FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES * 2
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
@@ -1492,7 +1784,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 50
         FILE_COUNT = MAX_ATTACHED_SQLITE_DATABASES * 2
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
 
@@ -1532,7 +1824,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 2
         FILE_COUNT = MAX_ALLOWED_FILES + 1
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
 
@@ -1559,7 +1851,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 2
         FILE_COUNT = 500
 
-        numbers_as_text = self.batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
         content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
 
@@ -1584,7 +1876,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         BATCH_SIZE = 2
         FILE_COUNT = 500
 
-        numbers_as_text = self.batch([str(x) for x in range(1, 1 + BATCH_SIZE * FILE_COUNT)], n=BATCH_SIZE)
+        numbers_as_text = batch([str(x) for x in range(1, 1 + BATCH_SIZE * FILE_COUNT)], n=BATCH_SIZE)
 
         content_list = map(six.b, ["\n".join(x) for x in numbers_as_text])
 
@@ -3091,10 +3383,10 @@ class QsqlUsageTests(AbstractQTestCase):
         cmd = '%s -D, "select count(*),sum(c1) from %s:::unknown_table_name"' % (Q_EXECUTABLE,disk_db_filename)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode, 84)
+        self.assertEqual(retcode, 85)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertEqual(e[0],six.b('Table unknown_table_name could not be found in qsql file %s . Existing table names: data_stream_stdin' % (disk_db_filename)))
+        self.assertEqual(e[0],six.b('Table unknown_table_name could not be found in sqlite file %s . Existing table names: data_stream_stdin' % (disk_db_filename)))
 
     def test_direct_qsql_usage_from_written_data_stream(self):
         disk_db_filename = self.random_tmp_filename('save-to-db','qsql')

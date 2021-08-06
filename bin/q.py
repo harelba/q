@@ -1339,6 +1339,8 @@ def validate_content_signature(original_filename, source_signature,other_filenam
                 raise ContentSignatureDataDiffersException("%s Content Signatures differ. %s is missing from content signature" % (s,k))
             if source_signature[k] != content_signature[k]:
                 if k == 'rows':
+                    xprint("source: %s" % source_signature)
+                    xprint("other: %s" % content_signature)
                     raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
                 else:
                     # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
@@ -1595,14 +1597,18 @@ class MaterializedDelimitedFileState(MaterializedState):
             raise FileNotFoundException(
                 "The following files have not been found for table %s: %s" % (qtable_name,",".join(unfound_files)))
 
-        l = len(materialized_file_list)
+        # deduplicate with matching qsql files
+        filtered_file_list = list(filter(lambda x: not x.endswith('.qsql'),materialized_file_list))
+        xprint("Filtered qsql files from glob search. Original file count: %s new file count: %s" % (len(materialized_file_list),len(filtered_file_list)))
+
+        l = len(filtered_file_list)
         # If this proves to be a problem for users in terms of usability, then we'll just materialize the files
         # into the adhoc db, as with the db attach limit of sqlite
         if l > 500:
             msg = "Maximum source files for table must be 500. Table is name is %s Number of actual files is %s" % (qtable_name,l)
             raise MaximumSourceFilesExceededException(msg)
 
-        absolute_path_list = [os.path.abspath(x) for x in materialized_file_list]
+        absolute_path_list = [os.path.abspath(x) for x in filtered_file_list]
         return absolute_path_list
 
     # TODO RLRL should the param be called force_db_to_use? probably yes
@@ -1687,7 +1693,8 @@ class MaterializedDelimitedFileState(MaterializedState):
                                                              table_creator.column_inferer.get_column_types(),
                                                              self.get_table_name_for_querying(),
                                                              self.source_type,
-                                                             self.source)
+                                                             self.source,
+                                                             self.get_planned_table_name())
 
         # TODO RLRL Probably needs to happen only if not reading from cache, but original source code location of this
         #  does not differentiate, so maybe this would need to move
@@ -1877,7 +1884,8 @@ class MaterializedSqliteState(MaterializedState):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
-                                                             self.source_type,self.source)
+                                                             self.source_type,self.source,
+                                                             self.get_planned_table_name())
         return database_info, relevant_table
 
     def _extract_information(self):
@@ -2001,7 +2009,8 @@ class MaterializedQsqlState(MaterializedState):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
-                                                             self.source_type,self.source)
+                                                             self.source_type,self.source,
+                                                             self.get_planned_table_name())
         return database_info, relevant_table
 
     def _extract_information(self):
@@ -2043,7 +2052,7 @@ class MaterializedQsqlState(MaterializedState):
 
 class MaterializedStateTableStructure(object):
     # TODO ms is temporary, need to leave this structure-only later on
-    def __init__(self,qtable_name, atomic_fns, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
+    def __init__(self,qtable_name, atomic_fns, db_id, column_names, python_column_types, table_name_for_querying,source_type,source,planned_table_name):
         self.qtable_name = qtable_name
         self.atomic_fns = atomic_fns
         self.db_id = db_id
@@ -2052,6 +2061,7 @@ class MaterializedStateTableStructure(object):
         self.table_name_for_querying = table_name_for_querying
         self.source_type = source_type
         self.source = source
+        self.planned_table_name = planned_table_name
 
         self.sqlite_column_types = [Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t].lower() for t in python_column_types]
 
@@ -2739,7 +2749,6 @@ class QTextAsData(object):
         return new_table_structures
 
 
-    # TODO RLRL PXPX - in the middle of being delegated directly into the MS instances!
     def propose_stored_table_name(self,qtable_name,source_database,actual_table_name_in_db):
         # TODO RLRL PXPX Perhaps return a full metaq object from here and use it during storing
         if not source_database.sqlite_db.metaq_table_exists():
@@ -2757,7 +2766,9 @@ class QTextAsData(object):
 
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
-        materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,save_db_to_disk_filename,create_metaq=True)
+
+        # TODO RLRL - Changed to writing a standard sqlite file and not a qsql file. Is that a good thing?
+        materialized_db = Sqlite3DB("materialized","file:%s" % save_db_to_disk_filename,save_db_to_disk_filename,create_metaq=False)
         table_name_mapping = OrderedDict()
 
         # Attach all databases
@@ -2776,22 +2787,16 @@ class QTextAsData(object):
             # The DatabaseInfo instance for this db
             source_database = self.databases[db_id]
 
-            proposed_new_table_name = self.propose_stored_table_name(qtable_name,source_database,actual_table_name_in_db)
+            ts = self.loaded_table_structures_dict[qtable_name]
+            proposed_new_table_name = ts.planned_table_name
+            xprint("Proposted table name is %s" % proposed_new_table_name)
 
             new_table_name = materialized_db.find_new_table_name(proposed_new_table_name)
 
             # Copy the table into the materialized database
             xx = materialized_db.execute_and_fetch('CREATE TABLE %s AS SELECT * FROM %s' % (new_table_name,effective_table_name_for_qtable_name))
 
-            if source_database.sqlite_db.metaq_table_exists():
-                metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(actual_table_name_in_db)
-                # TODO RLRL - Convert all content_signature reads/writes to dicts
-                actual_content_signature = OrderedDict(json.loads(metaq_data['content_signature']))
-                materialized_db.add_to_metaq_table(new_table_name,actual_content_signature,metaq_data['creation_time'],
-                                                   metaq_data['source_type'],metaq_data['source'])
-                table_name_mapping[effective_table_name_for_qtable_name] = new_table_name
-            else:
-                raise Exception('standard sqlite files are not supported yet')
+            table_name_mapping[effective_table_name_for_qtable_name] = new_table_name
 
         return table_name_mapping
 

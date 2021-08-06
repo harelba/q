@@ -1307,31 +1307,6 @@ def detect_qtable_name_source_info(qtable_name,data_streams):
         return TableSourceType.DELIMITED_FILE,(qtable_name,None)
 
 
-def try_qsql_table_reference(filename):
-    # return contract is (qsql_filename, relevant_table_name, real_original_qtable_name)
-
-    if ':::' in filename:
-        qsql_filename,table_name = filename.split(":::",1)
-        if os.path.exists(qsql_filename):
-            if not is_sqlite_file(qsql_filename):
-                # TODO RLRL Specific Exception and error handling.
-                raise Exception('Invalid sqlite file %s in table reference %s' % (qsql_filename,filename))
-            return qsql_filename,table_name,filename
-        else:
-            raise Exception('Bug - Unhandled missing file logic')
-    else:
-        attempted_qsql_filename = '%s.qsql' % filename
-        if os.path.exists(filename) and is_sqlite_file(attempted_qsql_filename):
-            return attempted_qsql_filename, None, filename
-        else:
-            if is_sqlite_file(filename):
-                return filename, None, filename
-            else:
-                if is_sqlite_file(attempted_qsql_filename):
-                    return attempted_qsql_filename, None, filename
-
-    return None, None, None
-
 def is_sqlite_file(filename):
     if not os.path.exists(filename):
         return False
@@ -1707,7 +1682,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         table_creator = self.__analyze_delimited_file(database_info)
 
-        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, self.atomic_fns, self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fns, self.db_id,
                                                              table_creator.column_inferer.get_column_names(),
                                                              table_creator.column_inferer.get_column_types(),
                                                              self.get_table_name_for_querying(),
@@ -1832,6 +1807,7 @@ class MaterializedSqliteState(MaterializedState):
         self.validate_table_name()
 
     def get_planned_table_name(self):
+        # TODO RLRL Add a test that stores to disk from sqlite: bin/q.py "select * from mysqlite.sqlite" -S harel.qsql
         if self.table_name_autodetected:
             return self.normalize_filename_to_table_name(os.path.basename(self.qtable_name))
         else:
@@ -1898,7 +1874,7 @@ class MaterializedSqliteState(MaterializedState):
 
         column_names,column_types = self._extract_information()
 
-        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, [self.qtable_name], self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
                                                              self.source_type,self.source)
@@ -2022,7 +1998,7 @@ class MaterializedQsqlState(MaterializedState):
 
         column_names,column_types = self._extract_information()
 
-        self.mfs_structure = MaterializedStateTableStructure(self,self.qtable_name, [self.qtable_name], self.db_id,
+        self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
                                                              self.get_table_name_for_querying(),
                                                              self.source_type,self.source)
@@ -2067,8 +2043,7 @@ class MaterializedQsqlState(MaterializedState):
 
 class MaterializedStateTableStructure(object):
     # TODO ms is temporary, need to leave this structure-only later on
-    def __init__(self,ms,qtable_name, atomic_fns, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
-        self.ms = ms
+    def __init__(self,qtable_name, atomic_fns, db_id, column_names, python_column_types, table_name_for_querying,source_type,source):
         self.qtable_name = qtable_name
         self.atomic_fns = atomic_fns
         self.db_id = db_id
@@ -2764,6 +2739,7 @@ class QTextAsData(object):
         return new_table_structures
 
 
+    # TODO RLRL PXPX - in the middle of being delegated directly into the MS instances!
     def propose_stored_table_name(self,qtable_name,source_database,actual_table_name_in_db):
         # TODO RLRL PXPX Perhaps return a full metaq object from here and use it during storing
         if not source_database.sqlite_db.metaq_table_exists():

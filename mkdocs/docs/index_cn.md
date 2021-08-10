@@ -1,13 +1,13 @@
-# q - Run SQL directly on CSV or TSV files
+# q - 直接在CSV或TSV文件上运行SQL
 
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
 
 
-## Overview
-q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
+## 概述
+q 是一个可以运行在CSV/TSV文件(或其他行表形式的文本文件)上运行类SQL命令的命令行工具。
 
-q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.
+q 将普通文本（如上述）作为数据库表，且支持所有的SQL语法如：WHERE、GROUP BY、各种JOIN等。此外，还拥有自动识别列名和列类型及广泛支持多种编码的特性。
 
 ``` bash
 q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
@@ -17,50 +17,56 @@ q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 ```
 
-Look at some examples [here](#examples), or just download the tool using the links in the [installation](#installation) below and play with it.
+查看[示例](#示例)或下载[安装](#安装)体验.
 
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
 | 完全支持所有的字符编码                 | すべての文字エンコーディングを完全にサポート    |
 | 모든 문자 인코딩이 완벽하게 지원됩니다 | все кодировки символов полностью поддерживаются |
 
-**Non-english users:** q fully supports all types of encoding. Use `-e data-encoding` to set the input data encoding, `-Q query-encoding` to set the query encoding, and use `-E output-encoding` to set the output encoding. Sensible defaults are in place for all three parameters. Please contact me if you encounter any issues and I'd be glad to help.
 
-**Files with BOM:** Files which contain a BOM ([Byte Order Mark](https://en.wikipedia.org/wiki/Byte_order_mark)) are not properly supported inside python's csv module. q contains a workaround that allows reading UTF8 files which contain a BOM - Use `-e utf-8-sig` for this. I plan to separate the BOM handling from the encoding itself, which would allow to support BOMs for all encodings.
+**非英语用户:** q 完全支持所有类型的字符编码。 使用 `-e data-encoding` 设置输入编码; 使用 `-Q query-encoding` 设置查询编码; 使用 `-E output-encoding` 设置输出编码;
+如上三个参数均设有合理的默认值。<br/>
 
-## Installation
+> 如果遇到问题请与我联系，期待与您交流。
 
-| Format | Instructions | Comments |
-:---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|run `brew install q`|man page is not available for this release yet. Use `q --help` for now||
-|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
-|[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`.|
-|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.|
-|[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
-|[zip](https://github.com/harelba/q/archive/2.0.19.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+**含有BOM的文件:** python的csv模块并不能很好的支持含有[Byte Order Mark](https://en.wikipedia.org/wiki/Byte_order_mark) 的文件。针对该种情况，使用 `-e utf-8-sig` 命令参数可读取包含BOM的UTF8编码文件。
 
-**Older versions can be downloaded [here](https://github.com/harelba/packages-for-q). Please let me know if you plan on using an older version, and why - I know of no reason to use any of them.**
+> 我们计划将BOM相关处理与编码'解耦', 这样就可以支持所有编码的BOM文件了。
 
-## Requirements
-As of version `2.0.9`, there's no need for any external dependency. Python itself (3.7), and any needed libraries are self-contained inside the installation, isolated from the rest of your system.
+## 安装
 
-## Usage
+| 格式 | 说明 | 备注 |
+|:---|:---|:---|
+|[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|运行 `brew install q`| 该方式暂不支持MAN手册, 可以使用 `q --help` 查看帮助||
+|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| 运行 `rpm -ivh <package-filename>` 如果安装过旧版则运行 `rpm -U <package-filename>` | 该方式支持MAN手册，可运行`man q`查看|
+|[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| 运行 `sudo dpkg -i <package-filename>`|该方式支持MAN手册，可运行`man q`查看|
+|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|运行安装可执行文件，一直点击下一步、下一步... q.exe 将被添加至PATH，以便于随处运行。|PATH更新后并不会即时生效，重新打开cmd命令窗口便可。|
+|[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
+|[zip](https://github.com/harelba/q/archive/2.0.19.zip)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
+
+**旧版本可以在这儿[下载](https://github.com/harelba/packages-for-q) 。按理说不会有人愿意用旧版本，要是您计划使用旧版，希望能与您交流。**
+
+## 须知
+从`2.0.9`版本开始，不需要任何外部依赖。Python(3.7)和其他所需的库包含在了安装文件中且与系统隔离。
+
+## 使用
 
 ``` bash
 q <flags> "<query>"
 
-  Simplest execution is `q "SELECT * FROM myfile"` which prints the entire file.
+  最简单的执行语句：q "SELECT * FROM myfile" 该语句会打印输入的文件内容
 ```
 
-q allows performing SQL-like statements on tabular text data. Its purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.
+q 支持在行表形式的文本上执行类SQL命令。他的初衷是为Linux命令行附加SQL的表达力且实现对文本数据的轻松访问。
 
-Query should be an SQL-like query which contains *filenames instead of table names* (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes). Multiple files can be used as one table by either writing them as `filename1+filename2+...` or by using shell wildcards (e.g. `my_files*.csv`).
+类SQL的查询将*文件名(或标准输入流)看作表名*。查询语句会作为命令输入的一个参数（使用引号包裹)，如果将多个文件看作一张表，可以这样写 `文件名1+文件名2....`或者使用通配符（比如：`my_files*.csv`)。
 
-Use `-H` to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. `q "SELECT c3,c8 from ..."`).
+使用 `-H` 表示输入内容中包含标题行。该情况下列名会被自动识别，如果没有指定该参数，列名将会被以`cX`命名，`X`从1开始（比如: `q "SELECT c3,c8 from ..."`) 。
 
-Use `-d` to specify the input delimiter.
+使用 `-d` 声明输入的分隔符。
 
-Column types are auto detected by the tool, no casting is needed. Note that there's a flag `--as-text` which forces all columns to be treated as text columns.
+列类型可由工具自动识别，无需强制转换。 提示，使用`--as-text` 可以强制将所有列类型转换为文本类型。
 
 Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard.
 
@@ -354,7 +360,7 @@ Please make sure to read the [limitations](#limitations) section as well.
 ## Development
 
 ### Tests
-The code includes a test suite runnable through `test/test-all`. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. 
+The code includes a test suite runnable through `test/test-all`. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail.
 
 ## Limitations
 Here's the list of known limitations. Please contact me if you have a use case that needs any of those missing capabilities.

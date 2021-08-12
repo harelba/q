@@ -102,6 +102,11 @@ def regexp(regular_expression, data):
     else:
         return False
 
+def resub(data,expression,replace):
+    if data is None:
+        return ""
+    return re.sub(expression,replace,data)
+
 def md5(data,encoding):
     m = hashlib.md5()
     m.update(six.text_type(data).encode(encoding))
@@ -211,6 +216,11 @@ user_functions = [
                     "Find regexp in string expression. Returns 1 if found or 0 if not",
                     regexp,
                     2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "resub","resub(<expr>,regex,replace) = <replaced-expr-string>",
+                    "Find and replace text",
+                    resub,
+                    3),
     UserFunctionDef(FunctionType.REGULAR,
                     "sha","sha(<expr>,<encoding>,<algorithm>) = <hex-string-of-sha>",
                     "Calculate sha of some expression. Algorithm can be one of 1,224,256,384,512. For now encoding must be manually provided. Will use the input encoding automatically in the future.",

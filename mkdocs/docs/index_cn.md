@@ -17,7 +17,7 @@ q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
 ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
 ```
 
-查看[示例](#示例)或下载[安装](#安装)体验.
+查看[示例](#示例)或[安装](#安装)体验.
 
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
@@ -41,7 +41,7 @@ ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIM
 |[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|运行 `brew install q`| 该方式暂不支持MAN手册, 可以使用 `q --help` 查看帮助||
 |[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| 运行 `rpm -ivh <package-filename>` 如果安装过旧版则运行 `rpm -U <package-filename>` | 该方式支持MAN手册，可运行`man q`查看|
 |[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| 运行 `sudo dpkg -i <package-filename>`|该方式支持MAN手册，可运行`man q`查看|
-|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|运行安装可执行文件，一直点击下一步、下一步... q.exe 将被添加至PATH，以便于随处运行。|PATH更新后并不会即时生效，重新打开cmd命令窗口便可。|
+|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|运行安装可执行文件，一直点击下一步、下一步... q.exe 将被添加至PATH，以便于随处运行|PATH更新后并不会即时生效，重新打开cmd命令窗口便可|
 |[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
 |[zip](https://github.com/harelba/q/archive/2.0.19.zip)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
 
@@ -55,10 +55,10 @@ ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIM
 ``` bash
 q <flags> "<query>"
 
-  最简单的执行语句：q "SELECT * FROM myfile" 该语句会打印输入的文件内容
+  最简单的执行语句：q "SELECT * FROM myfile" 该语句会输出文件内容
 ```
 
-q 支持在行表形式的文本上执行类SQL命令。他的初衷是为Linux命令行附加SQL的表达力且实现对文本数据的轻松访问。
+q 支持在行表形式的文本上执行类SQL命令。它的初衷是为Linux命令行附加SQL的表达力且实现对文本数据的轻松访问。
 
 类SQL的查询将*文件名(或标准输入流)看作表名*。查询语句会作为命令输入的一个参数（使用引号包裹)，如果将多个文件看作一张表，可以这样写 `文件名1+文件名2....`或者使用通配符（比如：`my_files*.csv`)。
 
@@ -68,63 +68,61 @@ q 支持在行表形式的文本上执行类SQL命令。他的初衷是为Linux�
 
 列类型可由工具自动识别，无需强制转换。 提示，使用`--as-text` 可以强制将所有列类型转换为文本类型。
 
-Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard.
+依据sqlite规范，如果列名中含有空格，需要使用反引号 (即：`) 引起来。
 
-Query/Input/Output encodings are fully supported (and q tries to provide out-of-the-box usability in that area). Please use `-e`,`-E` and `-Q` to control encoding if needed.
+完全支持查询/输入/输出的编码设置（q 力争提供一种开箱即用的方法), 可以分别使用`-Q`,`-e` and `-E`来指定编码设置类型。
 
-All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
+支持所有的sqlite3 SQL方法，包括文件之间的关联（可以为文件设置别名）操作。在下面的[限制](#限制)小节可以看到一些少有使用的、欠支持的说明。
 
-### Query
-Each parameter that q gets is a full SQL query. All queries are executed one after another, outputing the results to standard output. Note that data loading is done only once, so when passing multiple queries on the same command-line, only the first one will take a long time. The rest will starting running almost instantanously, since all the data will already have been loaded. Remeber to double-quote each of the queries - Each parameter is a full SQL query.
+### 查询
 
-Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
+q 的每一个参数都是由双引号包裹的一条完整的SQL语句。所有的查询语句会依次执行，最终结果以标准输出流形式输出。 提示，在同一命令行中执行多条查询语句时，仅在执行第一条查询语句时需要耗时载入数据，其他查询语句即时执行。
 
-JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.
+支持所有标准SQL语法，条件（WHERE 和 HAVING）、GROUP BY、ORDER BY等。
 
-The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
+在WHERE条件查询中，支持JOIN操作和子查询，但在FROM子句中并不支持。JOIN操作时，可以为文件起别名。
 
-NOTE: Full type detection is implemented, so there is no need for any casting or anything.
+SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
 
-NOTE2: When using the `-O` output header option, use column name aliases if you want to control the output column names. For example, `q -O -H "select count(*) cnt,sum(*) as mysum from -"` would output `cnt` and `mysum` as the output header column names.
+**注意**：
+* 支持所有类型的自动识别，无需强制转换或其他操作。
+* 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。
 
-### Flags
+### 指令
 
 ``` bash
-Usage: 
-        q allows performing SQL-like statements on tabular text data.
+使用:
+        q 支持在行表形式的文本数据上执行类SQL查询。
 
-        Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+        它的初衷是为Linux命令行附加SQL的表达力且实现对文本数据的轻松访问。
 
-        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-            When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+        基本操作是 q "SQL查询语句" 表名便是文件名（使用 - 从标注输入中读取数据）。若输入内容包含表头时，可以使用 -H 指定列名。若无表头，则列将会自动命名为 c1...cN。
 
-        Column types are detected automatically. Use -A in order to see the column name/type analysis.
+        列类型可被自动识别。可以使用 -A 命令查看每列的名称及其类型。
 
-        Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
+        可以使用 -d (或 -t) 指定分隔符，使用 -D 指定输出分割符。
 
-        All sqlite3 SQL constructs are supported.
+        支持所有的sqlite3 SQL方法。
 
-        Examples:
+        示例:
+            
+          例子1: ls -ltrd * | q "select c1,count(1) from - group by c1" 
+          上例将会输出当前目录下，所有文件的权限表达式分组及每组数量。
 
-              Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-            This example would print a count of each unique permission string in the current folder.
+          例子2: seq 1 1000 | q "select avg(c1),sum(c1) from -" 
+          上例将会输出1到1000的平均数与和数。
+          
+          例子3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc" 
+          上例将会输出在/tmp目录下，相同'用户+组'的文件所占用的MB磁盘空间。
 
-          Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-            This example would provide the average and the sum of the numbers in the range 1 to 1000
-
-          Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-            This example will output the total size in MB per user+group in the /tmp subtree
-
-
-            See the help or https://github.com/harelba/q/ for more details.
+          更多详情见 https://github.com/harelba/q/ 或查看帮助
     
-
-Options:
-  -h, --help            show this help message and exit
-  -v, --version         Print version
-  -V, --verbose         Print debug info in case of problems
+选项：
+  -h, --help            显示此帮助信息并退出 
+  -v, --version         显示版本号
+  -V, --verbose         出现问题时显示调试信息
   -S SAVE_DB_TO_DISK_FILENAME, --save-db-to-disk=SAVE_DB_TO_DISK_FILENAME
-                        Save database to an sqlite database file
+                        将数据库保存为一个 sqlite 数据库文件
   --save-db-to-disk-method=SAVE_DB_TO_DISK_METHOD
                         Method to use to save db to disk. 'standard' does not
                         require any deps, 'fast' currenty requires manually

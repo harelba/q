@@ -576,25 +576,13 @@ class Sqlite3DB(object):
         xprint("Attach query: %s" % q)
         c = self.execute_and_fetch(q)
 
-        all_table_names = [(x[0],x[1]) for x in self.execute_and_fetch("select content_signature_key,temp_table_name from %s.metaq" % temp_db_id).results]
-        csk,t = list(filter(lambda x: x[1] == relevant_table,all_table_names))[0]
-        xprint("Copying table %s from db_id %s" % (t,from_db.db_id))
-        d = from_db.get_from_metaq_using_table_name(t)
         new_temp_table_name = 'temp_table_%s' % (self.last_temp_table_id + 1)
-        fully_qualified_table_name = '%s.%s' % (temp_db_id,t)
+        fully_qualified_table_name = '%s.%s' % (temp_db_id,relevant_table)
         copy_results = self.execute_and_fetch('create table %s as select * from %s' % (new_temp_table_name,fully_qualified_table_name))
-        xprint("Copied %s.%s into %s in db_id %s. Results %s" % (temp_db_id,t,new_temp_table_name,self.db_id,copy_results))
-        xprint("CS",d['content_signature'])
-        cs = OrderedDict(json.loads(d['content_signature']))
-        self.add_to_metaq_table(new_temp_table_name, cs, d['creation_time'],
-                                d['source_type'], d['source'])
+        xprint("Copied %s.%s into %s in db_id %s. Results %s" % (temp_db_id,relevant_table,new_temp_table_name,self.db_id,copy_results))
         self.last_temp_table_id += 1
 
         xprint("Copied table into %s. Detaching db that was attached temporarily" % self.db_id)
-
-        # Validate metaq additions
-        from_db_table_data = from_db.execute_and_fetch('select * from metaq').results
-        self_table_data = self.execute_and_fetch('select * from metaq').results
 
         q = "detach database %s" % temp_db_id
         xprint("detach query: %s" % q)
@@ -1502,9 +1490,13 @@ class MaterializedState(object):
             filename = 't_%s' % filename
         if filename.lower().endswith(".qsql"):
             filename = filename[:-5]
+        elif filename.lower().endswith('.sqlite'):
+            filename = filename[:-7]
+        elif filename.lower().endswith('.sqlite3'):
+            filename = filename[:-8]
         # TODO RLRL PXPX - Planned table name now works, but metaq content is wrong
         #  since it is taken from the original metaq data !!
-        return filename.replace("-","_dash_").replace(".","_period_").replace('?','_qm_')
+        return filename.replace("-","_dash_").replace(".","_dot_").replace('?','_qm_')
 
     def get_planned_table_name(self):
         raise Exception('xxx')
@@ -1952,6 +1944,7 @@ class MaterializedQsqlState(MaterializedState):
             if len(metaq_entries) == 1:
                 return metaq_entries[0]['temp_table_name']
             else:
+                # TODO RLRL Add test for this
                 table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
                 raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
         finally:
@@ -1997,7 +1990,23 @@ class MaterializedQsqlState(MaterializedState):
 
         if forced_db_to_use:
             xprint("AA Forced qsql to use forced_db: %s" % forced_db_to_use)
+
+            all_table_names = [(x[0],x[1]) for x in self.db_to_use.execute_and_fetch("select content_signature_key,temp_table_name from metaq").results]
+            csk,t = list(filter(lambda x: x[1] == self.table_name,all_table_names))[0]
+            xprint("Copying table %s from db_id %s" % (t,self.db_id))
+            d = self.db_to_use.get_from_metaq_using_table_name(t)
+
             new_table_name = forced_db_to_use.attach_and_copy_table(self.db_to_use,self.table_name) # PXPX physical table name or logical?
+
+            xprint("CS",d['content_signature'])
+            cs = OrderedDict(json.loads(d['content_signature']))
+            forced_db_to_use.add_to_metaq_table(new_table_name, cs, d['creation_time'],
+                                    d['source_type'], d['source'])
+            #######
+            # Validate metaq additions
+            from_db_table_data = self.db_to_use.execute_and_fetch('select * from metaq').results
+            self_table_data = forced_db_to_use.execute_and_fetch('select * from metaq').results
+
             self.table_name = new_table_name
             self.db_id = forced_db_to_use.db_id
             self.db_to_use = forced_db_to_use
@@ -2677,9 +2686,8 @@ class QTextAsData(object):
         assert db_id is not None
         assert database_info.sqlite_db is not None
         if db_id in self.databases:
+            # TODO Convert to assertion
             if id(database_info.sqlite_db) != id(self.databases[db_id].sqlite_db):
-                xprint(id(database_info.sqlite_db))
-                xprint(id(self.databases[db_id].sqlite_db))
                 raise Exception('Bug - database already in database list: db_id %s: old %s new %s' % (db_id,self.databases[db_id],database_info))
             else:
                 return

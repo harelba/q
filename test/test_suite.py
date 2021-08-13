@@ -576,6 +576,48 @@ class SaveToSqliteTests(AbstractQTestCase):
 
         self.cleanup_folder(tmpfolder)
 
+    def test_storing_to_disk_too_many_sqlite_files__over_the_sqlite_limit(self):
+        # a variation of test_storing_to_disk_too_many_sqlite_files, but with a limit above the sqlite hardcoded limit
+        MAX_ATTACHED_DBS = 20 # standard sqlite limit is 10, so q should throw an error
+
+        BATCH_SIZE = 10
+        FILE_COUNT = MAX_ATTACHED_DBS + 4
+
+        numbers_as_text = batch([str(x) for x in range(1, 1 + BATCH_SIZE * FILE_COUNT)], n=BATCH_SIZE)
+
+        content_list = map(six.b, ["\n".join(x) for x in numbers_as_text])
+
+        filename_list = list(map(lambda x: 'file-%s' % x, range(FILE_COUNT)))
+        d = collections.OrderedDict(zip(filename_list, content_list))
+
+        tmpfolder = self.create_folder_with_files(d, 'split-files', 'attach-limit')
+
+        for fn in filename_list:
+            cmd = '%s -c 1 "select count(*) from %s/%s" -C readwrite' % (Q_EXECUTABLE,tmpfolder, fn)
+            retcode, o, e = run_command(cmd)
+
+            self.assertEqual(retcode, 0)
+
+            c = sqlite3.connect('%s/%s.qsql' % (tmpfolder,fn))
+            c.execute('drop table metaq').fetchall()
+            c.close()
+            os.rename('%s/%s.qsql' % (tmpfolder,fn),'%s/%s.sqlite' % (tmpfolder,fn))
+
+        output_sqlite_file = self.generate_tmpfile_name("many-sqlites",".sqlite")
+
+        table_refs = list(['select * from %s/%s.sqlite' % (tmpfolder,x) for x in filename_list])
+        table_refs_str = " UNION ALL ".join(table_refs)
+        # Limit max attached dbs according to the parameter (must be below the hardcoded sqlite limit, which is 10 when having a standard version compiled)
+        cmd = '%s "select * from (%s)" -S %s --max-attached-sqlite-databases=%s' % (Q_EXECUTABLE,table_refs_str,output_sqlite_file,MAX_ATTACHED_DBS)
+        retcode, o, e = run_command(cmd)
+        self.assertEqual(retcode,89)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),2)
+        self.assertTrue(e[0].startswith(six.b('Going to save data into')))
+        self.assertTrue(e[1].startswith(six.b('There are too many attached databases. Use a proper --max-attached-sqlite-databases parameter which is below the maximum')))
+
+        self.cleanup_folder(tmpfolder)
+
     def test_qtable_name_normalization__starting_with_a_digit(self):
         numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 101)]
 

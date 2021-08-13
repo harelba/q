@@ -658,6 +658,11 @@ class TooManyTablesInSqliteException(Exception):
         self.qsql_filename = qsql_filename
         self.existing_table_names = existing_table_names
 
+class NoTablesInSqliteException(Exception):
+
+    def __init__(self, sqlite_filename):
+        self.sqlite_filename = sqlite_filename
+
 class ColumnMaxLengthLimitExceededException(Exception):
 
     def __init__(self, msg):
@@ -725,6 +730,15 @@ class MissingHeaderException(Exception):
     def __init__(self,msg):
         self.msg = msg
 
+class InvalidQueryException(Exception):
+
+    def __init__(self,msg):
+        self.msg = msg
+
+class TooManyAttachedDatabasesException(Exception):
+
+    def __init__(self,msg):
+        self.msg = msg
 
 class FileNotFoundException(Exception):
 
@@ -838,7 +852,7 @@ class Sql(object):
                 # and there is nothing after it,
                 if idx == len(self.sql_parts) - 1:
                     # Just fail
-                    raise Exception(
+                    raise InvalidQueryException(
                         'FROM/JOIN is missing a table name after it')
 
                 qtable_name = self.sql_parts[idx + 1]
@@ -883,6 +897,7 @@ class Sql(object):
     def set_effective_table_name(self, qtable_name, effective_table_name):
         if qtable_name in self.qtable_name_effective_table_names.keys():
             if self.qtable_name_effective_table_names[qtable_name] != effective_table_name:
+                # TODO RLRL Convert to assertion
                 raise Exception(
                     "Already set effective table name for qtable %s. Trying to change the effective table name from %s to %s" %
                     (qtable_name,self.qtable_name_effective_table_names[qtable_name],effective_table_name))
@@ -892,6 +907,7 @@ class Sql(object):
             qtable_name] = effective_table_name
 
     def get_effective_sql(self,table_name_mapping=None):
+        # TODO RLRL Convert to assertion
         if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
             # TODO RLRL Convert to assertion
             raise Exception('There are qtables without effective tables')
@@ -1031,6 +1047,7 @@ class TableColumnInferer(object):
         elif self.mode in ['relaxed', 'fluffy']:
             self._do_relaxed_analysis()
         else:
+            # TODO RLRL Convert to assertion, and make sure it's validated up the stack
             raise Exception('Unknown parsing mode %s' % self.mode)
 
         if self.column_count == 1 and self.expected_column_count != 1:
@@ -1204,10 +1221,12 @@ def py3_encoded_csv_reader(encoding, f, dialect,row_data_only=False,**kwargs):
             for row in csv_reader:
                 yield (f.filename(),f.isfirstline(),row)
 
+    except UnicodeDecodeError as e1:
+        raise CouldNotParseInputException(e1)
     except ValueError as e:
         # TODO RLRL Add test for this
-        if e.message is not None and e.message.startswith('could not convert string to'):
-            raise CouldNotConvertStringToNumericValueException(e.message)
+        if str(e) is not None and str(e).startswith('could not convert string to'):
+            raise CouldNotConvertStringToNumericValueException(str(e))
         else:
             raise CouldNotParseInputException(str(e))
     except Exception as e:
@@ -1295,7 +1314,7 @@ def detect_qtable_name_source_info(qtable_name,data_streams):
             return TableSourceType.QSQL_FILE,(qsql_filename,table_name,)
         if is_sqlite_file(qsql_filename):
             return TableSourceType.SQLITE_FILE,(qsql_filename,table_name,)
-        raise UnknownFileTypeException("Type of table %s cannot be detected" % qtable_name)
+        raise UnknownFileTypeException("Cannot detect the type of table %s" % qtable_name)
     else:
         if is_qsql_file(qtable_name):
             return TableSourceType.QSQL_FILE,(qtable_name,None)
@@ -1476,8 +1495,10 @@ class MaterializedState(object):
         return TableSourceType.UNKNOWN
 
     def normalize_filename_to_table_name(self,filename):
+        xprint("AA Normalizing filename %s" % filename)
         if filename[0].isdigit():
             # TODO RLRL Add test for this
+            xprint("AA Filename starts with a digit, adding prefix")
             filename = 't_%s' % filename
         if filename.lower().endswith(".qsql"):
             filename = filename[:-5]
@@ -1509,11 +1530,6 @@ class MaterializedState(object):
                 return table_name_attempt
 
         raise Exception('Cannot find free table name for source type %s source %s' % (self.source_type,self.source))
-
-    def set_effective_db_and_table_name(self,db_to_use,table_name):
-        self.db_id = db_to_use.db_id
-        self.db_to_use = db_to_use
-        self.effective_table_name = table_name
 
     def initialize(self):
         self.start_time = time.time()
@@ -1547,7 +1563,7 @@ class MaterializedDelimitedFileState(MaterializedState):
 
         if self.effective_table_name is not None:
             x = '%s.%s' % (self.db_to_use,self.effective_table_name)
-            xprint("XX Effective Table name is %s" % x)
+            xprint("Effective Table name is %s" % x)
             return x
 
         d = self.db_to_use.get_from_metaq(self.content_signature)
@@ -1780,19 +1796,6 @@ class MaterialiedDataStreamState(MaterializedDelimitedFileState):
     def finalize(self):
         super(MaterialiedDataStreamState, self).finalize()
 
-    def generate_rows(self):
-        csv_reader = encoded_csv_reader(self.input_params.input_encoding, self.f, dialect=self.dialect)
-        try:
-            for file_number,is_first_line,col_vals in csv_reader:
-                self.lines_read += 1
-                yield file_number,is_first_line,col_vals
-        except ColumnMaxLengthLimitExceededException as e:
-            msg = "Column length is larger than the maximum. Offending file is '%s' - Line is %s, counting from 1 (encoding %s). The line number is the raw line number of the file, ignoring whether there's a header or not" % (",".join(self.atomic_fns),self.lines_read + 1,self.input_params.input_encoding)
-            raise ColumnMaxLengthLimitExceededException(msg)
-        except UniversalNewlinesExistException as e2:
-            # No need to translate the exception, but we want it to be explicitly defined here for clarity
-            raise UniversalNewlinesExistException()
-
 
 class MaterializedSqliteState(MaterializedState):
     def __init__(self,qtable_name,sqlite_filename,table_name, engine_id):
@@ -1829,7 +1832,7 @@ class MaterializedSqliteState(MaterializedState):
             if len(table_names) == 1:
                 return table_names[0]
             elif len(table_names) == 0:
-                raise TooManyTablesInSqliteException(self.sqlite_filename,table_names) #TODO RLRL Separate exception type
+                raise NoTablesInSqliteException(self.sqlite_filename)
             else:
                 raise TooManyTablesInSqliteException(self.sqlite_filename,table_names)
         finally:
@@ -1867,6 +1870,7 @@ class MaterializedSqliteState(MaterializedState):
         self.db_to_use = Sqlite3DB(self.db_id, x, self.sqlite_filename,create_metaq=False)
 
         if forced_db_to_use:
+            xprint("AA Forced sqlite db_to_use %s" % forced_db_to_use)
             new_table_name = forced_db_to_use.attach_and_copy_table(self.db_to_use,self.table_name) # PXPX physical table name or logical?
             self.table_name = new_table_name
             self.db_id = forced_db_to_use.db_id
@@ -1992,6 +1996,7 @@ class MaterializedQsqlState(MaterializedState):
         self.db_to_use = Sqlite3DB(self.db_id, x, self.qsql_filename,create_metaq=False)
 
         if forced_db_to_use:
+            xprint("AA Forced qsql to use forced_db: %s" % forced_db_to_use)
             new_table_name = forced_db_to_use.attach_and_copy_table(self.db_to_use,self.table_name) # PXPX physical table name or logical?
             self.table_name = new_table_name
             self.db_id = forced_db_to_use.db_id
@@ -2139,17 +2144,17 @@ class TableCreator(object):
     def validate_extra_header_if_needed(self, file_number, filename,col_vals):
         xprint("HHX validate",file_number,filename,col_vals)
         if not self.skip_header:
-            xprint("HH No need to validate header")
+            xprint("No need to validate header")
             return False
 
         if file_number == 0:
-            xprint("HHX First file, no need to validate extra header")
+            xprint("First file, no need to validate extra header")
             return False
 
         header_already_exists = self.column_inferer.header_row is not None
 
         if header_already_exists:
-            xprint("HHX Validating extra header")
+            xprint("Validating extra header")
             if tuple(self.column_inferer.header_row) != tuple(col_vals):
                 raise BadHeaderException("Extra header '{}' in file '{}' mismatches original header '{}' from file '{}'. Table name is '{}'".format(
                     ",".join(col_vals),filename,
@@ -2167,7 +2172,6 @@ class TableCreator(object):
         try:
             try:
                 for file_name,file_number,is_first_line,col_vals in self.delimited_file_reader.generate_rows():
-                    xprint("HHX Out",file_name,file_number,is_first_line,col_vals)
                     if is_first_line:
                         if self.validate_extra_header_if_needed(file_number,file_name,col_vals):
                             continue
@@ -2182,7 +2186,7 @@ class TableCreator(object):
                     raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.delimited_file_reader.atomic_fns))
 
                 total_data_lines_read += self.delimited_file_reader.lines_read - (1 if self.skip_header else 0)
-                xprint("HH Total Data lines read %s" % total_data_lines_read)
+                xprint("Total Data lines read %s" % total_data_lines_read)
             except StrictModeColumnCountMismatchException as e:
                 raise ColumnCountMismatchException(
                     'Strict mode - Expected %s columns instead of %s columns in file %s row %s. Either use relaxed/fluffy modes or check your delimiter' % (
@@ -2729,7 +2733,13 @@ class QTextAsData(object):
     def attach_to_db(self, target_db, source_db):
         q = "attach '%s' as %s" % (target_db.sqlite_db_url,target_db.db_id)
         xprint("Attach query: %s" % q)
-        c = source_db.execute_and_fetch(q)
+        try:
+            c = source_db.execute_and_fetch(q)
+        except SqliteOperationalErrorException as e:
+            if 'too many attached databases' in str(e):
+                raise TooManyAttachedDatabasesException('There are too many attached databases. Use a proper --max-attached-sqlite-databases parameter which is below the maximum. Original error: %s' % str(e))
+        except Exception as e1:
+            raise
 
     def load_data(self,filename,input_params=QInputParams(),stop_after_analysis=False):
         return self._load_data(filename,input_params,stop_after_analysis=stop_after_analysis)
@@ -2848,10 +2858,11 @@ class QTextAsData(object):
                 error = QError(EncodedQueryException(''),"Query should be in unicode. Please make sure to provide a unicode literal string or decode it using proper the character encoding.",91)
                 return QOutput(error = error)
 
-        # Create SQL statement
-        sql_object = Sql('%s' % query_str,self.data_streams)
 
         try:
+            # Create SQL statement
+            sql_object = Sql('%s' % query_str, self.data_streams)
+
             load_start_time = time.time()
             iprint("Going to ensure data is loaded. Currently loaded tables: %s" % str(self.loaded_table_structures_dict))
             new_table_structures = self._ensure_data_is_loaded_for_sql(sql_object,effective_input_params,data_streams,stop_after_analysis=stop_after_analysis)
@@ -2900,7 +2911,8 @@ class QTextAsData(object):
                     output_column_name_list=db_results_obj.query_column_names),
                 warnings = warnings,
                 error = error)
-
+        except InvalidQueryException as e:
+            error = QError(e,str(e),118)
         except MissingHeaderException as e:
             error = QError(e,e.msg,117)
         except FileNotFoundException as e:
@@ -2952,6 +2964,15 @@ class QTextAsData(object):
         except TooManyTablesInSqliteException as e:
             msg = "Could not autodetect table name in sqlite file %s . Existing tables: %s" % (e.qsql_filename,",".join(e.existing_table_names))
             error = QError(e,msg,87)
+        except NoTablesInSqliteException as e:
+            msg = "sqlite file %s has no tables" % e.sqlite_filename
+            error = QError(e,msg,88)
+        except TooManyAttachedDatabasesException as e:
+            msg = str(e)
+            error = QError(e,msg,89)
+        except UnknownFileTypeException as e:
+            msg = str(e)
+            error = QError(e,msg,95)
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:

@@ -659,15 +659,6 @@ class ColumnMaxLengthLimitExceededException(Exception):
     def __str(self):
         return repr(self.msg)
 
-class MissingSqliteBckModuleException(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-
-    def __str(self):
-        return repr(self.msg)
-
-
 class CouldNotParseInputException(Exception):
 
     def __init__(self, msg):
@@ -699,11 +690,6 @@ class CannotUnzipDataStreamException(Exception):
         pass
 
 class UniversalNewlinesExistException(Exception):
-
-    def __init__(self):
-        pass
-
-class UnprovidedStdInException(Exception):
 
     def __init__(self):
         pass
@@ -2766,22 +2752,6 @@ class QTextAsData(object):
 
         return new_table_structures
 
-
-    def propose_stored_table_name(self,qtable_name,source_database,actual_table_name_in_db):
-        # TODO RLRL PXPX Perhaps return a full metaq object from here and use it during storing
-        if not source_database.sqlite_db.metaq_table_exists():
-            raise Exception('sqlite is not supported yet')
-
-        if len(source_database.sqlite_db.get_all_from_metaq()) > 1:
-            # Get table data from metaq
-            metaq_data = source_database.sqlite_db.get_from_metaq_using_table_name(actual_table_name_in_db)
-            return metaq_data
-
-        ts = self.loaded_table_structures_dict[qtable_name]
-        planned_table_name = ts.ms.get_planned_table_name()
-        xprint("Planned table name is %s" % planned_table_name)
-        return planned_table_name
-
     def materialize_query_level_db(self,save_db_to_disk_filename,sql_object):
         # TODO RLRL - Create the file in a separate folder and move it to the target location only after success
 
@@ -2941,16 +2911,14 @@ class QTextAsData(object):
             error = QError(e,"Cannot decompress standard input. Pipe the input through zcat in order to decompress.",36)
         except UniversalNewlinesExistException as e:
             error = QError(e,"Data contains universal newlines. Run q with -U to use universal newlines. Please note that q still doesn't support universal newlines for .gz files or for stdin. Route the data through a regular file to use -U.",103)
-        except UnprovidedStdInException as e:
-            error = QError(e,"Standard Input must be provided in order to use it as a table",61)
+        # deprecated, but shouldn't be used:  error = QError(e,"Standard Input must be provided in order to use it as a table",61)
         except CouldNotConvertStringToNumericValueException as e:
             error = QError(e,"Could not convert string to a numeric value. Did you use `-w nonnumeric` with unquoted string values? Error: %s" % e.msg,58)
         except CouldNotParseInputException as e:
             error = QError(e,"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error: %s" % e.msg,59)
         except ColumnMaxLengthLimitExceededException as e:
             error = QError(e,e.msg,31)
-        except MissingSqliteBckModuleException as e:
-            error = QError(e,e.msg,79)
+        # deprecated, but shouldn't be used: error = QError(e,e.msg,79)
         except ContentSignatureDiffersException as e:
             error = QError(e,"%s vs %s: Content Signatures for table %s differ at %s (source value '%s' disk signature value '%s')" %
                            (e.original_filename,e.other_filename,e.filenames_str,e.key,e.source_value,e.signature_value),80)
@@ -3090,7 +3058,6 @@ class QOutputPrinter(object):
         if results.metadata.table_structures is None:
             return
 
-        xprint("AQ",results.metadata)
         for qtable_name in results.metadata.table_structures:
             table_structures = results.metadata.table_structures[qtable_name]
             print("Table: %s" % qtable_name,file=f_out)

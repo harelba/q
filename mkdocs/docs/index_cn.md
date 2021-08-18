@@ -124,58 +124,40 @@ SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上�
   -S SAVE_DB_TO_DISK_FILENAME, --save-db-to-disk=SAVE_DB_TO_DISK_FILENAME
                         将数据库保存为一个 sqlite 数据库文件
   --save-db-to-disk-method=SAVE_DB_TO_DISK_METHOD
-                        Method to use to save db to disk. 'standard' does not
-                        require any deps, 'fast' currenty requires manually
-                        running `pip install sqlitebck` on your python
-                        installation. Once packing issues are solved, the fast
-                        method will be the default.
-
-  Input Data Options:
-    -H, --skip-header   Skip header row. This has been changed from earlier
-                        version - Only one header row is supported, and the
-                        header row is used for column naming
+                        保存数据库到磁盘的方法
+                        'standard' 不需要任何设置
+                        'fast'需要手动在python的安装目录下执行`pip install sqlitebck`
+                        打包的问题解决后，'fast'即被作为默认方式
+  数据相关选项:
+  
+    -H, --skip-header   忽略表头，在早期的版本中已修改为：仅支持用于标明列名的一行表头
     -d DELIMITER, --delimiter=DELIMITER
-                        Field delimiter. If none specified, then space is used
-                        as the delimiter.
+                        列分隔符，若无特别指定，空格符作为默认分隔符
     -p, --pipe-delimited
-                        Same as -d '|'. Added for convenience and readability
+                        作用同 -d '|'，为了方便和可读性提供该参数
     -t, --tab-delimited
-                        Same as -d <tab>. Just a shorthand for handling
-                        standard tab delimited file You can use $'\t' if you
-                        want (this is how Linux expects to provide tabs in the
-                        command line
+                        作用同 -d <tab>，这仅是一种简写，也可以在Linux命令行中使用$'\t'
     -e ENCODING, --encoding=ENCODING
-                        Input file encoding. Defaults to UTF-8. set to none
-                        for not setting any encoding - faster, but at your own
-                        risk...
-    -z, --gzipped       Data is gzipped. Useful for reading from stdin. For
-                        files, .gz means automatic gunzipping
-    -A, --analyze-only  Analyze sample input and provide information about
-                        data types
+                        输入文件的编码，默认是UTF-8
+    -z, --gzipped       压缩数据，对于从输入流读取文件非常高效 .gz 是自动压缩后文件扩展名
+    -A, --analyze-only  简单分析：各列的数据类型
     -m MODE, --mode=MODE
-                        Data parsing mode. fluffy, relaxed and strict. In
-                        strict mode, the -c column-count parameter must be
-                        supplied as well
+                        数据解析模式: 松散, 宽松和严格。在严格模式下必须指定 -c 
+                        --column-count 参数。
     -c COLUMN_COUNT, --column-count=COLUMN_COUNT
-                        Specific column count when using relaxed or strict
-                        mode
+                        当使用宽松或严格模式时，用于指定列的数量
     -k, --keep-leading-whitespace
-                        Keep leading whitespace in values. Default behavior
-                        strips leading whitespace off values, in order to
-                        provide out-of-the-box usability for simple use cases.
-                        If you need to preserve whitespace, use this flag.
+                        保留每列前的空格。为了使其开箱即用，默认去除了列前的空格。
+                        如果有需要，可以指定该参数
     --disable-double-double-quoting
-                        Disable support for double double-quoting for escaping
-                        the double quote character. By default, you can use ""
-                        inside double quoted fields to escape double quotes.
-                        Mainly for backward compatibility.
+                        禁止一对双引号的转义。默认可以使用 "" 转义双引号。
+                        主要为了向后兼容。
     --disable-escaped-double-quoting
                         Disable support for escaped double-quoting for
                         escaping the double quote character. By default, you
                         can use \" inside double quoted fields to escape
                         double quotes. Mainly for backward compatibility.
-    --as-text           Don't detect column types - All columns will be
-                        treated as text columns
+    --as-text           不识别列类型（所有列被当作文本类型）
     -w INPUT_QUOTING_MODE, --input-quoting-mode=INPUT_QUOTING_MODE
                         Input quoting mode. Possible values are all, minimal
                         and none. Note the slightly misleading parameter name,

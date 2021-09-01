@@ -85,6 +85,7 @@ q 的每一个参数都是由双引号包裹的一条完整的SQL语句。所有
 SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
 
 **注意**：
+
 * 支持所有类型的自动识别，无需强制转换或其他操作。
   
 * 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。

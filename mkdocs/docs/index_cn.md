@@ -86,6 +86,7 @@ SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上�
 
 **注意**：
 * 支持所有类型的自动识别，无需强制转换或其他操作。
+  
 * 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。
 
 ### 指令

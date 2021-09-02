@@ -10,6 +10,7 @@ google_analytics:
   - "auto"
 nav:
     - Home: index.md
+    - 首页: index_cn.md
     - About: about.md
 theme: 
   name: material

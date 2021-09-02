@@ -26,7 +26,7 @@ div.md-content pre {
 }
 
 article.md-content__inner.md-typeset>p {
-  text-align: center;
+  text-align: left;
 }
 
 .md-nav__link[data-md-state=blur] {

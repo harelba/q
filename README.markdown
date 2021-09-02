@@ -5,7 +5,7 @@ q is a command line tool that allows direct execution of SQL-like queries on CSV
 
 q treats ordinary files as database tables, and supports all SQL constructs, such as `WHERE`, `GROUP BY`, `JOIN`s, etc. It supports automatic column name and type detection, and q provides full support for multiple character encodings.
 
-q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/). It contains everything you need to download and use q immediately.
+q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
 ## Installation.
 Extremely simple. 

@@ -416,11 +416,12 @@ class Sqlite3DB(object):
     def get_from_metaq_using_table_name(self, temp_table_name):
         xprint("getting from metaq using table name")
 
-        field_names = ["temp_table_name", "content_signature", "creation_time","source_type","source"]
+        field_names = ["content_signature", "temp_table_name","creation_time","source_type","source","content_signature_key"]
 
         q = "SELECT %s FROM metaq where temp_table_name = ?" % ",".join(field_names)
-        xprint("Query from metaq %s" % q)
+        xprint("Query from metaq %s params %s" % (q,str(temp_table_name,)))
         r = self.execute_and_fetch(q,(temp_table_name,))
+        xprint("results: ",r.results)
 
         # TODO RLRL Convert these to asserts
         if r is None:
@@ -433,8 +434,10 @@ class Sqlite3DB(object):
             raise Exception("Bug - Exactly one result should have been provided: %s" % str(r.results))
 
         d = dict(zip(field_names,r.results[0]))
-        cs = OrderedDict(json.loads(r.results[0][1]))
-        d['content_signature_key'] = self.calculate_content_signature_key(cs)
+        # content_signature should be the first in the list of field_names
+        cs = OrderedDict(json.loads(r.results[0][0]))
+        if self.calculate_content_signature_key(cs) != d['content_signature_key']:
+            raise Exception('Table contains an invalid entry - content signature key is not matching the actual content signature')
         return d
 
     def get_all_from_metaq(self):
@@ -1536,25 +1539,6 @@ class MaterializedDelimitedFileState(MaterializedState):
     def get_table_source_type(self):
         return TableSourceType.DELIMITED_FILE
 
-    def get_table_name_for_querying(self):
-        xprint("Getting table name for querying inside db_id %s" % self.db_to_use.db_id)
-
-        if self.effective_table_name is not None:
-            x = '%s.%s' % (self.db_to_use,self.effective_table_name)
-            xprint("Effective Table name is %s" % x)
-            return x
-
-        d = self.db_to_use.get_from_metaq(self.content_signature)
-        if d is None:
-            raise ContentSignatureNotFoundException("qsql file %s contains no table with a matching content signature key %s" % (
-                self.db_to_use.sqlite_db_filename,
-                self.db_to_use.calculate_content_signature_key(self.content_signature)))
-
-        # TODO DB table names - can they be taken from the filename itself?
-        table_name_in_disk_db = d['temp_table_name']
-        xprint("table name for querying is %s" % table_name_in_disk_db)
-        return table_name_in_disk_db
-
     def initialize(self):
         super(MaterializedDelimitedFileState, self).initialize()
 
@@ -1605,12 +1589,13 @@ class MaterializedDelimitedFileState(MaterializedState):
         absolute_path_list = [os.path.abspath(x) for x in filtered_file_list]
         return absolute_path_list
 
-    # TODO RLRL should the param be called force_db_to_use? probably yes
-    def choose_db_to_use(self,db_to_use=None):
-        if db_to_use is not None:
-            self.db_id = db_to_use.db_id
-            self.db_to_use = db_to_use
+    def choose_db_to_use(self,forced_db_to_use=None):
+        if forced_db_to_use is not None:
+            self.db_id = forced_db_to_use.db_id
+            self.db_to_use = forced_db_to_use
             self.can_store_as_cached = False
+            assert self.target_table_name is None
+            self.target_table_name = self.autodetect_table_name()
             return
 
         self.can_store_as_cached = True
@@ -1628,6 +1613,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         if self.target_table_name is not None:
             target_sqlite_table_name = self.target_table_name
         else:
+            assert False
             # TODO RLRL Can probably be removed, as we're getting the table name from up the stack, or autodetecting it
             target_sqlite_table_name = database_info.sqlite_db.generate_temp_table_name()
         xprint("Target sqlite table name is %s" % target_sqlite_table_name)
@@ -1685,7 +1671,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, self.atomic_fns, self.db_id,
                                                              table_creator.column_inferer.get_column_names(),
                                                              table_creator.column_inferer.get_column_types(),
-                                                             self.get_table_name_for_querying(),
+                                                             self.target_table_name,
                                                              self.source_type,
                                                              self.source,
                                                              self.get_planned_table_name())
@@ -1829,9 +1815,6 @@ class MaterializedSqliteState(MaterializedState):
     def finalize(self):
         super(MaterializedSqliteState, self).finalize()
 
-    def get_table_name_for_querying(self):
-        return self.table_name
-
     def get_table_source_type(self):
         return TableSourceType.SQLITE_FILE
 
@@ -1865,7 +1848,7 @@ class MaterializedSqliteState(MaterializedState):
 
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
-                                                             self.get_table_name_for_querying(),
+                                                             self.table_name,
                                                              self.source_type,self.source,
                                                              self.get_planned_table_name())
         return database_info, relevant_table
@@ -1952,9 +1935,6 @@ class MaterializedQsqlState(MaterializedState):
     def finalize(self):
         super(MaterializedQsqlState, self).finalize()
 
-    def get_table_name_for_querying(self):
-        return self.table_name
-
     def get_table_source_type(self):
         return TableSourceType.QSQL_FILE
 
@@ -1989,7 +1969,7 @@ class MaterializedQsqlState(MaterializedState):
             forced_db_to_use.add_to_metaq_table(new_table_name, cs, d['creation_time'],
                                     d['source_type'], d['source'])
             #######
-            # Validate metaq additions
+            # TODO RLRL Validate metaq additions
             from_db_table_data = self.db_to_use.execute_and_fetch('select * from metaq').results
             self_table_data = forced_db_to_use.execute_and_fetch('select * from metaq').results
 
@@ -2008,7 +1988,7 @@ class MaterializedQsqlState(MaterializedState):
 
         self.mfs_structure = MaterializedStateTableStructure(self.qtable_name, [self.qtable_name], self.db_id,
                                                              column_names, column_types,
-                                                             self.get_table_name_for_querying(),
+                                                             self.table_name,
                                                              self.source_type,self.source,
                                                              self.get_planned_table_name())
         return database_info, relevant_table
@@ -2035,16 +2015,33 @@ class MaterializedQsqlState(MaterializedState):
 
     def _read_table_from_cache(self, stop_after_analysis):
         if self._backing_original_file_exists():
-            xprint("Found a matching source file for qsql file. Checking content signature by creating a temp MFDS + analysis")
+            xprint("Found a matching source file for qsql file with qtable name %s. Checking content signature by creating a temp MFDS + analysis" % self.qtable_name)
             mdfs = MaterializedDelimitedFileState(self.qtable_name,self.input_params,self.dialect_id,self.engine_id,target_table_name=None)
             mdfs.initialize()
             mdfs.choose_db_to_use()
             _,_ = mdfs.make_data_available(stop_after_analysis=True)
 
-            # TODO RLRL Fails: bin/q.py -D, "select count(*),sum(a.c1) from pppp a" -V
-            actual_content_signature = json.loads(self.db_to_use.get_from_metaq_using_table_name(self.table_name)['content_signature'])
-            original_file_content_signature = mdfs.content_signature
+            # TODO RLRL Add tests when content signature does not exist, and when it's invalid
 
+            original_file_content_signature = mdfs.content_signature
+            original_file_content_signature_key = self.db_to_use.calculate_content_signature_key(original_file_content_signature)
+
+            metaq_entry = self.db_to_use.get_from_metaq_using_table_name(self.table_name)
+
+            expected_table_name = self.normalize_filename_to_table_name(os.path.basename(self.qtable_name))
+            if expected_table_name != metaq_entry['temp_table_name']:
+                raise Exception('Table name inside qsql file does not match qsql filename itself: %s vs %s' % (
+                expected_table_name, metaq_entry['temp_table_name']))
+
+            if metaq_entry is None:
+                raise Exception('missing content signature!')
+
+            if metaq_entry['content_signature_key'] != original_file_content_signature_key:
+                raise Exception('wrong content signature key!')
+
+            actual_content_signature = json.loads(metaq_entry['content_signature'])
+
+            xprint("Validating content signatures: original %s vs qsql %s" % (original_file_content_signature,actual_content_signature))
             validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature)
             mdfs.finalize()
         return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
@@ -2175,8 +2172,6 @@ class TableCreator(object):
                         if self.column_inferer.inferred:
                             xprint("Stopping after analysis")
                             return
-                        else:
-                            xprint("Not yet inferred. Continuing")
                 if self.delimited_file_reader.get_lines_read() == 0 and self.skip_header:
                     raise MissingHeaderException("Header line is expected but missing in file %s" % ",".join(self.delimited_file_reader.atomic_fns))
 

@@ -18,3 +18,5 @@ q.egg-info/
 .pytest_cache/
 *.qsql
 htmlcov/
+*.sqlite
+*.tar.gz

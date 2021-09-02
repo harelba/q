@@ -19,6 +19,7 @@ import unittest
 import random
 import json
 import uuid
+from collections import OrderedDict
 from json import JSONEncoder
 from subprocess import PIPE, Popen, STDOUT
 import sys
@@ -3831,7 +3832,121 @@ class CachingTests(AbstractQTestCase):
                                      (tmpfile1.name,tmpfile1.name,tmpfile1.name))
         self.assertEqual(e[0], x)
 
+    def test_reading_the_wrong_cache__qsql_file_not_having_a_matching_content_signature(self):
+        # create a file, along with its qsql
+        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
 
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        file_data2 = six.b("c,d,e\n10,20,30\n30,40,50")
+
+        # create another file with a different header, along with its qsql
+        tmpfile2 = self.create_file_with_data(file_data2)
+        tmpfile2_folder = os.path.dirname(tmpfile2.name)
+        tmpfile2_filename = os.path.basename(tmpfile2.name)
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select c from %s" -C readwrite' % tmpfile2.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+        # now take the second qsql file as if it was the first. Execution on file 1 should fail, since the qsql file
+        # does not really contain the table we're after
+
+        os.remove(expected_cache_filename1)
+        os.rename(expected_cache_filename2,expected_cache_filename1)
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        # self.assertEqual(len(o), 0)
+        # self.assertEqual(len(e), 1)
+        # x = six.b("%s vs %s.qsql: Content Signatures for table %s differ at input_delimiter (source value '\t' disk signature value ',')" % \
+        #                              (tmpfile1.name,tmpfile1.name,tmpfile1.name))
+        # self.assertEqual(e[0], x)
+
+    def test_reading_the_wrong_cache__qsql_file_not_having_any_content_signature(self):
+        # create a file, along with its qsql
+        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+
+        tmpfile1 = self.create_file_with_data(file_data1)
+        tmpfile1_folder = os.path.dirname(tmpfile1.name)
+        tmpfile1_filename = os.path.basename(tmpfile1.name)
+        expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename1))
+
+        file_data2 = six.b("c,d,e\n10,20,30\n30,40,50")
+
+        # create another file with a different header, along with its qsql
+        tmpfile2 = self.create_file_with_data(file_data2)
+        tmpfile2_folder = os.path.dirname(tmpfile2.name)
+        tmpfile2_filename = os.path.basename(tmpfile2.name)
+        expected_cache_filename2 = os.path.join(tmpfile2_folder,tmpfile2_filename + '.qsql')
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select c from %s" -C readwrite' % tmpfile2.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 2)
+        self.assertEqual(len(e), 0)
+        self.assertTrue(o[0], six.b('10'))
+        self.assertEqual(o[1], six.b('30'))
+        # Ensure cache has been created
+        self.assertTrue(os.path.exists(expected_cache_filename2))
+
+        # now take the second qsql file as if it was the first. Execution on file 1 should fail, since the qsql file
+        # does not really contain the table we're after
+
+        os.remove(expected_cache_filename1)
+        os.rename(expected_cache_filename2,expected_cache_filename1)
+
+        # delete metaq content, so no entries will be available
+        c = sqlite3.connect(expected_cache_filename1)
+        c.execute('delete from metaq').fetchall()
+        c.commit()
+        c.close()
+
+        cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        # self.assertEqual(len(o), 0)
+        # self.assertEqual(len(e), 1)
+        # x = six.b("%s vs %s.qsql: Content Signatures for table %s differ at input_delimiter (source value '\t' disk signature value ',')" % \
+        #                              (tmpfile1.name,tmpfile1.name,tmpfile1.name))
+        # self.assertEqual(e[0], x)
 
     # def test_read_directly_from_cache_with_one_table(self):
     #     file_data = six.b("a,b,c\n10,20,30\n30,40,50")

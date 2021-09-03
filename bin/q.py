@@ -864,7 +864,7 @@ def py3_encoded_csv_reader(encoding, f, dialect, is_stdin,**kwargs):
         for row in csv_reader:
             yield row
     except ValueError as e:
-        if e.message is not None and e.message.startswith('could not convert string to'):
+        if getattr(e, "message", None) is not None and e.message.startswith('could not convert string to'):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
             raise CouldNotParseInputException(str(e))
@@ -887,7 +887,7 @@ def py2_encoded_csv_reader(encoding, f, dialect, is_stdin, **kwargs):
             for row in csv_reader:
                 yield row
     except ValueError as e:
-        if e.message is not None and e.message.startswith('could not convert string to'):
+        if getattr(e, "message", None) is not None and e.message.startswith('could not convert string to'):
             raise CouldNotConvertStringToNumericValueException(e.message)
         else:
             raise CouldNotParseInputException(str(e))

@@ -643,6 +643,11 @@ class TooManyTablesInQsqlException(Exception):
         self.qsql_filename = qsql_filename
         self.existing_table_names = existing_table_names
 
+class NoTableInQsqlExcption(Exception):
+
+    def __init__(self, qsql_filename):
+        self.qsql_filename = qsql_filename
+
 class TooManyTablesInSqliteException(Exception):
 
     def __init__(self, qsql_filename,existing_table_names):
@@ -1322,7 +1327,10 @@ def is_qsql_file(filename):
     c.close()
     return metaq_exists
 
-def validate_content_signature(original_filename, source_signature,other_filename, content_signature,scope=None):
+def validate_content_signature(original_filename, source_signature,other_filename, content_signature,scope=None,dump=False):
+    if dump:
+        xprint("Comparing: source value: %s target value: %s" % (source_signature,content_signature))
+
     s = "%s vs %s:" % (original_filename,other_filename)
     if scope is None:
         scope = []
@@ -1335,8 +1343,8 @@ def validate_content_signature(original_filename, source_signature,other_filenam
                 raise ContentSignatureDataDiffersException("%s Content Signatures differ. %s is missing from content signature" % (s,k))
             if source_signature[k] != content_signature[k]:
                 if k == 'rows':
-                    xprint("source: %s" % source_signature)
-                    xprint("other: %s" % content_signature)
+                    xprint("source data: %s" % source_signature)
+                    xprint("actual data: %s" % content_signature)
                     raise ContentSignatureDataDiffersException("%s Content Signatures differ at %s.%s (actual analysis data differs)" % (s,".".join(scope),k))
                 else:
                     # TODO RLRL - Check if content signature checks are ok now that we split file up the stack
@@ -1910,7 +1918,9 @@ class MaterializedQsqlState(MaterializedState):
         assert db.metaq_table_exists()
         try:
             metaq_entries = db.get_all_from_metaq()
-            if len(metaq_entries) == 1:
+            if len(metaq_entries) == 0:
+                raise NoTableInQsqlExcption(self.qsql_filename)
+            elif len(metaq_entries) == 1:
                 return metaq_entries[0]['temp_table_name']
             else:
                 # TODO RLRL Add test for this
@@ -2029,20 +2039,18 @@ class MaterializedQsqlState(MaterializedState):
             metaq_entry = self.db_to_use.get_from_metaq_using_table_name(self.table_name)
 
             expected_table_name = self.normalize_filename_to_table_name(os.path.basename(self.qtable_name))
-            if expected_table_name != metaq_entry['temp_table_name']:
-                raise Exception('Table name inside qsql file does not match qsql filename itself: %s vs %s' % (
-                expected_table_name, metaq_entry['temp_table_name']))
+            # if expected_table_name != metaq_entry['temp_table_name']:
+            #     raise Exception('Table name inside qsql file does not match qsql filename itself: %s vs %s' % (
+            #     expected_table_name, metaq_entry['temp_table_name']))
 
             if metaq_entry is None:
                 raise Exception('missing content signature!')
 
-            if metaq_entry['content_signature_key'] != original_file_content_signature_key:
-                raise Exception('wrong content signature key!')
-
+            xprint("Actual Signature Key: %s Expected Signature Key: %s" % (metaq_entry['content_signature_key'],original_file_content_signature_key))
             actual_content_signature = json.loads(metaq_entry['content_signature'])
 
             xprint("Validating content signatures: original %s vs qsql %s" % (original_file_content_signature,actual_content_signature))
-            validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature)
+            validate_content_signature(self.qtable_name, original_file_content_signature, self.qsql_filename, actual_content_signature,dump=True)
             mdfs.finalize()
         return DatabaseInfo(self.db_id,self.db_to_use, needs_closing=True), self.table_name
 
@@ -2932,6 +2940,9 @@ class QTextAsData(object):
         except TooManyTablesInQsqlException as e:
             msg = "Could not autodetect table name in qsql file. Existing Tables %s" % ",".join(e.existing_table_names)
             error = QError(e,msg,86)
+        except NoTableInQsqlExcption as e:
+            msg = "Could not autodetect table name in qsql file. File contains no record of a table"
+            error = QError(e,msg,97)
         except TooManyTablesInSqliteException as e:
             msg = "Could not autodetect table name in sqlite file %s . Existing tables: %s" % (e.qsql_filename,",".join(e.existing_table_names))
             error = QError(e,msg,87)

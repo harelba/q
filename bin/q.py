@@ -33,7 +33,7 @@ from __future__ import print_function
 from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 
-q_version = '2.0.19'
+q_version = '3.0.0'
 
 #__all__ = [ 'QTextAsData' ]
 

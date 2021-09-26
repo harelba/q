@@ -544,12 +544,6 @@ class Sqlite3DB(object):
         question_marks = ", ".join(["?" for i in range(0, len(column_names))])
         return 'INSERT INTO %s (%s) VALUES (%s)' % (table_name, col_names_str, question_marks)
 
-    def generate_begin_transaction(self):
-        return "BEGIN TRANSACTION"
-
-    def generate_end_transaction(self):
-        return "COMMIT"
-
     # Get a list of column names so order will be preserved (Could have used OrderedDict, but
     # then we would need python 2.7)
     def generate_create_table(self, table_name, column_names, column_dict):
@@ -892,7 +886,7 @@ class Sql(object):
         # TODO RLRL Convert to assertion
         if len(list(filter(lambda x: x is None, self.qtable_name_effective_table_names))) != 0:
             # TODO RLRL Convert to assertion
-            raise Exception('There are qtables without effective tables')
+            assert False, 'There are qtables without effective tables'
 
         effective_sql = [x for x in self.sql_parts]
 
@@ -959,8 +953,7 @@ class TableColumnInferer(object):
 
     def analyze(self, filename, col_vals):
         if self.inferred:
-            # TODO Convert to assertion
-            raise Exception("Already inferred columns")
+            assert False, "Already inferred columns"
 
         if self.skip_header and self.header_row is None:
             self.header_row = col_vals
@@ -1482,8 +1475,7 @@ class MaterializedState(object):
     def normalize_filename_to_table_name(self,filename):
         xprint("AA Normalizing filename %s" % filename)
         if filename[0].isdigit():
-            # TODO RLRL Add test for this
-            xprint("AA Filename starts with a digit, adding prefix")
+            xprint("Filename starts with a digit, adding prefix")
             filename = 't_%s' % filename
         if filename.lower().endswith(".qsql"):
             filename = filename[:-5]
@@ -1491,12 +1483,11 @@ class MaterializedState(object):
             filename = filename[:-7]
         elif filename.lower().endswith('.sqlite3'):
             filename = filename[:-8]
-        # TODO RLRL PXPX - Planned table name now works, but metaq content is wrong
-        #  since it is taken from the original metaq data !!
         return filename.replace("-","_dash_").replace(".","_dot_").replace('?','_qm_')
 
     def get_planned_table_name(self):
-        raise Exception('xxx')
+        # TODO RLRL Convert to assertion
+        raise Exception('Not implemented')
 
     def autodetect_table_name(self):
         xprint("Autodetecting table name. db_to_use=%s" % self.db_to_use)
@@ -1923,7 +1914,8 @@ class MaterializedQsqlState(MaterializedState):
             elif len(metaq_entries) == 1:
                 return metaq_entries[0]['temp_table_name']
             else:
-                # TODO RLRL Add test for this
+                # TODO RLRL Add test for this - Now that save-to-disk stores regular sqlite files, it's kind of difficult to generate such a situation
+                #  but q's logic is prepared for managing multiple tables inside one qsql.
                 table_names = list(sorted([x['temp_table_name'] for x in metaq_entries]))
                 raise TooManyTablesInQsqlException(self.qsql_filename,table_names)
         finally:
@@ -2329,8 +2321,6 @@ class TableCreator(object):
         self._flush_inserts()
 
     def _flush_inserts(self):
-        # print self.db.execute_and_fetch(self.db.generate_begin_transaction())
-
         # If the table is still not created, then we don't have enough data
         if not self.table_created:
             return
@@ -2340,7 +2330,6 @@ class TableCreator(object):
                 self.target_sqlite_table_name, self.effective_column_names)
 
             self.sqlite_db.update_many(insert_row_stmt, self.buffered_inserts)
-        # print self.db.execute_and_fetch(self.db.generate_end_transaction())
         self.buffered_inserts = []
 
     def try_to_create_table(self, filename, col_vals):

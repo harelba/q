@@ -20,3 +20,5 @@ q.egg-info/
 htmlcov/
 *.sqlite
 *.tar.gz
+.coverage
+.DS_Store

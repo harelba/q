@@ -18,13 +18,12 @@ then
 fi
 Q_BENCHMARK_ID=$1
 shift
-PYTEST_OPTIONS="$@"
 
-if [ "x$2" == "x" ];
+if [ "x$1" == "x" ];
 then
   EFFECTIVE_Q_EXECUTABLE="source-files-$(git rev-parse HEAD)"
 else
-  ABS_Q_EXECUTABLE="$(get_abs_filename $2)"
+  ABS_Q_EXECUTABLE="$(get_abs_filename $1)"
   export Q_EXECUTABLE=$ABS_Q_EXECUTABLE
 	if [ ! -f $ABS_Q_EXECUTABLE ]
 	then
@@ -32,14 +31,18 @@ else
 		exit 1
 	fi
   EFFECTIVE_Q_EXECUTABLE="${ABS_Q_EXECUTABLE//\//__}"
+  shift
 fi
 
 echo "Q executable to use is $EFFECTIVE_Q_EXECUTABLE"
 
-mkdir -p ./benchmark-results
+PYTEST_OPTIONS="$@"
+echo "pytest options are $PYTEST_OPTIONS"
+
+mkdir -p ./test/benchmark-results
 
 # Must be provided to the benchmark code so it knows where to write the results to
-export Q_BENCHMARK_RESULTS_FOLDER="./benchmark-results/${EFFECTIVE_Q_EXECUTABLE}/${Q_BENCHMARK_ID}/"
+export Q_BENCHMARK_RESULTS_FOLDER="./test/benchmark-results/${EFFECTIVE_Q_EXECUTABLE}/${Q_BENCHMARK_ID}/"
 echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
 mkdir -p $Q_BENCHMARK_RESULTS_FOLDER
 
@@ -61,16 +64,10 @@ then
 fi
 
 export Q_BENCHMARK_NAME=${venv_name}
-export Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite"
+export Q_BENCHMARK_ADDITIONAL_PARAMS="-C read"
 
-if [[ ${ver:0:3} != "3.8" ]]
-then
-	Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
-	Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_ADDITIONAL_PARAMS="" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
-else
-	Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_ADDITIONAL_PARAMS="-C readwrite" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
-	Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_ADDITIONAL_PARAMS="" pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
-fi
+Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_DATA_DIR=./_benchmark_data_with_qsql_caches pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_DATA_DIR=./_benchmark_data pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
 
 RESULT_FILE="${Q_BENCHMARK_RESULTS_FOLDER}/$venv_name.benchmark-results"
 echo "==== Done. Results are in $RESULT_FILE"
@@ -78,6 +75,8 @@ ALL_FILES[${#ALL_FILES[@]}]="$RESULT_FILE"
 echo "Deactivating"
 pyenv deactivate
 done
+
+exit 0
 
 pyenv activate q-benchmark-${LATEST_PYTHON_VERSION}
 echo "==== testing textql ==="

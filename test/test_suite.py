@@ -665,7 +665,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         expected_result_rows = [six.b('val,val')] + [six.b('%d,%d' % (x,x / 2)) for x in evens]
         self.assertEqual(o,expected_result_rows)
 
-    def test_qtable_name_normalization(self):
+    def test_qtable_name_normalization2(self):
         cmd = '%s "select * from"' % Q_EXECUTABLE
 
         retcode, o, e = run_command(cmd)
@@ -673,7 +673,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(len(e), 1)
         self.assertEqual(e[0],six.b('FROM/JOIN is missing a table name after it'))
 
-    def test_qtable_name_normalization2(self):
+    def test_qtable_name_normalization3(self):
         # with a space after the from
         cmd = '%s "select * from "' % Q_EXECUTABLE
 
@@ -1266,8 +1266,7 @@ class OldSaveDbToDiskTests(AbstractQTestCase):
 
         os.remove(db_filename)
 
-# TODO RLRL - Test filename concatenation behaviour when using qsql
-# TODO RLRL - Fix source filename in metaq when concatenating files
+
 class BasicTests(AbstractQTestCase):
 
     def test_basic_aggregation(self):
@@ -3206,6 +3205,46 @@ class QsqlUsageTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
 
+    def test_query_qsql_with_single_table_with_explicit_non_existent_tablename(self):
+        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+
+        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+
+        tmpfile = self.create_file_with_data(qsql_file_data)
+
+        c = sqlite3.connect(tmpfile.name)
+        actual_table_name = c.execute('select temp_table_name from metaq').fetchall()[0][0]
+        c.close()
+
+
+        cmd = '%s -t "select sum(aa),sum(bb),sum(cc) from %s:::non-existent"' % (Q_EXECUTABLE,tmpfile.name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 84)
+        self.assertEqual(len(o),0)
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0],six.b('Table non-existent could not be found in qsql file %s . Existing table names: %s' % (tmpfile.name,actual_table_name)))
+
+    def test_query_qsql_with_single_table_with_explicit_table_name(self):
+        numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
+
+        qsql_file_data = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers)
+
+        tmpfile = self.create_file_with_data(qsql_file_data)
+
+        c = sqlite3.connect(tmpfile.name)
+        actual_table_name = c.execute('select temp_table_name from metaq').fetchall()[0][0]
+        c.close()
+
+
+        cmd = '%s -t "select sum(aa),sum(bb),sum(cc) from %s:::%s"' % (Q_EXECUTABLE,tmpfile.name,actual_table_name)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),1)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0],six.b('50005000\t50005000\t50005000'))
+
     def test_query_multi_qsql_with_single_table(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
         qsql_file_data1 = self.arrays_to_qsql_file_content([six.b('aa'), six.b('bb'), six.b('cc')], numbers1)
@@ -3954,7 +3993,6 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
         self.assertEqual(e[0],six.b("Could not autodetect table name in qsql file. File contains no record of a table"))
-
 
 
     # def test_read_directly_from_cache_with_one_table(self):
@@ -5552,7 +5590,7 @@ class BenchmarkResults(object):
 @pytest.mark.benchmark
 class BenchmarkTests(AbstractQTestCase):
 
-    BENCHMARK_DIR = './_benchmark_data'
+    BENCHMARK_DIR = os.environ.get('Q_BENCHMARK_DATA_DIR')
 
     def _ensure_benchmark_data_dir_exists(self):
         try:

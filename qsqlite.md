@@ -33,7 +33,6 @@
 
 TODO
 * Add sqlitebck as dependency to brew installation
-* Better naming in -A for the difference between a disk-file and a qsql file (perhaps consolidate?)
 * -A should provide information about reading/writing to disk
 * remove py2 support? py3 is encapsulated, so perhaps it's not a big issue anymore
 

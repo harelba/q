@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-q_version = '2.0.19'
+q_version = '2.0.20'
 
 setup(
     name='q',
@@ -13,7 +13,8 @@ setup(
     description="Run SQL directly on CSV or TSV files",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.11.0'
+        'six==1.11.0',
+	'sqlitebck==1.4'
     ],
     packages=[
         'bin'

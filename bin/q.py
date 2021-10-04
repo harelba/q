@@ -33,7 +33,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 
-q_version = '2.0.19'
+q_version = '2.0.20'
 
 __all__ = [ 'QTextAsData' ]
 

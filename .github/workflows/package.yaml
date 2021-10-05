@@ -15,8 +15,11 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
-      - name: Display Python version
-        run: python -V
+      - name: Install pyoxidizer
+        run: |
+          wget "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-macos-universal.zip"
+          unzip pyoxidizer-0.17.0-macos-universal.zip
+          find . -ls
       - name: Test with pytest
         run: |
-          pytest
+          #pytest

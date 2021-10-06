@@ -19,11 +19,10 @@ jobs:
         run: |
           wget "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-macos-universal.zip"
           unzip pyoxidizer-0.17.0-macos-universal.zip
-          find . -ls
       - name: Oxidize
         run: |
           chmod +x macos-universal/pyoxidizer
-          macos-universal/pyoxidizer help
+          macos-universal/pyoxidizer run
       - name: Test with pytest
         run: |
           #pytest

@@ -48,7 +48,7 @@ jobs:
       run: |
         pip3 install -r test-requirements.txt
 
-        Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q test/test-all
+        Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q bash -x test/test-all
 
 #    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
 #      uses: actions/create-release@v1.1.1

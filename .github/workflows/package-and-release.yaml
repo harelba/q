@@ -9,7 +9,7 @@ on: [pull_request]
 
 
 jobs:
-  Create_GitHub_release:
+  Package-Linux-Version:
     runs-on: ubuntu-18.04
 
     steps:
@@ -51,8 +51,63 @@ jobs:
         set -e
         
         pip3 install -r test-requirements.txt
-
+    - name: Run Tests
+      run: |
         Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q bash -x test/test-all
+
+  Package-Mac-Version:
+    runs-on: macos-11
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install stuff
+      run: |
+        set -e
+        set -x
+
+        curl -o  pyoxidizer.zip -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-macos-universal.zip"
+        unzip pyoxidizer.zip
+        mv macos-universal/pyoxidizer ./pyoxidizer
+
+        chmod +x ./pyoxidizer
+
+        sudo apt-get install -y sqlite3
+
+    - name: Create Executable
+      run: |
+        set -e
+        set -x
+
+        ./pyoxidizer build --release
+
+        find ./build/
+
+        export Q_EXECUTABLE=./build/x86_64-apple-darwin/release/install/q
+
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
+
+        mkdir -p artifacts/macos/
+        cp $Q_EXECUTABLE artifacts/macos/
+
+    - name: Upload Artifact - TBD Move to the end
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts
+        path: artifacts/
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e
+
+        pip3 install -r test-requirements.txt
+    - name: Run Tests
+      run: |
+        Q_EXECUTABLE=../build/x86_64-apple-darwin/release/install/q bash -x test/test-all
 
 #    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
 #      uses: actions/create-release@v1.1.1

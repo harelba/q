@@ -22,6 +22,8 @@ jobs:
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
 
+        apt install sqlite3
+
     - name: Create Executable
       run: |
         set -e
@@ -46,6 +48,8 @@ jobs:
         architecture: 'x64'
     - name: Prepare Testing
       run: |
+        set -e
+        
         pip3 install -r test-requirements.txt
 
         Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q bash -x test/test-all

@@ -193,10 +193,10 @@ def make_exe():
     # python_config.run_command = "<code>"
 
     # Run a Python module as __main__ when the interpreter starts.
-    # python_config.run_module = "<module>"
+    python_config.run_module = "bin.q"
 
     # Run a Python file when the interpreter starts.
-    python_config.run_filename = "bin/q.py"
+    # python_config.run_filename = "bin/q.py"
 
     # Produce a PythonExecutable from a Python distribution, embedded
     # resources, and other options. The returned object represents the
@@ -256,10 +256,10 @@ def make_exe():
     # Read Python files from a local directory and add them to our embedded
     # context, taking just the resources belonging to the `foo` and `bar`
     # Python packages.
-    #exe.add_python_resources(exe.read_package_root(
-    #    path="/src/mypackage",
-    #    packages=["foo", "bar"],
-    #))
+    exe.add_python_resources(exe.read_package_root(
+        path="./",
+        packages=["bin"],
+    ))
 
     # Discover Python files from a virtualenv and add them to our embedded
     # context.

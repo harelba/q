@@ -1,11 +1,11 @@
 name: Package and Release
 
-on:
-  workflow_dispatch:
-    inputs:
-      release_version:
-        description: 'Version to be released'
-        required: true
+on: [pull_request]
+#  workflow_dispatch:
+#    inputs:
+#      release_version:
+#        description: 'Version to be released'
+#        required: true
 
 
 jobs:

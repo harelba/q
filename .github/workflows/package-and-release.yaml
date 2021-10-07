@@ -22,7 +22,7 @@ jobs:
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
 
-        apt install sqlite3
+        sudo apt-get install -y sqlite3
 
     - name: Create Executable
       run: |

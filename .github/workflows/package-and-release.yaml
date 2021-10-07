@@ -37,8 +37,8 @@ jobs:
     - name: Upload Artifact - TBD Move to the end
       uses: actions/upload-artifact@v2
       with:
-        - name: artifacts
-        - path: artifacts/
+        name: artifacts
+        path: artifacts/
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:

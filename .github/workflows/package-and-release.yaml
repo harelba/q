@@ -30,6 +30,15 @@ jobs:
         export Q_EXECUTABLE=./build/x86_64-unknown-linux-gnu/release/install/q
 
         seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
+
+        mkdir -p artifacts/linux/
+        cp $Q_EXECUTABLE artifacts/linux/
+
+    - name: Upload Artifact - TBD Move to the end
+      uses: actions/upload-artifact@v2
+      with:
+        - name: artifacts
+        - path: artifacts/
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -39,7 +48,7 @@ jobs:
       run: |
         pip3 install -r test-requirements.txt
 
-        Q_EXECUTABLE=./build/x86_64-unknown-linux-gnu/release/install/q test/test-all
+        Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q test/test-all
 
 #    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
 #      uses: actions/create-release@v1.1.1

@@ -10,7 +10,7 @@ def make_exe():
     # Obtain the default PythonDistribution for our build target. We link
     # this distribution into our produced executable and extract the Python
     # standard library from it.
-    dist = default_python_distribution(build_target="x86_64-apple-darwin",python_version="3.8")
+    dist = default_python_distribution(python_version="3.8")
 
     # This function creates a `PythonPackagingPolicy` instance, which
     # influences how executables are built and how resources are added to
@@ -196,13 +196,13 @@ def make_exe():
     # python_config.run_module = "<module>"
 
     # Run a Python file when the interpreter starts.
-    # python_config.run_filename = "/path/to/file"
+    python_config.run_filename = "bin/q.py"
 
     # Produce a PythonExecutable from a Python distribution, embedded
     # resources, and other options. The returned object represents the
     # standalone executable that will be built.
     exe = dist.to_python_executable(
-        name=".",
+        name="q",
 
         # If no argument passed, the default `PythonPackagingPolicy` for the
         # distribution is used.
@@ -250,8 +250,9 @@ def make_exe():
     # Invoke `pip install` using a requirements file and add the collected resources
     # to our binary.
     exe.add_python_resources(exe.pip_install(["-r", "requirements.txt"]))
+    exe.add_python_resources(exe.pip_install(["-e", "."]))
 
-    #exe.add_python_resources(exe.pip_install("q"))
+    #exe.add_python_resources(exe.setup_py_install(package_path=CWD))
     # Read Python files from a local directory and add them to our embedded
     # context, taking just the resources belonging to the `foo` and `bar`
     # Python packages.
@@ -262,7 +263,7 @@ def make_exe():
 
     # Discover Python files from a virtualenv and add them to our embedded
     # context.
-    #exe.add_python_resources(exe.read_virtualenv(path="/path/to/venv"))
+    #exe.add_python_resources(exe.read_virtualenv(path=CWD + "/xxx_venv/"))
 
     # Filter all resources collected so far through a filter of names
     # in a file.

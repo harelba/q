@@ -1,0 +1,39 @@
+name: Package and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Version to be released'
+        required: true
+
+
+jobs:
+  Create_GitHub_release:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install stuff
+      run: |
+        curl -o  pyoxidizer.zip -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-linux_x86_64.zip"
+        unzip pyoxidizer.zip
+        chmod +x ./pyoxidizer
+
+    - name: Create Executable
+      run: |
+        ./pyoxidizer build --release
+
+        find ./build/
+
+#    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
+#      uses: actions/create-release@v1.1.1
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      with:
+#        tag_name: ${{ github.event.client_payload.ReleaseBranchName }}
+#        release_name: ${{ github.event.client_payload.ReleaseTitle }}
+#        body: ${{ github.event.client_payload.ReleaseBody }}
+#        prerelease: ${{ github.event.client_payload.Prerelease }}
+#        commitish: ${{ github.event.client_payload.Commitish }}

@@ -22,7 +22,7 @@ jobs:
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
 
-        sudo apt-get install -y sqlite3
+        # no need to install sqlite3 on a mac
 
     - name: Create Executable
       run: |

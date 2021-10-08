@@ -12,7 +12,7 @@ jobs:
   Package-Linux-Version:
     runs-on: ubuntu-18.04
     if: ${{ false }}
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -124,7 +124,7 @@ jobs:
         set -x
 
         curl -o pyoxidizer.msi -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi"
-        msiexec pyoxidizer.msi /qn
+        msiexec /i pyoxidizer.msi /quiet
 
     - name: Create Executable
       shell: bash

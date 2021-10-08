@@ -11,7 +11,8 @@ on: [pull_request]
 jobs:
   Package-Linux-Version:
     runs-on: ubuntu-18.04
-
+    if: ${{ false }}
+    
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -57,6 +58,7 @@ jobs:
 
   Package-Mac-Version:
     runs-on: macos-11
+    if: ${{ false }}
 
     steps:
     - name: Checkout
@@ -121,9 +123,8 @@ jobs:
         set -e
         set -x
 
-        curl -o pyoxidizer.exe -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0.exe"
-        ./pyoxidizer.exe /?
-        ./pyoxidizer.exe /qn
+        curl -o pyoxidizer.msi -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi"
+        msiexec pyoxidizer.msi /qn
 
     - name: Create Executable
       shell: bash

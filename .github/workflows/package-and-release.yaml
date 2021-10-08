@@ -124,7 +124,7 @@ jobs:
         set -x
 
         curl -o pyoxidizer-installer.exe -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0.exe"
-        ./pyoxidizer-installer.exe /install /quiet
+        ./pyoxidizer-installer.exe /install /quiet /norestart
 
     - name: Create Executable
       shell: bash

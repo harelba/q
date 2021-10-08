@@ -87,17 +87,17 @@ def make_exe():
     # an optional fallback.
 
     # Use in-memory location for adding resources by default.
-    # policy.resources_location = "in-memory"
+    policy.resources_location = "in-memory"
 
     # Use filesystem-relative location for adding resources by default.
     # policy.resources_location = "filesystem-relative:prefix"
 
     # Attempt to add resources relative to the built binary when
     # `resources_location` fails.
-    # policy.resources_location_fallback = "filesystem-relative:prefix"
+    policy.resources_location_fallback = "filesystem-relative:lib"
 
     # Clear out a fallback resource location.
-    # policy.resources_location_fallback = None
+    policy.resources_location_fallback = None
 
     # Define a preferred Python extension module variant in the Python distribution
     # to use.
@@ -289,16 +289,20 @@ def make_msi(exe):
     # See the full docs for more. But this will convert your Python executable
     # into a `WiXMSIBuilder` Starlark type, which will be converted to a Windows
     # .msi installer when it is built.
-    return exe.to_wix_msi_builder(
+    builder = exe.to_wix_msi_builder(
         # Simple identifier of your app.
-        "myapp",
+        "q",
         # The name of your application.
-        "My Application",
+        "Q - Text as Data",
         # The version of your application.
-        "1.0",
+        "2.1.0",
         # The author/manufacturer of your application.
-        "Alice Jones"
+        "Harel Ben-Attia"
     )
+    builder.add_vc_redistributable("x86")
+    builder.add_vc_redistributable("x64")
+    builder.add_vc_redistributable("arm64")
+    return builder
 
 
 # Dynamically enable automatic code signing.

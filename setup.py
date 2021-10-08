@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-q_version = '2.0.19'
+q_version = '2.1.0'
 
 setup(
     name='q',

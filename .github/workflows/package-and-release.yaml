@@ -123,8 +123,8 @@ jobs:
         set -e
         set -x
 
-        curl -o pyoxidizer.msi -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi"
-        msiexec /i pyoxidizer.msi /quiet
+        curl -o pyoxidizer-installer.exe -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0.exe"
+        ./pyoxidizer-installer.exe /install /quiet
 
     - name: Create Executable
       shell: bash

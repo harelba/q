@@ -25,7 +25,7 @@ def make_exe():
     # Control support for loading Python extensions and other shared libraries
     # from memory. This is only supported on Windows and is ignored on other
     # platforms.
-    # policy.allow_in_memory_shared_library_loading = True
+    policy.allow_in_memory_shared_library_loading = True
 
     # Control whether to generate Python bytecode at various optimization
     # levels. The default optimization level used by Python is 0.

@@ -117,7 +117,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Install Python for Testing
+    - name: Install MSVC build tools
+    - uses: ilammy/msvc-dev-cmd@v1
+    - name: Install Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.8.10'

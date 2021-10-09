@@ -117,17 +117,32 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Install stuff
-      shell: powershell
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: check python
+      shell: bash
       run: |
-        iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* ox.log'
+        set -x
+        set -e
 
-        cat ox.log
+        python3 -V
+        pip3 -V
 
-        refreshenv
-
-        dir "C:\Program Files\PyOxidizer\"
+        pip3 install pyoxidizer
+#    - name: Install stuff
+#      shell: powershell
+#      run: |
+#        iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
+#        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* ox.log'
+#
+#        cat ox.log
+#
+#        refreshenv
+#
+#        dir "C:\Program Files\PyOxidizer\"
     - name: Create Executable
       shell: bash
       run: |
@@ -152,11 +167,6 @@ jobs:
       with:
         name: artifacts
         path: artifacts/
-    - name: Install Python for Testing
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8.12'
-        architecture: 'x64'
     - name: Prepare Testing
       run: |
         set -e

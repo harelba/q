@@ -124,9 +124,9 @@ jobs:
         Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart'
 
     - name: Check
-      shell: powershell
+      shell: bash
       run: |
-        Start-Process pyoxidizer.exe -Wait
+        "/mnt/c/Program Files/PyOxidizer//pyoxidizer.exe"
 
     - name: Create Executable
       shell: bash
@@ -134,7 +134,7 @@ jobs:
         set -e
         set -x
 
-        pyoxidizer.exe build --release
+        "/mnt/c/Program Files/PyOxidizer//pyoxidizer.exe" build --release
 
         find ./build/
 

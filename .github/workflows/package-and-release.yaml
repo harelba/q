@@ -118,7 +118,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install MSVC build tools
-    - uses: ilammy/msvc-dev-cmd@v1
+      uses: ilammy/msvc-dev-cmd@v1
     - name: Install Python
       uses: actions/setup-python@v2
       with:

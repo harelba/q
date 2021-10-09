@@ -117,19 +117,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Download
-      shell: bash
-      run: |
-        set -e
-        set -x
-
-        curl -o pyoxidizer.msi -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi"
     - name: Install stuff
-      shell: cmd
+      shell: powershell
       run: |
-        echo Installing pyoxidizer
-        start /wait msiexec.exe /i pyoxidizer.msi /quiet /norestart
-
+        iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
+        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart'
     - name: Create Executable
       shell: bash
       run: |

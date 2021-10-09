@@ -120,7 +120,7 @@ jobs:
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.12'
+        python-version: '3.8.10'
         architecture: 'x64'
     - name: check python
       shell: bash

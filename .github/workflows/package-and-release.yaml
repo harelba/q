@@ -122,7 +122,7 @@ jobs:
       with:
         python-version: '3.8.10'
         architecture: 'x64'
-    - name: check python
+    - name: Install pyoxidizer
       shell: bash
       run: |
         set -x
@@ -132,26 +132,13 @@ jobs:
         pip3 -V
 
         pip3 install pyoxidizer
-#    - name: Install stuff
-#      shell: powershell
-#      run: |
-#        iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
-#        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* ox.log'
-#
-#        cat ox.log
-#
-#        refreshenv
-#
-#        dir "C:\Program Files\PyOxidizer\"
     - name: Create Executable
       shell: bash
       run: |
         set -e
         set -x
 
-        chmod +x "/mnt/c/Program Files/PyOxidizer/pyoxidizer.exe"
-
-        "/mnt/c/Program Files/PyOxidizer/pyoxidizer.exe" build --release
+        pyoxidizer build --release
 
         find ./build/
 

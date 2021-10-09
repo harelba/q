@@ -123,6 +123,9 @@ jobs:
         iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
         Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /rs'
 
+    - name: Check
+      shell: powershell
+      run: |
         Start-Process pyoxidizer.exe -Wait
 
     - name: Create Executable

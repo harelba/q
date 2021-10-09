@@ -128,44 +128,43 @@ jobs:
         refreshenv
 
         dir "C:\Program Files\PyOxidizer\"
+    - name: Create Executable
+      shell: bash
+      run: |
+        set -e
+        set -x
 
-        Start-Process "C:\Program Files\PyOxidizer\pyoxidizer.exe" -Wait
+        chmod +x "/mnt/c/Program Files/PyOxidizer/pyoxidizer.exe"
 
-#    - name: Create Executable
-#      shell: bash
-#      run: |
-#        set -e
-#        set -x
-#
-#        "/mnt/d/Program Files/PyOxidizer/pyoxidizer.exe" build --release
-#
-#        find ./build/
-#
-#        export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
-#
-#        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
-#
-#        mkdir -p artifacts/windows/
-#        cp $Q_EXECUTABLE artifacts/windows/
-#
-#    - name: Upload Artifact - TBD Move to the end
-#      uses: actions/upload-artifact@v2
-#      with:
-#        name: artifacts
-#        path: artifacts/
-#    - name: Install Python for Testing
-#      uses: actions/setup-python@v2
-#      with:
-#        python-version: '3.8.12'
-#        architecture: 'x64'
-#    - name: Prepare Testing
-#      run: |
-#        set -e
-#
-#        pip3 install -r test-requirements.txt
-#    - name: Run Tests
-#      run: |
-#        Q_EXECUTABLE=../build/x86_64-pc-windows-msvc/release/install/q bash -x test/test-all
+        "/mnt/c/Program Files/PyOxidizer/pyoxidizer.exe" build --release
+
+        find ./build/
+
+        export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
+
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
+
+        mkdir -p artifacts/windows/
+        cp $Q_EXECUTABLE artifacts/windows/
+
+    - name: Upload Artifact - TBD Move to the end
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts
+        path: artifacts/
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e
+
+        pip3 install -r test-requirements.txt
+    - name: Run Tests
+      run: |
+        Q_EXECUTABLE=../build/x86_64-pc-windows-msvc/release/install/q bash -x test/test-all
 
 #    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
 #      uses: actions/create-release@v1.1.1

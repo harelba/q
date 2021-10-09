@@ -134,6 +134,8 @@ jobs:
         set -e
         set -x
 
+        find "/mnt/c/Program Files/"
+        
         "/mnt/c/Program Files/PyOxidizer//pyoxidizer.exe" build --release
 
         find ./build/

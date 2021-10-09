@@ -124,10 +124,12 @@ jobs:
         Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* ox.log'
 
         cat ox.log
-        
+
         refreshenv
 
-        Start-Process pyoxidizer.exe -Wait
+        dir "C:\Program Files\PyOxidizer\"
+
+        Start-Process "C:\Program Files\PyOxidizer\pyoxidizer.exe" -Wait
 
 #    - name: Create Executable
 #      shell: bash

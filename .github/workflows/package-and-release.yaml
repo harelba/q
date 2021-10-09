@@ -121,12 +121,17 @@ jobs:
       shell: powershell
       run: |
         iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* artifcats/ox.log'
+        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* artifacts/ox.log'
 
         refreshenv
 
         Start-Process pyoxidizer.exe -Wait
-
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: artifacts
+        path: artifacts/
+        
 #    - name: Create Executable
 #      shell: bash
 #      run: |

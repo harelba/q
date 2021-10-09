@@ -121,7 +121,7 @@ jobs:
       shell: powershell
       run: |
         iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /rs'
+        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart'
 
     - name: Check
       shell: powershell

@@ -117,14 +117,18 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Install stuff
+    - name: Download
       shell: bash
       run: |
         set -e
         set -x
 
-        curl -o pyoxidizer-installer.exe -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0.exe"
-        ./pyoxidizer-installer.exe /install /quiet /norestart
+        curl -o pyoxidizer.msi -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi"
+    - name: Install stuff
+      shell: powershell
+      run: |
+        echo Installing pyoxidizer
+        start /wait msiexec.exe /i pyoxidizer.msi /quiet /norestart
 
     - name: Create Executable
       shell: bash
@@ -132,16 +136,16 @@ jobs:
         set -e
         set -x
 
-        ./pyoxidizer build --release
+        pyoxidizer.exe build --release
 
         find ./build/
 
-        export Q_EXECUTABLE=./build/x86_64-apple-darwin/release/install/q
+        export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
 
         seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
 
-        mkdir -p artifacts/macos/
-        cp $Q_EXECUTABLE artifacts/macos/
+        mkdir -p artifacts/windows/
+        cp $Q_EXECUTABLE artifacts/windows/
 
     - name: Upload Artifact - TBD Move to the end
       uses: actions/upload-artifact@v2
@@ -160,7 +164,7 @@ jobs:
         pip3 install -r test-requirements.txt
     - name: Run Tests
       run: |
-        Q_EXECUTABLE=../build/x86_64-apple-darwin/release/install/q bash -x test/test-all
+        Q_EXECUTABLE=../build/x86_64-pc-windows-msvc/release/install/q bash -x test/test-all
 
 #    - name: Create release for ${{ github.event.client_payload.ReleaseBranchName }}
 #      uses: actions/create-release@v1.1.1

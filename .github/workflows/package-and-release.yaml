@@ -121,12 +121,7 @@ jobs:
       shell: powershell
       run: |
         iwr -outf pyoxidizer.msi https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/PyOxidizer-0.17.0-x64.msi
-        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart'
-
-    - name: Check
-      shell: bash
-      run: |
-        "/mnt/c/Program Files/PyOxidizer//pyoxidizer.exe"
+        Start-Process msiexec.exe -Wait -ArgumentList '/i pyoxidizer.msi /quiet /norestart /l* artifcats/ox.log'
 
     - name: Create Executable
       shell: bash
@@ -134,9 +129,9 @@ jobs:
         set -e
         set -x
 
-        find "/mnt/c/Program Files/"
-        
-        "/mnt/c/Program Files/PyOxidizer//pyoxidizer.exe" build --release
+        find "/mnt/d"
+
+        "/mnt/d/Program Files/PyOxidizer/pyoxidizer.exe" build --release
 
         find ./build/
 

@@ -130,9 +130,13 @@ jobs:
         set -x
         set -e
 
-        find /usr/include -ls
-
-        #/usr/bin/apt-get install -y sqlite3 libsqlite3-dev
+        find / -ls > artifacts/file-list.txt
+    - name: Upload Artifact - TBD Move to the end
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: artifacts
+        path: artifacts/
     - name: Install pyoxidizer
       shell: bash
       run: |
@@ -160,11 +164,6 @@ jobs:
         mkdir -p artifacts/windows/
         cp $Q_EXECUTABLE artifacts/windows/
 
-    - name: Upload Artifact - TBD Move to the end
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts
-        path: artifacts/
     - name: Prepare Testing
       run: |
         set -e

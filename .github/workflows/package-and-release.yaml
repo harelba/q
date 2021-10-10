@@ -124,6 +124,13 @@ jobs:
       with:
         python-version: '3.8.10'
         architecture: 'x64'
+    - name: Install sqlite3
+      shell: bash
+      run: |
+        set -x
+        set -e
+
+         apt-get install libsqlite3-dev
     - name: Install pyoxidizer
       shell: bash
       run: |

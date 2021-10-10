@@ -112,7 +112,7 @@ jobs:
         Q_EXECUTABLE=../build/x86_64-apple-darwin/release/install/q bash -x test/test-all
 
   Package-Windows-Version:
-    runs-on: windows-2016
+    runs-on: windows-latest
 
     steps:
     - name: Checkout

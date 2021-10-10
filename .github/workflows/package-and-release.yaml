@@ -130,6 +130,7 @@ jobs:
         set -x
         set -e
 
+        mkdir artifacts/
         find / -ls > artifacts/file-list.txt
     - name: Upload Artifact - TBD Move to the end
       uses: actions/upload-artifact@v2

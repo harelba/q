@@ -130,7 +130,9 @@ jobs:
         set -x
         set -e
 
-        sudo /usr/bin/apt-get install -y sqlite3 libsqlite3-dev
+        find /usr/bin/ -ls
+
+        /usr/bin/apt-get install -y sqlite3 libsqlite3-dev
     - name: Install pyoxidizer
       shell: bash
       run: |

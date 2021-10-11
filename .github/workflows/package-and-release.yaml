@@ -11,7 +11,6 @@ on: [pull_request]
 jobs:
   Package-Linux-Version:
     runs-on: ubuntu-18.04
-    if: ${{ false }}
 
     steps:
     - name: Checkout
@@ -58,7 +57,6 @@ jobs:
 
   Package-Mac-Version:
     runs-on: macos-11
-    if: ${{ false }}
 
     steps:
     - name: Checkout
@@ -113,6 +111,7 @@ jobs:
 
   Package-Windows-Version:
     runs-on: windows-latest
+    if: ${{ false }}
 
     steps:
     - name: Checkout

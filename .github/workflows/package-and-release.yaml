@@ -23,7 +23,8 @@ jobs:
         chmod +x ./pyoxidizer
 
         sudo apt-get install -y sqlite3
-
+    - name: setup-docker
+      uses: docker-practice/actions-setup-docker@1.0.8
     - name: Create Executable
       run: |
         set -e
@@ -54,6 +55,28 @@ jobs:
     - name: Run Tests
       run: |
         Q_EXECUTABLE=../build/x86_64-unknown-linux-gnu/release/install/q bash -x test/test-all
+
+    - name: Render RPM Spec
+      id: render_spec
+      uses: chuhlomin/render-template@v1.2
+      with:
+        template: dist/q.spec.template
+        vars: |
+          VERSION: 2.0.20
+    - name: Deploy
+      timeout-minutes: 4
+      run: |-
+        echo '${{ steps.render_spec.outputs.result }}' > q.spec
+    - name: build RPM package
+      id: build_rpm
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: "q.spec"
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: artifacts
+        path: ${{ steps.build_rpm.outputs.rpm_dir_path }}
 
   Package-Mac-Version:
     runs-on: macos-11

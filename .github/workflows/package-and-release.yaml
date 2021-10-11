@@ -124,20 +124,14 @@ jobs:
       with:
         python-version: '3.8.10'
         architecture: 'x64'
-    - name: Install sqlite3
-      shell: bash
-      run: |
-        set -x
-        set -e
-
-        mkdir artifacts/
-        find / -ls > artifacts/file-list.txt
-    - name: Upload Artifact - TBD Move to the end
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: artifacts
-        path: artifacts/
+#    - name: Install sqlite3
+#      shell: bash
+#      run: |
+#        set -x
+#        set -e
+#
+#        mkdir artifacts/
+#        find / -ls > artifacts/file-list.txt
     - name: Install pyoxidizer
       shell: bash
       run: |
@@ -164,7 +158,12 @@ jobs:
 
         mkdir -p artifacts/windows/
         cp $Q_EXECUTABLE artifacts/windows/
-
+    - name: Upload Artifact - TBD Move to the end
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: artifacts
+        path: artifacts/
     - name: Prepare Testing
       run: |
         set -e

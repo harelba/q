@@ -21,7 +21,7 @@ q allows to perform SQL-like statements on tabular text data.
 rm -vrf ${RPM_BUILD_ROOT}/
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data
-install -Dm 0644 {{ .Q_BINARY_PATH }} ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data/q
+install -Dm 0644 {{ .Q_EXECUTABLE }} ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data/q
 ln -s  %{_datadir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
 
 %files

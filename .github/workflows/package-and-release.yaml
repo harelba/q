@@ -62,7 +62,8 @@ jobs:
       with:
         template: dist/q.spec.template
         vars: |
-          VERSION: 2.0.20
+          Q_VERSION: 2.0.20
+          Q_EXECUTABLE: ./build/x86_64-unknown-linux-gnu/release/install/q
     - name: Deploy
       timeout-minutes: 4
       run: |-

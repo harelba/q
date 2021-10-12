@@ -17,11 +17,17 @@ q allows to perform SQL-like statements on tabular text data.
 
 # TODO Removed ronn man page building and deployment for now
 
+%prep
+rm -rvf %{_topdir}/BUILD/*
+cd %{_topdir}/BUILD
+tar xvfz %{_topdir}/SOURCES/q-sources.tar.gz
+chmod -Rf a+rX,u+w,g-w,o-w %{_topdir}/BUILD/
+
 %install
 rm -vrf ${RPM_BUILD_ROOT}/
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_bindir}
 install -d -m 0755 ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data
-install -Dm 0644 {{ .Q_EXECUTABLE }} ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data/q
+install -Dm 0644 %{_topdir}/../{{ .Q_EXECUTABLE }} ${RPM_BUILD_ROOT}%{_datadir}/q-text-as-data/q
 ln -s  %{_datadir}/q-text-as-data/q ${RPM_BUILD_ROOT}%{_bindir}/q 
 
 %files

@@ -22,7 +22,7 @@ jobs:
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
 
-        sudo apt-get install -y sqlite3
+        sudo apt-get install -y sqlite3 rpm
     - name: setup-docker
       uses: docker-practice/actions-setup-docker@1.0.8
     - name: Create Executable
@@ -36,12 +36,6 @@ jobs:
 
         mkdir -p artifacts/linux/
         cp $Q_EXECUTABLE artifacts/linux/
-
-    - name: Upload Artifact - TBD Move to the end
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts
-        path: artifacts/
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -64,20 +58,31 @@ jobs:
         vars: |
           Q_VERSION: "2.0.20"
           Q_EXECUTABLE: "./build/x86_64-unknown-linux-gnu/release/install/q"
-    - name: Deploy
-      timeout-minutes: 4
-      run: |-
-        echo '${{ steps.render_spec.outputs.result }}' > q.spec
+    - name: Prepare rpmbuild folders
+      run: |
+        set -e
+        set -x
+
+        mkdir -p ./rpmbuild/{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
+
+        echo '${{ steps.render_spec.outputs.result }}' > ./rpmbuild/SPECS/q.spec
+
+        ./package-sources.sh
+
+        cp q-sources.tar.gz ./rpmbuild/SOURCES/q-sources.tar.gz
     - name: build RPM package
-      id: build_rpm
-      uses: naveenrajm7/rpmbuild@master
-      with:
-        spec_file: "q.spec"
+      run: |
+        set -e
+        set -x
+
+        rpmbuild -v --define "_topdir `pwd`/rpmbuild" -ba ./rpmbuild/SPECS/q.spec
+
+        cp -r ./rpmbuild/RPMS/* artifacts/linux/
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: artifacts
-        path: ${{ steps.build_rpm.outputs.rpm_dir_path }}
+        path: artifacts/
 
   Package-Mac-Version:
     runs-on: macos-11

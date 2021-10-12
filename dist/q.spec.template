@@ -4,7 +4,7 @@
 
 Name:		q-text-as-data
 Version:	{{ .Q_VERSION }}
-Release:	1%{?dist}
+Release:	1
 Summary:	q - Text as Data
 
 Group:		Applications/Text

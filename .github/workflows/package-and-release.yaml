@@ -18,13 +18,16 @@ jobs:
     - name: Install stuff
       run: |
         set -e
+        set -x
+
+        apt-get update
+        apt-get install -y zip
+
         curl -o  pyoxidizer.zip -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-linux_x86_64.zip"
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
 
-        sudo apt-get install -y sqlite3 rpm
-    - name: setup-docker
-      uses: docker-practice/actions-setup-docker@1.0.8
+        apt-get install -y sqlite3 rpm
     - name: Create Executable
       run: |
         set -e

@@ -10,7 +10,7 @@ Summary:	q - Text as Data
 Group:		Applications/Text
 License:	GPLv3
 URL:		https://github.com/harelba/q
-BuildArch:	x86_64
+BuildArch:	noarch
 
 %description
 q allows to perform SQL-like statements on tabular text data.

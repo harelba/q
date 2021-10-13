@@ -1847,7 +1847,7 @@ def run_standalone():
     default_query_encoding = get_option_with_default(p, 'string', 'query_encoding', locale.getpreferredencoding())
     default_output_header = get_option_with_default(p, 'string', 'output_header', False)
 
-    parser = OptionParser(usage="""
+    parser = OptionParser(prog="q",usage="""
         q allows performing SQL-like statements on tabular text data.
 
         Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.

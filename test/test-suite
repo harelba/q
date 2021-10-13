@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 #
 # test suite for q.
@@ -37,9 +37,14 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 EXAMPLES = os.path.abspath(os.path.join(os.pardir, 'examples'))
 
 Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', '../bin/q.py')
+Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
 
-if not os.path.exists(Q_EXECUTABLE):
-    raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
+if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
+    if not os.path.exists(Q_EXECUTABLE):
+        raise Exception("q executable must reside in {}. Absolute path is {}".format(Q_EXECUTABLE,os.path.abspath(Q_EXECUTABLE)))
+else:
+    # Skip checking of executable (useful for testing that q is in the path)
+    pass
 
 DEBUG = False
 if len(sys.argv) > 2 and sys.argv[2] == '-v':

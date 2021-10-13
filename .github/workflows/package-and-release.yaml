@@ -84,7 +84,7 @@ jobs:
         set -e
 
         sudo dpkg -i artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
-        Q_EXECUTABLE=q bash -x test/test-all
+        Q_EXECUTABLE=q Q_SKIP_EXECUTABLE_VALIDATION=true bash -x test/test-all
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:

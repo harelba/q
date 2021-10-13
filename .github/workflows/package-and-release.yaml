@@ -52,8 +52,9 @@ jobs:
         ./pyoxidizer build --release
 
         export Q_EXECUTABLE=./build/x86_64-unknown-linux-gnu/release/install/q
+        chmod 755 $Q_EXECUTABLE
 
-        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -"
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
 
         cp $Q_EXECUTABLE artifacts/linux/
     - name: Create man page
@@ -82,8 +83,8 @@ jobs:
         set -e
         set -x
 
-        fpm -s dir -t rpm -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
-        fpm -s dir -t deb -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Retest using debian installation
       continue-on-error: true
       run: |

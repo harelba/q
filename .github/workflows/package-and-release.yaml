@@ -56,6 +56,8 @@ jobs:
         set -e
 
         ronn doc/USAGE.markdown
+        # Must be gzipped, otherwise debian does not install it
+        gzip doc/USAGE
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -74,8 +76,15 @@ jobs:
         set -e
         set -x
 
-        fpm -s dir -t rpm -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE=/usr/share/man/man1/q.1
-        fpm -s dir -t deb -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE=/usr/share/man/man1/q.1
+        fpm -s dir -t rpm -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 build/x86_64-unknown-linux-gnu/release/install/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+    - name: Retest using debian installation
+      run: |
+        set -x
+        set -e
+
+        dpkg -i artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
+        Q_EXECUTABLE=q bash -x test/test-all
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:

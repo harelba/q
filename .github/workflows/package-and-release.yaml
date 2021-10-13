@@ -15,7 +15,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - uses: ruby/setup-ruby@v1
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
       with:
         ruby-version: '2.6'  # Perhaps 2.4.1?
     - name: Install pyoxidizer
@@ -30,6 +31,7 @@ jobs:
         unzip pyoxidizer.zip
         chmod +x ./pyoxidizer
     - name: Install prerequisites for build
+      run: |
         sudo apt-get install -y sqlite3 rpm
 
         gem install fpm ronn

@@ -20,6 +20,7 @@ jobs:
     - name: Create man page
       run: |
         set -x -e
+        gem ronn
         ronn doc/USAGE.markdown
         # Must be gzipped, otherwise debian does not install it
         gzip doc/USAGE

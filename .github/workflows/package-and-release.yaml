@@ -92,8 +92,12 @@ jobs:
       with:
         name: linux-q
         path: artifacts/linux/q
-    - name: Run Tests on Resulting Executable
+    - name: Run Tests on Linux Executable
       run: |
+        set -x -e
+        
+        find ./ -ls
+
         Q_EXECUTABLE=artifacts/linux/q bash -x test/test-all
 
   package-linux-deb:
@@ -242,7 +246,7 @@ jobs:
       run: |
         set -e -x
 
-        ./pyoxidizer build --release
+        pyoxidizer build --release
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
         chmod 755 $Q_EXECUTABLE

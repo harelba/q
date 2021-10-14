@@ -91,14 +91,13 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: linux-q
-        path: artifacts/linux/q
     - name: Run Tests on Linux Executable
       run: |
         set -x -e
         
         find ./ -ls
 
-        Q_EXECUTABLE=artifacts/linux/q bash -x test/test-all
+        Q_EXECUTABLE=./linux-q bash -x test/test-all
 
   package-linux-deb:
     needs: [test-linux, create-man]
@@ -115,15 +114,14 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: linux-q
-        path: artifacts/linux/q
     - name: Build DEB Package
       run: |
         set -e -x
 
-        chmod 755 artifacts/linux/q
+        chmod 755 ./linux-q
 
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 artifacts/linux/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Test DEB Package Installation
       continue-on-error: true
       run: ./dist/test-using-deb.sh artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
@@ -138,20 +136,18 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: q-man-page
-        path: doc/USAGE.gz
     - name: Download Linux Executable
       uses: actions/download-artifact@v2
       with:
         name: linux-q
-        path: artifacts/linux/q
     - name: Build RPM Package
       run: |
         set -e -x
 
-        chmod 755 artifacts/linux/q
+        chmod 755 ./linux-q
 
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 artifacts/linux/q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Retest using RPM
       continue-on-error: true
       run: ./dist/test-using-rpm.sh artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm
@@ -215,10 +211,11 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: macos-q
-        path: artifacts/macos/q
     - name: Run Tests on Resulting Executable
       run: |
-        Q_EXECUTABLE=artifacts/macos/q bash -x test/test-all
+        chmod 755 ./macos-q
+
+        Q_EXECUTABLE=./macos-q bash -x test/test-all
 
   build-and-package-windows:
     runs-on: windows-latest

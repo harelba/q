@@ -37,11 +37,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Cache pyox
-    uses: actions/cache@v2
-    with:
-      path: |
-        ~/.cache/pyoxidizer
-      key: ${{ runner.os }}-pyox
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/pyoxidizer
+        key: ${{ runner.os }}-pyox
     - name: Install pyoxidizer
       run: |
         set -e -x
@@ -97,7 +97,7 @@ jobs:
         Q_EXECUTABLE=artifacts/linux/q bash -x test/test-all
 
   package-linux-deb:
-    needs: [test-linux,create-man]
+    needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
     steps:
     - name: Checkout
@@ -125,11 +125,11 @@ jobs:
       run: ./dist/test-using-deb.sh artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
 
   package-linux-rpm:
-    - name: Checkout
-      uses: actions/checkout@v2
-    needs: [test-linux,create-man]
+    needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Downoad man page
       uses: actions/download-artifact@v2
       with:

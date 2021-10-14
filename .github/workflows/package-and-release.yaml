@@ -99,7 +99,7 @@ jobs:
 
         chmod 755 ./linux-q
 
-        Q_EXECUTABLE=./linux-q bash -x test/test-all
+        Q_EXECUTABLE=../linux-q bash -x test/test-all
   package-linux-deb:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
@@ -222,7 +222,7 @@ jobs:
 
         chmod 755 ./macos-q
 
-        Q_EXECUTABLE=./macos-q bash -x test/test-all
+        Q_EXECUTABLE=../macos-q bash -x test/test-all
 
   build-and-package-windows:
     runs-on: windows-latest

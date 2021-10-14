@@ -2,7 +2,7 @@
 set -x
 set -e
 
-yum install -y python38 sqlite
+yum install -y python38 sqlite perl
 pip3 install -r test-requirements.txt
 
 rpm -i $1

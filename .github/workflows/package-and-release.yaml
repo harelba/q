@@ -16,7 +16,7 @@ jobs:
     - name: Install Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '2.6'  # Perhaps 2.4.1?
+        ruby-version: '2.6'
     - name: Create man page
       run: |
         set -x -e
@@ -106,6 +106,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
     - name: Downoad man page
       uses: actions/download-artifact@v2
       with:
@@ -120,6 +124,7 @@ jobs:
 
         chmod 755 ./linux-q
 
+        gem install fpm
         cp dist/fpm-config ~/.fpm
         fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Test DEB Package Installation
@@ -132,6 +137,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
     - name: Downoad man page
       uses: actions/download-artifact@v2
       with:
@@ -144,10 +153,9 @@ jobs:
       run: |
         set -e -x
 
-        find ./ -ls
-
         chmod 755 ./linux-q
 
+        gem install fpm
         cp dist/fpm-config ~/.fpm
         fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Retest using RPM

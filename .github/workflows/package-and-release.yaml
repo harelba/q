@@ -20,7 +20,8 @@ jobs:
     - name: Create man page
       run: |
         set -x -e
-        gem ronn
+        gem install ronn
+
         ronn doc/USAGE.markdown
         # Must be gzipped, otherwise debian does not install it
         gzip doc/USAGE
@@ -33,12 +34,14 @@ jobs:
   build-linux:
     runs-on: ubuntu-18.04
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Cache pyox
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cache/pyoxidizer
-        key: ${{ runner.os }}-pyox
+    uses: actions/cache@v2
+    with:
+      path: |
+        ~/.cache/pyoxidizer
+      key: ${{ runner.os }}-pyox
     - name: Install pyoxidizer
       run: |
         set -e -x
@@ -72,6 +75,8 @@ jobs:
     needs: build-linux
     runs-on: ubuntu-18.04
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -95,6 +100,8 @@ jobs:
     needs: [test-linux,create-man]
     runs-on: ubuntu-18.04
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Downoad man page
       uses: actions/download-artifact@v2
       with:
@@ -118,6 +125,8 @@ jobs:
       run: ./dist/test-using-deb.sh artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
 
   package-linux-rpm:
+    - name: Checkout
+      uses: actions/checkout@v2
     needs: [test-linux,create-man]
     runs-on: ubuntu-18.04
     steps:
@@ -146,6 +155,8 @@ jobs:
   build-mac:
     runs-on: macos-11
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Cache pyox
       uses: actions/cache@v2
       with:
@@ -184,6 +195,8 @@ jobs:
     needs: build-mac
     runs-on: macos-11
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -225,6 +238,7 @@ jobs:
 
         pip3 install pyoxidizer
     - name: Create Q Executable - Windows
+      shell: bash
       run: |
         set -e -x
 

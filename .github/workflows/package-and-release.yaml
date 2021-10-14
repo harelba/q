@@ -110,7 +110,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: q-man-page
-        path: doc/USAGE.gz
     - name: Download Linux Executable
       uses: actions/download-artifact@v2
       with:

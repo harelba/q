@@ -122,6 +122,8 @@ jobs:
       run: |
         set -e -x
 
+        find ./ -ls
+
         chmod 755 ./linux-q
 
         gem install fpm
@@ -153,6 +155,8 @@ jobs:
       run: |
         set -e -x
 
+        find ./ -ls
+        
         chmod 755 ./linux-q
 
         gem install fpm

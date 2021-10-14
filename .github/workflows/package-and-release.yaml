@@ -128,7 +128,7 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb --version 2.0.20 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Test DEB Package Installation
       continue-on-error: true
       run: ./dist/test-using-deb.sh artifacts/linux/q-text-as-data-2.0.20-1.x86_64.deb
@@ -156,12 +156,12 @@ jobs:
         set -e -x
 
         find ./ -ls
-        
+
         chmod 755 ./linux-q
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 ./linux-q=/usr/bin/q doc/USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm --version 2.0.20 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Retest using RPM
       continue-on-error: true
       run: ./dist/test-using-rpm.sh artifacts/linux/q-text-as-data-2.0.20.x86_64.rpm

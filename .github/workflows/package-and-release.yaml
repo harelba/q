@@ -64,12 +64,12 @@ jobs:
         seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
 
         mkdir -p artifacts/linux/
-        cp $Q_EXECUTABLE artifacts/linux/
+        cp $Q_EXECUTABLE artifacts/linux/linux-q
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:
         name: linux-q
-        path: artifacts/linux/q
+        path: artifacts/linux/linux-q
 
   test-linux:
     needs: build-linux
@@ -97,8 +97,9 @@ jobs:
         
         find ./ -ls
 
-        Q_EXECUTABLE=./linux-q bash -x test/test-all
+        chmod 755 ./linux-q
 
+        Q_EXECUTABLE=./linux-q bash -x test/test-all
   package-linux-deb:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
@@ -144,6 +145,8 @@ jobs:
       run: |
         set -e -x
 
+        find ./ -ls
+
         chmod 755 ./linux-q
 
         cp dist/fpm-config ~/.fpm
@@ -184,12 +187,12 @@ jobs:
         seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
 
         mkdir -p artifacts/macos/
-        cp $Q_EXECUTABLE artifacts/macos/
+        cp $Q_EXECUTABLE artifacts/macos/macos-q
     - name: Upload MacOS Executable
       uses: actions/upload-artifact@v1.0.0
       with:
         name: macos-q
-        path: artifacts/macos/q
+        path: artifacts/macos/macos-q
 
   test-mac:
     needs: build-mac
@@ -211,8 +214,12 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: macos-q
-    - name: Run Tests on Resulting Executable
+    - name: Run Tests on MacOS Executable
       run: |
+        set -e -x
+
+        find ./ -ls
+
         chmod 755 ./macos-q
 
         Q_EXECUTABLE=./macos-q bash -x test/test-all

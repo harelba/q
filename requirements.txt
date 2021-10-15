@@ -1,5 +1,4 @@
 six==1.11.0
 flake8==3.6.0
 setuptools<45.0.0
-sqlite3
 https://github.com/rogerbinns/apsw/releases/download/3.36.0-r1/apsw-3.36.0-cp38-cp38-win_amd64.whl

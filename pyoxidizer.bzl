@@ -97,7 +97,7 @@ def make_exe():
     policy.resources_location_fallback = "filesystem-relative:lib"
 
     # Clear out a fallback resource location.
-    policy.resources_location_fallback = None
+    # policy.resources_location_fallback = None
 
     # Define a preferred Python extension module variant in the Python distribution
     # to use.

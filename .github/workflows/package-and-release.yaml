@@ -315,6 +315,7 @@ jobs:
         python-version: '3.8.10'
         architecture: 'x64'
     - name: Prepare Testing
+      shell: bash
       run: |
         set -e -x
 
@@ -326,6 +327,8 @@ jobs:
       with:
         name: win-q
     - name: Run Tests on Windows Executable
+      continue-on-error: true
+      shell: bash
       run: |
         set -e -x
 

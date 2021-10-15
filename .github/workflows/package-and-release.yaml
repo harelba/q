@@ -317,6 +317,8 @@ jobs:
 
         mkdir -p packages/windows/
         cp $Q_EXECUTABLE packages/windows/win-q
+
+        find ./ -ls
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:

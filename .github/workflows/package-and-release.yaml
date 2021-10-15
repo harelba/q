@@ -10,6 +10,7 @@ on: [pull_request]
 jobs:
   create-man:
     runs-on: ubuntu-18.04
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -240,6 +241,8 @@ jobs:
       run: |
         set -e -x
 
+        pip3 install wheel
+        
         pip3 install -r test-requirements.txt
     - name: Download MacOS Executable
       uses: actions/download-artifact@v2
@@ -265,6 +268,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -272,12 +276,13 @@ jobs:
   test-windows:
     needs: build-windows
     runs-on: windows-latest
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
   package-windows:
-    needs: [ test-windows, create-man ]
+#    needs: [ test-windows, create-man ]
     runs-on: windows-latest
     steps:
     - name: Checkout

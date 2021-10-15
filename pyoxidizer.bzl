@@ -66,9 +66,6 @@ def make_msi(exe):
         # The author/manufacturer of your application.
         "Harel Ben-Attia"
     )
-    builder.add_vc_redistributable("x86")
-    builder.add_vc_redistributable("x64")
-    builder.add_vc_redistributable("arm64")
     return builder
 
 

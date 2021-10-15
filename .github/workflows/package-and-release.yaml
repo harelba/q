@@ -374,11 +374,17 @@ jobs:
 
         find ./ -ls
 
-#    - name: Upload Windows MSI
-#      uses: actions/upload-artifact@v1.0.0
-#      with:
-#        name: win-q
-#        path: packages/windows/win-q.exe
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-2.1.0.msi
+        chmod 755 $Q_MSI
+
+        mkdir -p packages/windows/
+        cp $Q_MSI packages/windows/q-text-as-data-2.1.0.msi
+
+    - name: Upload Windows MSI
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: win-q-msi
+        path: packages/windows/q-text-as-data-2.1.0.msi
 
 
   release-new-version:

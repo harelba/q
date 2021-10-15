@@ -60,7 +60,7 @@ def make_msi(exe):
         # Simple identifier of your app.
         "q",
         # The name of your application.
-        "Q - Text as Data",
+        "q-text-as-data",
         # The version of your application.
         "2.1.0",
         # The author/manufacturer of your application.

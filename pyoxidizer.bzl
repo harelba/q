@@ -247,6 +247,8 @@ def make_exe():
     # attributes.
     #exe.add_python_resources(exe.pip_install(["appdirs"]))
 
+    exe.pip_install(["wheel"])
+
     # Invoke `pip install` using a requirements file and add the collected resources
     # to our binary.
     exe.add_python_resources(exe.pip_install(["-r", "requirements.txt"]))

@@ -312,7 +312,7 @@ jobs:
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.12'
+        python-version: '3.8.10'
         architecture: 'x64'
     - name: Prepare Testing
       run: |
@@ -339,11 +339,42 @@ jobs:
     needs: [test-windows, create-man]
     runs-on: windows-latest
     steps:
-    - name: TBD Package windows to an installable MSI
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install MSVC build tools
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Install Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.10'
+        architecture: 'x64'
+    - name: Install pyoxidizer
+      shell: bash
+      run: |
+        set -x -e
+
+        python3 -V
+        pip3 -V
+
+        pip3 install pyoxidizer
+    - name: Create Q MSI - Windows
+      shell: bash
       run: |
         set -e -x
 
-        echo "Need to create a proper MSI for the executable"
+        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
+        cp requirements-win-x86_64.txt requirements.txt
+
+        pyoxidizer build --release msi_installer
+
+        find ./ -ls
+
+#    - name: Upload Windows MSI
+#      uses: actions/upload-artifact@v1.0.0
+#      with:
+#        name: win-q
+#        path: packages/windows/win-q.exe
+
 
   release-new-version:
     needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]

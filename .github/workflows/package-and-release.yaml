@@ -309,6 +309,8 @@ jobs:
     needs: build-windows
     runs-on: windows-latest
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:

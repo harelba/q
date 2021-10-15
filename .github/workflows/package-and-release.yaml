@@ -323,6 +323,9 @@ jobs:
         mkdir -p packages/windows/
         cp $Q_EXECUTABLE packages/windows/win-q.exe
 
+        chmod 755 packages/windows/win-q.exe
+        packages/windows/win-q.exe
+        
         find ./ -ls
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0

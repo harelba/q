@@ -25,7 +25,7 @@ def make_exe():
     # Control support for loading Python extensions and other shared libraries
     # from memory. This is only supported on Windows and is ignored on other
     # platforms.
-    #policy.allow_in_memory_shared_library_loading = True
+    policy.allow_in_memory_shared_library_loading = True
 
     # Control whether to generate Python bytecode at various optimization
     # levels. The default optimization level used by Python is 0.
@@ -53,14 +53,14 @@ def make_exe():
 
     # Controls whether the file scanner attempts to classify files and emit
     # resource-specific values.
-    # policy.file_scanner_classify_files = True
+    policy.file_scanner_classify_files = True
 
     # Controls whether `File` instances are emitted by the file scanner.
     # policy.file_scanner_emit_files = False
 
     # Controls the `add_include` attribute of "classified" resources
     # (`PythonModuleSource`, `PythonPackageResource`, etc).
-    # policy.include_classified_resources = True
+    policy.include_classified_resources = True
 
     # Toggle whether Python module source code for modules in the Python
     # distribution's standard library are included.
@@ -68,7 +68,7 @@ def make_exe():
 
     # Toggle whether Python package resource files for the Python standard
     # library are included.
-    # policy.include_distribution_resources = False
+    policy.include_distribution_resources = True
 
     # Controls the `add_include` attribute of `File` resources.
     # policy.include_file_resources = False

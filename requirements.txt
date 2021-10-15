@@ -1,4 +1,5 @@
 six==1.11.0
 flake8==3.6.0
 setuptools<45.0.0
-sqlitebck
+#sqlitebck
+apsw

@@ -242,7 +242,7 @@ jobs:
         set -e -x
 
         pip3 install wheel
-        
+
         pip3 install -r test-requirements.txt
     - name: Download MacOS Executable
       uses: actions/download-artifact@v2
@@ -316,7 +316,7 @@ jobs:
         seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
 
         mkdir -p packages/windows/
-        cp $Q_EXECUTABLE packages/windows/
+        cp $Q_EXECUTABLE packages/windows/win-q
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:

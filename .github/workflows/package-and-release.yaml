@@ -256,8 +256,8 @@ jobs:
     runs-on: macos-11
     if: ${{ false }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
 
   build-windows:
     runs-on: windows-latest
@@ -337,7 +337,7 @@ jobs:
     needs: [test-windows, create-man]
     runs-on: windows-latest
     steps:
-      name: TBD Package windows to an installable MSI
+    - name: TBD Package windows to an installable MSI
       run: |
         set -e -x
 

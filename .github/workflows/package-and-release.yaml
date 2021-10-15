@@ -10,7 +10,6 @@ on: [pull_request]
 jobs:
   create-man:
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -34,7 +33,6 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -76,7 +74,6 @@ jobs:
   test-linux:
     needs: build-linux
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -106,7 +103,6 @@ jobs:
   package-linux-deb:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -147,7 +143,6 @@ jobs:
   package-linux-rpm:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -187,7 +182,6 @@ jobs:
 
   build-mac:
     runs-on: macos-11
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -228,7 +222,6 @@ jobs:
   test-mac:
     needs: build-mac
     runs-on: macos-11
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -268,7 +261,6 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2

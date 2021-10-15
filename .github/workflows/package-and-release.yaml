@@ -97,7 +97,7 @@ jobs:
     - name: Run Tests on Linux Executable
       run: |
         set -x -e
-        
+
         find ./ -ls
 
         chmod 755 ./linux-q
@@ -259,7 +259,7 @@ jobs:
         Q_EXECUTABLE=../macos-q bash -x test/test-all
 
   package-mac:
-    needs: [ test-mac, create-man ]
+    needs: [test-mac, create-man]
     runs-on: macos-11
     if: ${{ false }}
     steps:
@@ -272,26 +272,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-
-  test-windows:
-    needs: build-windows
-    runs-on: windows-latest
-    if: ${{ false }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
-  package-windows:
-#    needs: [ test-windows, create-man ]
-    runs-on: windows-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-      if: ${{ failure() }}
-      with:
-        sudo: false
     - name: Install MSVC build tools
       uses: ilammy/msvc-dev-cmd@v1
     - name: Install Python
@@ -330,8 +310,49 @@ jobs:
         name: win-q
         path: packages/windows/win-q.exe
 
+  test-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    if: ${{ false }}
+    steps:
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e -x
+
+        pip3 install wheel
+
+        pip3 install -r test-requirements.txt
+    - name: Download Windows Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: win-q
+    - name: Run Tests on Windows Executable
+      run: |
+        set -e -x
+
+        find ./ -ls
+
+        chmod 755 ./win-q.exe
+
+        Q_EXECUTABLE=../win-q.exe bash -x test/test-all
+
+  package-windows:
+    needs: [test-windows, create-man]
+    runs-on: windows-latest
+    steps:
+      name: TBD Package windows to an installable MSI
+      run: |
+        set -e -x
+
+        echo "Need to create a proper MSI for the executable"
+
   release-new-version:
-    needs: [ package-linux-deb, package-linux-rpm, package-mac, package-windows ]
+    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
     runs-on: ubuntu-18.04
     steps:
     - name: Upload All Artifacts

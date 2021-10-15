@@ -285,6 +285,9 @@ jobs:
       run: |
         set -e -x
 
+        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
+        cp requirements-win-x86_64.txt requirements.txt
+        
         pyoxidizer build --release
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q

@@ -397,7 +397,7 @@ jobs:
     - name: Unzip MSI
       shell: powershell
       run: |
-        Extract-Archive -Path q-text-as-data-2.1.0.msi
+        Expand-Archive -Path q-text-as-data-2.1.0.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell

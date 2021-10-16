@@ -407,9 +407,8 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-2.1.0.msi -l* msi-uninstall.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-2.1.0.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
-        gc msi-uninstall.log
         exit $process.ExitCode
 
   release-new-version:

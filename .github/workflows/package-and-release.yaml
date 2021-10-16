@@ -100,6 +100,7 @@ jobs:
         chmod 755 ./linux-q
 
         Q_EXECUTABLE=../linux-q bash -x test/test-all
+
   package-linux-deb:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
@@ -140,6 +141,20 @@ jobs:
         name: q-text-as-data-2.1.0-1.x86_64.deb
         path: packages/linux/q-text-as-data-2.1.0-1.x86_64.deb
 
+  test-deb-packaging:
+    runs-on: ubuntu-18.04
+    needs: package-linux-deb
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download DEB
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-2.1.0-1.x86_64.deb
+    - name: Retest using RPM
+      continue-on-error: true
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
+
   package-linux-rpm:
     needs: [test-linux, create-man]
     runs-on: ubuntu-18.04
@@ -171,14 +186,25 @@ jobs:
         gem install fpm
         cp dist/fpm-config ~/.fpm
         fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-2.1.0.x86_64.rpm --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
-    - name: Retest using RPM
-      continue-on-error: true
-      run: ./dist/test-using-rpm.sh packages/linux/q-text-as-data-2.1.0.x86_64.rpm
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
         name: q-text-as-data-2.1.0.x86_64.rpm
         path: packages/linux/q-text-as-data-2.1.0.x86_64.rpm
+
+  test-rpm-packaging:
+    runs-on: ubuntu-18.04
+    needs: package-linux-rpm
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download RPM
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-2.1.0.x86_64.rpm
+    - name: Retest using RPM
+      continue-on-error: true
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -307,41 +333,14 @@ jobs:
 
   test-windows:
     needs: build-windows
+    if: ${{ false }}
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Install Python for Testing
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8.10'
-        architecture: 'x64'
-    - name: Prepare Testing
-      shell: bash
-      run: |
-        set -e -x
-
-        pip3 install wheel
-
-        pip3 install -r test-requirements.txt
-    - name: Download Windows Executable
-      uses: actions/download-artifact@v2
-      with:
-        name: win-q
-    - name: Run Tests on Windows Executable
-      continue-on-error: true
-      shell: bash
-      run: |
-        set -e -x
-
-        find ./ -ls
-
-        chmod 755 ./win-q.exe
-
-        Q_EXECUTABLE=../win-q.exe bash -x test/test-all
 
   package-windows:
-    needs: [test-windows, create-man]
+    needs: [create-man,test-windows]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -386,9 +385,40 @@ jobs:
         name: q-text-as-data-2.1.0.msi
         path: packages/windows/q-text-as-data-2.1.0.msi
 
+  test-windows-packaging:
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download Windows Package
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-2.1.0.msi
+    - name: Unzip MSI
+      shell: powershell
+      run: |
+        Extract-Archive -Path q-text-as-data-2.1.0.msi
+    - name: Test Install of MSI
+      continue-on-error: true
+      shell: powershell
+      run: |
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-2.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process.ExitCode
+        gc msi-install.log
+
+        exit $process.ExitCode
+    - name: Test Uninstall of MSI
+      continue-on-error: true
+      shell: powershell
+      run: |
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-2.1.0.msi -l* msi-uninstall.log /norestart /quiet" -PassThru -Wait
+        $process.ExitCode
+        gc msi-uninstall.log
+        exit $process.ExitCode
 
   release-new-version:
-    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
+    needs: [package-linux-deb, package-linux-rpm, package-mac, test-windows-packaging]
     runs-on: ubuntu-18.04
     steps:
     - name: Upload All Artifacts

@@ -132,9 +132,6 @@ jobs:
         gem install fpm
         cp dist/fpm-config ~/.fpm
         fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-2.1.0-1.x86_64.deb --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
-    - name: Test DEB Package Installation
-      continue-on-error: true
-      run: ./dist/test-using-deb.sh packages/linux/q-text-as-data-2.1.0-1.x86_64.deb
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
@@ -151,9 +148,8 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: q-text-as-data-2.1.0-1.x86_64.deb
-    - name: Retest using RPM
-      continue-on-error: true
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
+    - name: Test DEB Package Installation
+      run: ./dist/test-using-deb.sh ./q-text-as-data-2.1.0-1.x86_64.deb
 
   package-linux-rpm:
     needs: [test-linux, create-man]
@@ -203,7 +199,6 @@ jobs:
       with:
         name: q-text-as-data-2.1.0.x86_64.rpm
     - name: Retest using RPM
-      continue-on-error: true
       run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
 
   build-mac:
@@ -333,11 +328,15 @@ jobs:
 
   test-windows:
     needs: build-windows
-    if: ${{ false }}
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Fail deliberately - No tests on Windows
+      continue-on-error: true
+      run: |
+        echo "Tests are not actually running on the Windows Executable itself. Only the packaging is later tested"
+        exit 1
 
   package-windows:
     needs: [create-man,test-windows]

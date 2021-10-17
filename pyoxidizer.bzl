@@ -7,12 +7,12 @@
 # This function creates a Python executable and installs it in a destination
 # directory.
 def make_exe():
-    dist = default_python_distribution(python_version=VARS.get("Q_PYTHON_VERSION"))
+    dist = default_python_distribution(python_version="3.8")
 
     policy = dist.make_python_packaging_policy()
     policy.set_resource_handling_mode("classify")
     policy.resources_location = "in-memory"
-    policy.resources_location_fallback = "filesystem-relative:lib"
+    policy.resources_location_fallback = "filesystem-relative:Lib"
     policy.allow_in_memory_shared_library_loading = True
 
     python_config = dist.make_python_interpreter_config()
@@ -29,10 +29,7 @@ def make_exe():
 
     exe.pip_install(["wheel"])
 
-
-    for resource in exe.pip_install(["-r", "requirements.txt"]):
-      resource.add_location = 'in-memory'
-      exe.add_python_resource(resource)
+    exe.add_python_resources(exe.pip_install(["-r", "requirements.txt"]))
     exe.add_python_resources(exe.pip_install(["-e", "."]))
 
     exe.add_python_resources(exe.read_package_root(
@@ -64,7 +61,7 @@ def make_msi(exe):
         # The name of your application.
         "q-text-as-data",
         # The version of your application.
-        VARS.get("Q_VERSION"),
+        "2.1.0",
         # The author/manufacturer of your application.
         "Harel Ben-Attia"
     )

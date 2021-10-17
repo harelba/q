@@ -7,6 +7,12 @@ on: [pull_request]
 #        description: 'Version to be released'
 #        required: true
 
+env:
+  # To be replaced by release trigger variable
+  Q_VERSION: 2.1.0
+  Q_PYTHON_VERSION: 3.8
+  Q_PYTHON_TEST_CODE_VERSION: 3.8
+
 jobs:
   create-man:
     runs-on: ubuntu-18.04
@@ -56,7 +62,7 @@ jobs:
       run: |
         set -e -x
 
-        ./pyoxidizer build --release
+        ./pyoxidizer build --release --var Q_PYTHON_VERSION {{ env.Q_PYTHON_VERSION }} --var Q_VERSION {{ env.Q_VERSION }}
 
         export Q_EXECUTABLE=./build/x86_64-unknown-linux-gnu/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -80,7 +86,7 @@ jobs:
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.12'
+        python-version: {{ env.Q_PYTHON_TEST_CODE_VERSION }}
         architecture: 'x64'
     - name: Prepare Testing
       run: |
@@ -131,12 +137,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-2.1.0-1.x86_64.deb --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-{{ env.Q_VERSION }}-1.x86_64.deb --version {{ env.Q_VERSION }} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0-1.x86_64.deb
-        path: packages/linux/q-text-as-data-2.1.0-1.x86_64.deb
+        name: q-text-as-data-{{ env.Q_VERSION }}-1.x86_64.deb
+        path: packages/linux/q-text-as-data-{{ env.Q_VERSION }}-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
@@ -147,9 +153,9 @@ jobs:
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0-1.x86_64.deb
+        name: q-text-as-data-{{ env.Q_VERSION }}-1.x86_64.deb
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-2.1.0-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-{{ env.Q_VERSION }}-1.x86_64.deb
 
   package-linux-rpm:
     needs: [test-linux, create-man]
@@ -181,12 +187,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-2.1.0.x86_64.rpm --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-{{ env.Q_VERSION }}.x86_64.rpm --version {{ env.Q_VERSION }} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0.x86_64.rpm
-        path: packages/linux/q-text-as-data-2.1.0.x86_64.rpm
+        name: q-text-as-data-{{ env.Q_VERSION }}.x86_64.rpm
+        path: packages/linux/q-text-as-data-{{ env.Q_VERSION }}.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
@@ -197,9 +203,9 @@ jobs:
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0.x86_64.rpm
+        name: q-text-as-data-{{ env.Q_VERSION }}.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-{{ env.Q_VERSION }}.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -225,7 +231,7 @@ jobs:
       run: |
         set -e -x
 
-        ./pyoxidizer build --release
+        ./pyoxidizer build --release --var Q_PYTHON_VERSION {{ env.Q_PYTHON_VERSION }} --var Q_VERSION {{ env.Q_VERSION }}
 
         export Q_EXECUTABLE=./build/x86_64-apple-darwin/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -249,7 +255,7 @@ jobs:
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.12'
+        python-version: {{ env.Q_PYTHON_TEST_CODE_VERSION }}
         architecture: 'x64'
     - name: Prepare Testing
       run: |
@@ -290,7 +296,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.10'
+        python-version: {{ env.Q_PYTHON_TEST_CODE_VERSION }}
         architecture: 'x64'
     - name: Install pyoxidizer
       shell: bash
@@ -309,7 +315,7 @@ jobs:
         # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
         cp requirements-win-x86_64.txt requirements.txt
 
-        pyoxidizer build --release
+        pyoxidizer build --release --var Q_PYTHON_VERSION {{ env.Q_PYTHON_VERSION }} --var Q_VERSION {{ env.Q_VERSION }}
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -349,7 +355,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8.10'
+        python-version: {{ env.Q_PYTHON_TEST_CODE_VERSION }}
         architecture: 'x64'
     - name: Install pyoxidizer
       shell: bash
@@ -372,17 +378,17 @@ jobs:
 
         find ./ -ls
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-2.1.0.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-{{ env.Q_VERSION }}.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-2.1.0.msi
+        cp $Q_MSI packages/windows/q-text-as-data-{{ env.Q_VERSION }}.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0.msi
-        path: packages/windows/q-text-as-data-2.1.0.msi
+        name: q-text-as-data-{{ env.Q_VERSION }}.msi
+        path: packages/windows/q-text-as-data-{{ env.Q_VERSION }}.msi
 
   test-windows-packaging:
     needs: package-windows
@@ -393,12 +399,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0.msi
+        name: q-text-as-data-{{ env.Q_VERSION }}.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-2.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-{{ env.Q_VERSION }}.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -407,7 +413,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-2.1.0.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-{{ env.Q_VERSION }}.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 

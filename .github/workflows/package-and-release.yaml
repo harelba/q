@@ -286,7 +286,7 @@ jobs:
         set -x -e
         set -o pipefail
 
-        git clone git@github.com:harelba/homebrew-core.git
+        git clone https://github.com/harelba/homebrew-core.git
         cd homebrew-core
 
         git checkout -b new-q-version

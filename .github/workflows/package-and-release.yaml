@@ -291,12 +291,12 @@ jobs:
         set -x -e
         set -o pipefail
 
-        cd homebrew-core
+        pushd homebrew-core/
 
         git checkout -b new-q-version
 
         # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
+        cat ../.github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
 
         brew install --build-from-source Formula/q.rb
 

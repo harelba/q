@@ -286,11 +286,13 @@ jobs:
         set -x -e
         set -o pipefail
 
-        # TODO temp, since template rendering action doesn't work in mac
-        cat ../.github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
+        mkdir brew
 
-        brew install --display-times --formula --build-bottle --verbose ./Formula/q.rb
-        brew test ./Formula/q.rb
+        # TODO temp, since template rendering action doesn't work in mac
+        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > ./brew/q.rb
+
+        brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
+        brew test ./brew/q.rb
 
     - name: Create q bottle and test it
       run: |

@@ -1,0 +1,33 @@
+class Q < Formula
+  include Language::Python::Virtualenv
+
+  desc "Run SQL directly on CSV or TSV files"
+  homepage "https://harelba.github.io/q/"
+  url "git@github.com:harelba/q.git", :using => :git, :branch => "package-using-actions"
+  license "GPL-3.0-or-later"
+  revision 3
+
+  version "{{ .Q_VERSION }}"
+
+  depends_on "python@3.9"
+  depends_on "ronn" => :build
+  depends_on "pyoxidizer"
+  depends_on "six"
+
+  def install
+    virtualenv_install_with_resources
+    system "pyoxidizer","build","--release"
+
+    bin.install "./build/x86_64-apple-darwin/release/install/q"
+
+    system "ronn", "--roff", "--section=1", "doc/USAGE.markdown"
+    man1.install "doc/USAGE.1" => "q.1"
+  end
+
+  test do
+    seq = (1..100).map(&:to_s).join("\n")
+    output = pipe_output("#{bin}/q -c 1 'select sum(c1) from -'", seq)
+    assert_equal "5050\n", output
+  end
+end
+

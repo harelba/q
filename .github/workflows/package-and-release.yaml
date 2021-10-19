@@ -33,6 +33,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-18.04
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -203,6 +204,7 @@ jobs:
 
   build-mac:
     runs-on: macos-11
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -243,6 +245,7 @@ jobs:
   test-mac:
     needs: build-mac
     runs-on: macos-11
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -273,15 +276,39 @@ jobs:
         Q_EXECUTABLE=../macos-q bash -x test/test-all
 
   package-mac:
-    needs: [test-mac, create-man]
+#    needs: [test-mac, create-man]
     runs-on: macos-11
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Checkout homebrew fork
+      uses: actions/checkout@v2
+      with:
+        repository: harelba/homebrew-core
+        path: homebrew-core
+    - name: Create new homebrew formula for q
+        id: render_template
+        uses: chuhlomin/render-template@v1.2
+        with:
+          template: ./github/workflows/q.rb.brew-formula-template
+          vars: |
+            Q_VERSION: 2.1.0
+    - name: Update homebrew formula and test it
+      run: |
+        set -x -e
+        cd homebrew-core
+
+        git checkout -b new-q-version
+
+        echo '${{ steps.render_template.outputs.result }}' > Formula/q.rb
+
+        brew install --build-from-source Formula/q.rb
+
+        # TODO auto-create PR to main homebrew-core
 
   build-windows:
     runs-on: windows-latest
+    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2

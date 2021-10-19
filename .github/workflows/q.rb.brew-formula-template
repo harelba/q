@@ -8,8 +8,8 @@ class Q < Formula
   version "2.1.0"
 
   depends_on "ronn" => :build
-  depends_on "python@3.8"
-  depends_on "pyoxidizer"
+  depends_on "python@3.8" => :build
+  depends_on "pyoxidizer" => :build
   depends_on xcode: ["12.4", :build]
 
   def install

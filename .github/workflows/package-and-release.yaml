@@ -281,7 +281,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Checkout homebrew fork
     - name: Update homebrew formula and test it
       run: |
         set -x -e

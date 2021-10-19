@@ -294,7 +294,7 @@ jobs:
         # TODO temp, since template rendering action doesn't work in mac
         cat ../.github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
 
-        brew install --build-from-source Formula/q.rb
+        brew install --build-from-source --formula Formula/q.rb
 
         # TODO auto-create PR to main homebrew-core
 

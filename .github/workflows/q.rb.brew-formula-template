@@ -1,23 +1,19 @@
 class Q < Formula
-  include Language::Python::Virtualenv
-
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
   url "https://github.com/harelba/q.git", :using => :git, :branch => "package-using-actions"
   license "GPL-3.0-or-later"
   revision 3
 
-  version "{{ .Q_VERSION }}"
+  version "2.1.0"
 
-  depends_on "python@3.9"
   depends_on "ronn" => :build
+  depends_on "python@3.8"
   depends_on "pyoxidizer"
-  depends_on "six"
+  depends_on xcode: ["12.4", :build]
 
   def install
-    virtualenv_install_with_resources
     system "pyoxidizer","build","--release"
-
     bin.install "./build/x86_64-apple-darwin/release/install/q"
 
     system "ronn", "--roff", "--section=1", "doc/USAGE.markdown"
@@ -30,4 +26,3 @@ class Q < Formula
     assert_equal "5050\n", output
   end
 end
-

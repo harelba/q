@@ -294,7 +294,17 @@ jobs:
         # TODO temp, since template rendering action doesn't work in mac
         cat ../.github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
 
-        brew install --build-from-source --formula Formula/q.rb
+        brew install --display-times --formula --build-bottle --verbose ./Formula/q.rb
+
+        #brew test ./Formula/q.rb
+
+        brew bottle --force-core-tap --no-rebuild ./Formula/q.rb
+
+        find ./ -ls | grep -v \.git
+
+        tar xvfz q-*bottle*.tar.gz
+
+        brew link q
 
         # TODO auto-create PR to main homebrew-core
 

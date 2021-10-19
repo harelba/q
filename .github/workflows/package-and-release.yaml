@@ -286,13 +286,6 @@ jobs:
       with:
         repository: harelba/homebrew-core
         path: homebrew-core
-    - name: Create new homebrew formula for q
-      id: render_template
-      uses: chuhlomin/render-template@v1.2
-      with:
-        template: ./github/workflows/q.rb.brew-formula-template
-        vars: |
-          Q_VERSION: 2.1.0
     - name: Update homebrew formula and test it
       run: |
         set -x -e

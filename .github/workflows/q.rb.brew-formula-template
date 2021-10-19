@@ -3,7 +3,7 @@ class Q < Formula
 
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
-  url "git@github.com:harelba/q.git", :using => :git, :branch => "package-using-actions"
+  url "https://github.com/harelba/q.git", :using => :git, :branch => "package-using-actions"
   license "GPL-3.0-or-later"
   revision 3
 

@@ -3,7 +3,7 @@ class Q < Formula
   homepage "https://harelba.github.io/q/"
   url "https://github.com/harelba/q.git", :using => :git, :branch => "package-using-actions"
   license "GPL-3.0-or-later"
-  revision 3
+  revision 1
 
   version "2.1.0"
 

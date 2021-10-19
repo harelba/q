@@ -281,31 +281,37 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Update homebrew formula and test it
+    - name: Create homebrew formula and install it
       run: |
         set -x -e
         set -o pipefail
-
-        git clone https://github.com/harelba/homebrew-core.git
-        cd homebrew-core
-
-        git checkout -b new-q-version
 
         # TODO temp, since template rendering action doesn't work in mac
         cat ../.github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > Formula/q.rb
 
         brew install --display-times --formula --build-bottle --verbose ./Formula/q.rb
+        brew test ./Formula/q.rb
 
-        #brew test ./Formula/q.rb
-
+    - name: Create q bottle and test it
+      run: |
         brew bottle --force-core-tap --no-rebuild ./Formula/q.rb
 
-        find ./ -ls | grep -v \.git
+        brew uninstall --formula q
 
-        tar xvfz q-*bottle*.tar.gz
+        WD=$(pwd)
+
+        pushd /usr/local/Cellar
+        tar xvfz ${WD}/q-*bottle*.tar.gz
+        popd
 
         brew link q
 
+        seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+
+        #git clone https://github.com/harelba/homebrew-core.git
+        #cd homebrew-core
+
+        #git checkout -b new-q-version
         # TODO auto-create PR to main homebrew-core
 
   build-windows:

@@ -285,6 +285,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: harelba/homebrew-core
+        token: ${{ secrets.HOMEBREW_PAT_FOR_Q_WORKFLOW }}
         path: homebrew-core
     - name: Update homebrew formula and test it
       run: |

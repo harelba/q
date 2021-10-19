@@ -282,17 +282,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Checkout homebrew fork
-      uses: actions/checkout@v2
-      with:
-        repository: harelba/homebrew-core
-        token: ${{ secrets.HOMEBREW_PAT_FOR_Q_WORKFLOW }}
-        path: homebrew-core
     - name: Update homebrew formula and test it
       run: |
         set -x -e
         set -o pipefail
 
-        pushd homebrew-core/
+        git clone git@github.com:harelba/homebrew-core.git
+        cd homebrew-core
 
         git checkout -b new-q-version
 

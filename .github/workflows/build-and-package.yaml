@@ -7,7 +7,7 @@ on:
     tags:
       - "v*"
   # Remove comment in order to pre-release on a PR, to validate packaging flow
-  #pull_request:
+  pull_request:
 
 jobs:
   create-man:
@@ -101,7 +101,7 @@ jobs:
 
         chmod 755 ./linux-q
 
-        Q_EXECUTABLE=../linux-q bash -x test/test-all
+        Q_EXECUTABLE=../linux-q ./run-tests.sh -v
 
   package-linux-deb:
     needs: [test-linux, create-man]
@@ -133,12 +133,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-2.1.0-1.x86_64.deb --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-1.x86_64.deb --version 3.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0-1.x86_64.deb
-        path: packages/linux/q-text-as-data-2.1.0-1.x86_64.deb
+        name: q-text-as-data-3.1.0-1.x86_64.deb
+        path: packages/linux/q-text-as-data-3.1.0-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
@@ -149,9 +149,9 @@ jobs:
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0-1.x86_64.deb
+        name: q-text-as-data-3.1.0-1.x86_64.deb
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-2.1.0-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.0-1.x86_64.deb
 
   package-linux-rpm:
     needs: [test-linux, create-man]
@@ -183,12 +183,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-2.1.0.x86_64.rpm --version 2.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.0.x86_64.rpm --version 3.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0.x86_64.rpm
-        path: packages/linux/q-text-as-data-2.1.0.x86_64.rpm
+        name: q-text-as-data-3.1.0.x86_64.rpm
+        path: packages/linux/q-text-as-data-3.1.0.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
@@ -199,9 +199,9 @@ jobs:
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0.x86_64.rpm
+        name: q-text-as-data-3.1.0.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-2.1.0.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.0.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -272,7 +272,7 @@ jobs:
 
         chmod 755 ./macos-q
 
-        Q_EXECUTABLE=../macos-q bash -x test/test-all
+        Q_EXECUTABLE=../macos-q ./run-tests.sh -v
 
   package-mac:
     # create-man is not needed, as it's generated inside the brew formula independently
@@ -289,7 +289,7 @@ jobs:
         mkdir brew
 
         # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/2.1.0/g' > ./brew/q.rb
+        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0/g' > ./brew/q.rb
 
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
@@ -300,8 +300,8 @@ jobs:
     - name: Upload  Executable
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q--2.1.0_1.big_sur.bottle.tar.gz
-        path: ./q--2.1.0_1.big_sur.bottle.tar.gz
+        name: q--3.1.0_1.big_sur.bottle.tar.gz
+        path: ./q--3.1.0_1.big_sur.bottle.tar.gz
 
 # TODO auto-create PR to main homebrew-core
 #        git clone https://github.com/harelba/homebrew-core.git
@@ -318,7 +318,7 @@ jobs:
     - name: Download q bottle
       uses: actions/download-artifact@v2
       with:
-        name: q--2.1.0_1.big_sur.bottle.tar.gz
+        name: q--3.1.0_1.big_sur.bottle.tar.gz
     - name: Test the created bottle
       run: |
         set -x -e
@@ -327,7 +327,7 @@ jobs:
         WD=$(pwd)
 
         pushd /usr/local/Cellar
-        tar xvfz ${WD}/q--2.1.0_1.big_sur.bottle.tar.gz
+        tar xvfz ${WD}/q--3.1.0_1.big_sur.bottle.tar.gz
         popd
 
         brew link q
@@ -429,17 +429,17 @@ jobs:
 
         find ./ -ls
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-2.1.0.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-2.1.0.msi
+        cp $Q_MSI packages/windows/q-text-as-data-3.1.0.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-2.1.0.msi
-        path: packages/windows/q-text-as-data-2.1.0.msi
+        name: q-text-as-data-3.1.0.msi
+        path: packages/windows/q-text-as-data-3.1.0.msi
 
   test-windows-packaging:
     needs: package-windows
@@ -450,12 +450,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-2.1.0.msi
+        name: q-text-as-data-3.1.0.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-2.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -464,7 +464,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-2.1.0.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 

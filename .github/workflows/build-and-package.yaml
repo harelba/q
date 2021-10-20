@@ -7,7 +7,7 @@ on:
     tags-ignore:
       - "*"
   pull_request:
-    
+
 jobs:
   create-man:
     runs-on: ubuntu-18.04
@@ -481,6 +481,7 @@ jobs:
 
   perform-prerelease:
     runs-on: ubuntu-latest
+    needs: ensure-artifacts-uploaded
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
@@ -492,7 +493,7 @@ jobs:
 
         echo '${{ github.event.workflow_run.conclusion }}' > artifacts/BUILD-AND-PACKAGING-CONCLUSION.txt
     - name: Create pre-release
-      uses: "marvinpinto/action-automatic-releases@1.2.1"
+      uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"

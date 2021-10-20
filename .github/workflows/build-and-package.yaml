@@ -1,11 +1,13 @@
-name: Package and Release
+name: BuildAndPackage
 
-on: [pull_request]
-#  workflow_dispatch:
-#    inputs:
-#      release_version:
-#        description: 'Version to be released'
-#        required: true
+on:
+  push:
+    branches:
+      - "master"
+    tags-ignore:
+      - "*"
+  # TODO For testing, to be removed eventually
+  pull_request:
 
 jobs:
   create-man:
@@ -466,8 +468,10 @@ jobs:
         $process.ExitCode
         exit $process.ExitCode
 
-  release-new-version:
-    needs: [package-linux-deb, package-linux-rpm, package-mac, test-windows-packaging]
+  ensure-artifacts-uploaded:
+    # We'd like artifacts to be uploaded regardless of tests succeeded or not,
+    # this is why the dependency here is not on test-X-packaging jobs
+    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
     runs-on: ubuntu-18.04
     steps:
     - name: Upload All Artifacts

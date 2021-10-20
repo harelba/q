@@ -1,0 +1,34 @@
+name: PreRelease
+
+on:
+  workflow_run:
+    workflows: ["BuildAndPackage"]
+    branches: [master]
+    types:
+      - completed
+
+
+#if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+jobs:
+  perform-prerelease:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts/
+    - name: Add Build and Packaging Workflow Conclusion
+      run: |
+        set -x -e
+
+        echo '${{ github.event.workflow_run.conclusion }}' > artifacts/BUILD-AND-PACKAGING-CONCLUSION.txt
+    - name: Create pre-release
+      uses: "marvinpinto/action-automatic-releases@1.2.1"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Next Release Development Build"
+        files: |
+          artifacts/**/*

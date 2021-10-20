@@ -2,9 +2,12 @@ name: BuildAndPackage
 
 on:
   push:
+    branch:
+      - master
     tags:
       - "v*"
-  pull_request:
+  # Remove comment in order to pre-release on a PR, to validate packaging flow
+  #pull_request:
 
 jobs:
   create-man:

@@ -335,9 +335,9 @@ jobs:
 
         echo 'select sum(c1),count(*) from `-`;' | sqlite3 test.sqlite
 
+  # TODO Windows build/test/package flow is running, but q executable is still not running well, due to pyox+sqlite3 issue
   build-windows:
     runs-on: windows-latest
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2

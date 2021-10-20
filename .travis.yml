@@ -8,7 +8,6 @@ env:
   global:
     - CACHE_NAME=${TRAVIS_JOB_NAME}
 
-
 _commands_provider:
 
   _test: &_test make test
@@ -59,12 +58,12 @@ jobs:
           - ${HOME}/.pyenv_cache
 
     - stage: integration
-      name: py36-macos
+      name: py39-macos
       os: osx
       language: generic
       osx_image: xcode7.3
       env:
-        - PYENV_VERSION=3.6.4
+        - PYENV_VERSION=3.9.7
       before_install: source setup-pyenv.sh
       <<: *_step_test
       cache:
@@ -72,12 +71,12 @@ jobs:
           - ${HOME}/.pyenv_cache
 
     - stage: integration
-      name: py37-macos
+      name: py310-macos
       os: osx
       language: generic
       osx_image: xcode7.3
       env:
-        - PYENV_VERSION=3.7.3
+        - PYENV_VERSION=3.10.0
       before_install: source setup-pyenv.sh
       <<: *_step_test
       cache:
@@ -91,16 +90,16 @@ jobs:
       <<: *_step_test
 
     - stage: integration
-      name: py36-linux
+      name: py39-linux
       language: python
-      python: "3.6"
+      python: "3.9"
       <<: *_step_test
 
     - stage: integration
-      name: py37-linux
+      name: py310-linux
       language: python
       dist: xenial
-      python: "3.7"
+      python: "3.10"
       <<: *_step_test
 
     - stage: release
@@ -109,7 +108,7 @@ jobs:
       language: generic
       osx_image: xcode7.3
       env:
-        - PYENV_VERSION=3.7.3
+        - PYENV_VERSION=3.10.0
       before_install: source setup-pyenv.sh
       <<: *_step_release
       cache:
@@ -120,7 +119,7 @@ jobs:
       name: linux
       language: python
       dist: xenial
-      python: "3.7"
+      python: "3.10"
       <<: *_step_release
 
     - stage: release
@@ -128,10 +127,10 @@ jobs:
       os: windows
       language: shell
       env:
-        - PATH=/c/Python37:/c/Python37/Scripts:$PATH
+        - PATH=/c/Python39:/c/Python39/Scripts:$PATH
       before_install:
         - *_disable_windows_compression
         - *_disable_windows_defender
         - choco install make
-        - choco install python --version 3.7.3
+        - choco install python --version 3.9.7
       <<: *_step_release

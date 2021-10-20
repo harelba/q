@@ -46,19 +46,6 @@ jobs:
   include:
 
     - stage: integration
-      name: py27-macos
-      os: osx
-      language: generic
-      osx_image: xcode7.3
-      env:
-        - PYENV_VERSION=2.7.14
-      before_install: source setup-pyenv.sh
-      <<: *_step_test
-      cache:
-        directories:
-          - ${HOME}/.pyenv_cache
-
-    - stage: integration
       name: py36-macos
       os: osx
       language: generic
@@ -83,12 +70,6 @@ jobs:
       cache:
         directories:
           - ${HOME}/.pyenv_cache
-
-    - stage: integration
-      name: py27-linux
-      language: python
-      python: "2.7"
-      <<: *_step_test
 
     - stage: integration
       name: py36-linux

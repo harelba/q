@@ -33,7 +33,6 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-18.04
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -204,7 +203,6 @@ jobs:
 
   build-mac:
     runs-on: macos-11
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -245,7 +243,6 @@ jobs:
   test-mac:
     needs: build-mac
     runs-on: macos-11
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -276,7 +273,8 @@ jobs:
         Q_EXECUTABLE=../macos-q bash -x test/test-all
 
   package-mac:
-#    needs: [test-mac, create-man]
+    # create-man is not needed, as it's generated inside the brew formula independently
+    needs: [test-mac]
     runs-on: macos-11
     steps:
     - name: Checkout
@@ -320,6 +318,33 @@ jobs:
 #        cd homebrew-core
 #
 #        git checkout -b new-q-version
+
+  test-mac-packaging:
+    needs: package-mac
+    runs-on: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download q bottle
+      uses: actions/download-artifact@v2
+      with:
+        name: q--2.1.0_1.big_sur.bottle.tar.gz
+    - name: Test the created bottle
+      run: |
+        set -x -e
+        set -o pipefail
+
+        WD=$(pwd)
+
+        pushd /usr/local/Cellar
+        tar xvfz ${WD}/q--2.1.0_1.big_sur.bottle.tar.gz
+        popd
+
+        brew link q
+
+        seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+
+        echo 'select sum(c1),count(*) from `-`;' | sqlite3 test.sqlite
 
   build-windows:
     runs-on: windows-latest

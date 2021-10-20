@@ -22,3 +22,4 @@ htmlcov/
 *.tar.gz
 .coverage
 .DS_Store
+*.egg

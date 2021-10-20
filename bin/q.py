@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 #   Copyright (C) 2012-2021 Harel Ben-Attia
 #
@@ -34,7 +35,7 @@ from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 from uuid import uuid4
 
-q_version = '3.0.0b'
+q_version = '3.1.0'
 
 #__all__ = [ 'QTextAsData' ]
 
@@ -3280,7 +3281,7 @@ def initialize_command_line_parser(p, qrc_filename):
         print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (
         e.actual_value, e.option, qrc_filename, e.option_type))
         sys.exit(199)
-    parser = OptionParser(usage=USAGE_TEXT)
+    parser = OptionParser(prog="q",usage=USAGE_TEXT)
     parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
     parser.add_option("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",

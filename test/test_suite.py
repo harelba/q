@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # test suite for q.
@@ -49,11 +49,17 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
 Q_EXECUTABLE = os.path.abspath(os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py')))
+Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
 
-if not os.path.exists(Q_EXECUTABLE):
-    raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
+
+if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
+    if not os.path.exists(Q_EXECUTABLE):
+        raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
+    else:
+        Q_EXECUTABLE = sys.executable + ' ' + Q_EXECUTABLE
 else:
-    Q_EXECUTABLE = sys.executable + ' ' + Q_EXECUTABLE
+    # Skip checking of executable (useful for testing that q is in the path)
+    pass
 
 DEBUG = '-v' in sys.argv
 if os.environ.get('Q_DEBUG'):
@@ -1564,38 +1570,42 @@ class BasicTests(AbstractQTestCase):
         self.cleanup(tmp_query_file)
 
     def test_output_header_with_non_ascii_names(self):
+        OUTPUT_ENCODING = 'utf-8'
+
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' Hr\xc3\xa1\xc4\x8d from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -O' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -O -E %s' % (tmp_query_file.name,OUTPUT_ENCODING)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(o),4)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0].decode(SYSTEM_ENCODING), u'name,Hr\xe1\u010d')
-        self.assertEqual(o[1].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
-        self.assertEqual(o[2].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
-        self.assertEqual(o[3].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
+        self.assertEqual(o[0].decode(OUTPUT_ENCODING), u'name,Hr\xe1\u010d')
+        self.assertEqual(o[1].decode(OUTPUT_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEqual(o[2].decode(OUTPUT_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEqual(o[3].decode(OUTPUT_ENCODING), u'c,Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
 
     def test_use_query_file_with_query_encoding(self):
+        OUTPUT_ENCODING = 'utf-8'
+
         tmp_data_file = self.create_file_with_data(sample_data_with_header)
         tmp_query_file = self.create_file_with_data(six.b("select name,'Hr\xc3\xa1\xc4\x8d' from %s" % tmp_data_file.name),encoding=None)
 
-        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8' % tmp_query_file.name
+        cmd = Q_EXECUTABLE + ' -d , -q %s -H -Q utf-8 -E %s' % (tmp_query_file.name,OUTPUT_ENCODING)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o), 3)
 
-        self.assertEqual(o[0].decode(SYSTEM_ENCODING), u'a,Hr\xe1\u010d')
-        self.assertEqual(o[1].decode(SYSTEM_ENCODING), u'b,Hr\xe1\u010d')
-        self.assertEqual(o[2].decode(SYSTEM_ENCODING), u'c,Hr\xe1\u010d')
+        self.assertEqual(o[0].decode(OUTPUT_ENCODING), u'a,Hr\xe1\u010d')
+        self.assertEqual(o[1].decode(OUTPUT_ENCODING), u'b,Hr\xe1\u010d')
+        self.assertEqual(o[2].decode(OUTPUT_ENCODING), u'c,Hr\xe1\u010d')
 
         self.cleanup(tmp_data_file)
         self.cleanup(tmp_query_file)
@@ -2768,12 +2778,14 @@ class QuotingTests(AbstractQTestCase):
         self._internal_test_consistency_of_chaining_output_to_input(input_data,'all','all')
 
     def test_input_field_quoting_and_data_types_with_encoding(self):
+        OUTPUT_ENCODING = 'utf-8'
+
         # Checks combination of minimal input field quoting, with special characters that need to be decoded -
         # Both content and proper data types are verified
         data = six.b('111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n')
         tmp_data_file = self.create_file_with_data(data)
 
-        cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmp_data_file.name
+        cmd = Q_EXECUTABLE + ' -d , "select * from %s" -E %s' % (tmp_data_file.name,OUTPUT_ENCODING)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode,0)

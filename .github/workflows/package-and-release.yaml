@@ -292,21 +292,9 @@ jobs:
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
 
-    - name: Create q bottle and test it
+    - name: Create q bottle
       run: |
         brew bottle --force-core-tap --no-rebuild ./brew/q.rb
-
-        brew uninstall --formula q
-
-        WD=$(pwd)
-
-        pushd /usr/local/Cellar
-        tar xvfz ${WD}/q-*bottle*.tar.gz
-        popd
-
-        brew link q
-
-        seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
     - name: Upload  Executable
       uses: actions/upload-artifact@v1.0.0
       with:

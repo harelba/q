@@ -2,10 +2,8 @@ name: BuildAndPackage
 
 on:
   push:
-    branches:
-      - "master"
-    tags-ignore:
-      - "*"
+    tags:
+      - "v*"
   pull_request:
 
 jobs:
@@ -472,16 +470,12 @@ jobs:
     # this is why the dependency here is not on test-X-packaging jobs
     needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
       with:
         path: artifacts/
-    - name: Add Build and Packaging Workflow Conclusion
-      run: |
-        set -x -e
-
-        echo '${{ github.event.workflow_run.conclusion }}' > artifacts/BUILD-AND-PACKAGING-CONCLUSION.txt
     - name: Create pre-release
       uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
@@ -489,5 +483,30 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: true
         title: "Next Release Development Build"
+        files: |
+          artifacts/**/*
+
+  perform-release:
+    # TODO Windows is not here so users won't be confused by seeing an MSI (it's still not production-grade, you need to have sqlite3 dll in the path)
+    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    steps:
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts/
+    - name: Delete Windows Artifacts so they're not part of the release for now
+      run: |
+        set -o -x
+
+        echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
+
+        rm -vf artifacts/*.msi
+        rm -vf artifacts/win-q.exe
+    - uses: "marvinpinto/action-automatic-releases@v1.2.1"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
         files: |
           artifacts/**/*

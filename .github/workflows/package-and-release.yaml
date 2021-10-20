@@ -296,7 +296,7 @@ jobs:
 
     - name: Create q bottle and test it
       run: |
-        brew bottle --force-core-tap --no-rebuild ./Formula/q.rb
+        brew bottle --force-core-tap --no-rebuild ./brew/q.rb
 
         brew uninstall --formula q
 

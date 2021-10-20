@@ -101,7 +101,7 @@ jobs:
 
         chmod 755 ./linux-q
 
-        Q_EXECUTABLE=./linux-q ./run-tests.sh -v
+        Q_EXECUTABLE=./linux-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
   package-linux-deb:
     needs: [test-linux, create-man]
@@ -272,7 +272,7 @@ jobs:
 
         chmod 755 ./macos-q
 
-        Q_EXECUTABLE=./macos-q ./run-tests.sh -v
+        Q_EXECUTABLE=./macos-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
   package-mac:
     # create-man is not needed, as it's generated inside the brew formula independently

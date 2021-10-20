@@ -55,8 +55,6 @@ Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
 if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
     if not os.path.exists(Q_EXECUTABLE):
         raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
-    else:
-        Q_EXECUTABLE = sys.executable + ' ' + Q_EXECUTABLE
 else:
     # Skip checking of executable (useful for testing that q is in the path)
     pass

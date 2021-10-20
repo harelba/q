@@ -1,19 +1,24 @@
+# frozen_string_literal: true
+
+# Formula for q
 class Q < Formula
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
-  url "https://github.com/harelba/q.git", :using => :git, :branch => "package-using-actions"
+  url "https://github.com/harelba/q/archive/package-using-actions.tar.gz"
+  version "2.1.0"
+
+  sha256 "0844aed6658d0347a299b84bee978c88724d45093e8cbd7b05506ecc0b93c98c"
+
   license "GPL-3.0-or-later"
   revision 1
 
-  version "2.1.0"
-
-  depends_on "ronn" => :build
-  depends_on "python@3.8" => :build
   depends_on "pyoxidizer" => :build
+  depends_on "python@3.8" => :build
+  depends_on "ronn" => :build
   depends_on xcode: ["12.4", :build]
 
   def install
-    system "pyoxidizer","build","--release"
+    system "pyoxidizer", "build", "--release"
     bin.install "./build/x86_64-apple-darwin/release/install/q"
 
     system "ronn", "--roff", "--section=1", "doc/USAGE.markdown"

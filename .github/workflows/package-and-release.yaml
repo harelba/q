@@ -309,12 +309,17 @@ jobs:
         brew link q
 
         seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+    - name: Upload  Executable
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: q--2.1.0_1.big_sur.bottle.tar.gz
+        path: ./q--2.1.0_1.big_sur.bottle.tar.gz
 
-        #git clone https://github.com/harelba/homebrew-core.git
-        #cd homebrew-core
-
-        #git checkout -b new-q-version
-        # TODO auto-create PR to main homebrew-core
+# TODO auto-create PR to main homebrew-core
+#        git clone https://github.com/harelba/homebrew-core.git
+#        cd homebrew-core
+#
+#        git checkout -b new-q-version
 
   build-windows:
     runs-on: windows-latest

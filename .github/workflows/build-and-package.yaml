@@ -467,21 +467,11 @@ jobs:
         $process.ExitCode
         exit $process.ExitCode
 
-  ensure-artifacts-uploaded:
+  perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
     needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
-    runs-on: ubuntu-18.04
-    steps:
-    - name: Upload All Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: packages
-        path: packages
-
-  perform-prerelease:
     runs-on: ubuntu-latest
-    needs: ensure-artifacts-uploaded
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

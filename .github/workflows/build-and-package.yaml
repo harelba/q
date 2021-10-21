@@ -489,6 +489,11 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         path: artifacts/
+    - name: Timestamp pre-release
+      run: |
+        set -e -x
+
+        echo "Workflow finished at $(date)" >> artifacts/workflow-finish-time.txt
     - name: Create pre-release
       uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:

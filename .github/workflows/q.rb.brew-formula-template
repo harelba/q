@@ -4,7 +4,8 @@
 class Q < Formula
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
-  url "https://github.com/harelba/q/archive/qsql-with-packaging.tar.gz"
+  # Building directly from master for now, eventually it will be tag-based so the version tag will be downloaded
+  url "https://github.com/harelba/q/archive/master.tar.gz"
   version "{{ .Q_VERSION }}"
 
   # Removed for now, until everything is finalized

@@ -482,7 +482,7 @@ jobs:
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
-    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
+    needs: [package-linux-deb, package-linux-rpm, package-mac]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
     steps:
@@ -512,12 +512,14 @@ jobs:
         path: artifacts/
     - name: Delete Windows Artifacts so they're not part of the release for now
       run: |
-        set -o -x
+        set -x -o
 
         echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
 
+        set +o
         rm -vf artifacts/*.msi
         rm -vf artifacts/win-q.exe
+        set -e
     - uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"

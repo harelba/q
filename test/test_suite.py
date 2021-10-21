@@ -261,7 +261,7 @@ class AbstractQTestCase(unittest.TestCase):
         return name
 
     def cleanup_folder(self,tmpfolder):
-        if not tmpfolder.startswith(os.path.realpath('/var/tmp/tmqp')):
+        if not tmpfolder.startswith(os.path.realpath('/var/tmp')):
             raise Exception('Guard against accidental folder deletions: %s' % tmpfolder)
         global DEBUG
         if not DEBUG:

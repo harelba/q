@@ -2345,7 +2345,7 @@ def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
 def print_credentials():
     print("q version %s" % q_version, file=sys.stderr)
     print("Python: %s" % " // ".join([str(x).strip() for x in sys.version.split("\n")]), file=sys.stderr)
-    print("Copyright (C) 2012-2020 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
+    print("Copyright (C) 2012-2021 Harel Ben-Attia (harelba@gmail.com, @harelba on twitter)", file=sys.stderr)
     print("http://harelba.github.io/q/", file=sys.stderr)
     print(file=sys.stderr)
 

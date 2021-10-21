@@ -133,12 +133,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-1.x86_64.deb --version 3.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-beta-1.x86_64.deb --version 3.1.0-beta ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-1.x86_64.deb
-        path: packages/linux/q-text-as-data-3.1.0-1.x86_64.deb
+        name: q-text-as-data-3.1.0-beta-1.x86_64.deb
+        path: packages/linux/q-text-as-data-3.1.0-beta-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
@@ -149,7 +149,7 @@ jobs:
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-1.x86_64.deb
+        name: q-text-as-data-3.1.0-beta-1.x86_64.deb
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -161,7 +161,7 @@ jobs:
 
         pip3 install -r test-requirements.txt
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.0-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.0-beta-1.x86_64.deb
 
   package-linux-rpm:
     needs: [test-linux, create-man]
@@ -193,12 +193,12 @@ jobs:
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.0.x86_64.rpm --version 3.1.0 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-beta.x86_64.rpm --version 3.1.0-beta ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0.x86_64.rpm
-        path: packages/linux/q-text-as-data-3.1.0.x86_64.rpm
+        name: q-text-as-data-3.1.0-beta.x86_64.rpm
+        path: packages/linux/q-text-as-data-3.1.0-beta.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
@@ -209,9 +209,9 @@ jobs:
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0.x86_64.rpm
+        name: q-text-as-data-3.1.0-beta.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.0.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.0-beta.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -299,7 +299,7 @@ jobs:
         mkdir brew
 
         # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0/g' > ./brew/q.rb
+        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' > ./brew/q.rb
 
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
@@ -310,8 +310,8 @@ jobs:
     - name: Upload  Executable
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q--3.1.0_1.big_sur.bottle.tar.gz
-        path: ./q--3.1.0_1.big_sur.bottle.tar.gz
+        name: q--3.1.0-beta_1.big_sur.bottle.tar.gz
+        path: ./q--3.1.0-beta_1.big_sur.bottle.tar.gz
 
 # TODO auto-create PR to main homebrew-core
 #        git clone https://github.com/harelba/homebrew-core.git
@@ -328,7 +328,7 @@ jobs:
     - name: Download q bottle
       uses: actions/download-artifact@v2
       with:
-        name: q--3.1.0_1.big_sur.bottle.tar.gz
+        name: q--3.1.0-beta_1.big_sur.bottle.tar.gz
     - name: Test the created bottle
       run: |
         set -x -e
@@ -337,7 +337,7 @@ jobs:
         WD=$(pwd)
 
         pushd /usr/local/Cellar
-        tar xvfz ${WD}/q--3.1.0_1.big_sur.bottle.tar.gz
+        tar xvfz ${WD}/q--3.1.0-beta_1.big_sur.bottle.tar.gz
         popd
 
         brew link q
@@ -440,17 +440,17 @@ jobs:
 
         find ./ -ls
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0-beta.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-3.1.0.msi
+        cp $Q_MSI packages/windows/q-text-as-data-3.1.0-beta.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0.msi
-        path: packages/windows/q-text-as-data-3.1.0.msi
+        name: q-text-as-data-3.1.0-beta.msi
+        path: packages/windows/q-text-as-data-3.1.0-beta.msi
 
   test-windows-packaging:
     needs: package-windows
@@ -461,12 +461,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0.msi
+        name: q-text-as-data-3.1.0-beta.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0-beta.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -475,7 +475,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0-beta.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 
@@ -512,11 +512,11 @@ jobs:
         path: artifacts/
     - name: Delete Windows Artifacts so they're not part of the release for now
       run: |
-        set -x -o
+        set -x -e
 
         echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
 
-        set +o
+        set +e
         rm -vf artifacts/*.msi
         rm -vf artifacts/win-q.exe
         set -e

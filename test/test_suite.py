@@ -48,10 +48,11 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
+Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py'))
 Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
 
 if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
-    Q_EXECUTABLE = os.path.abspath(os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py')))
+    Q_EXECUTABLE = os.path.abspath(Q_EXECUTABLE)
     if not os.path.exists(Q_EXECUTABLE):
         raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
 else:

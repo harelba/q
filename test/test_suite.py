@@ -275,7 +275,7 @@ class AbstractQTestCase(unittest.TestCase):
 
     def random_tmp_filename(self,prefix,postfix):
         # TODO Use more robust method for this
-        path = '/var/tmp/tmqp'
+        path = '/var/tmp'
         return os.path.realpath('%s/%s-%s.%s' % (path,prefix,random.randint(0,1000000000),postfix))
 
 

@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# Usage: ./run-benchmark.sh <benchmark-id> <q-executable>
+set -e
+
+get_abs_filename() {
+  # $1 : relative filename
+  echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+if [ "x$1" == "x" ];
+then
+	echo Benchmark id must be provided as a parameter
+  exit 1
+fi
+Q_BENCHMARK_ID=$1
+shift
+
+if [ "x$1" == "x" ];
+then
+  EFFECTIVE_Q_EXECUTABLE="source-files-$(git rev-parse HEAD)"
+else
+  ABS_Q_EXECUTABLE="$(get_abs_filename $1)"
+  export Q_EXECUTABLE=$ABS_Q_EXECUTABLE
+	if [ ! -f $ABS_Q_EXECUTABLE ]
+	then
+		echo "q executable must exist ($ABS_Q_EXECUTABLE)"
+		exit 1
+	fi
+  EFFECTIVE_Q_EXECUTABLE="${ABS_Q_EXECUTABLE//\//__}"
+  shift
+fi
+
+echo "Q executable to use is $EFFECTIVE_Q_EXECUTABLE"
+
+PYTEST_OPTIONS="$@"
+echo "pytest options are $PYTEST_OPTIONS"
+
+mkdir -p ./test/benchmark-results
+
+# Must be provided to the benchmark code so it knows where to write the results to
+export Q_BENCHMARK_RESULTS_FOLDER="./test/benchmark-results/${EFFECTIVE_Q_EXECUTABLE}/${Q_BENCHMARK_ID}/"
+echo Benchmark results folder is $Q_BENCHMARK_RESULTS_FOLDER
+mkdir -p $Q_BENCHMARK_RESULTS_FOLDER
+
+source benchmark-config.sh
+LATEST_PYTHON_VERSION=${BENCHMARK_PYTHON_VERSIONS[${#BENCHMARK_PYTHON_VERSIONS[@]}-1]}
+
+ALL_FILES=()
+
+for ver in "${BENCHMARK_PYTHON_VERSIONS[@]}"
+do
+venv_name=q-benchmark-$ver
+echo activating $venv_name
+pyenv activate $venv_name
+echo "==== testing inside $venv_name ==="
+if [[ -f $Q_BENCHMARK_RESULTS_FOLDER/${venv_name}.benchmark-results ]]
+then
+	echo "Results files for version $ver already exists skipping benchmark for this version"
+	continue
+fi
+
+export Q_BENCHMARK_NAME=${venv_name}
+export Q_BENCHMARK_ADDITIONAL_PARAMS="-C read"
+
+Q_BENCHMARK_NAME=${venv_name}-with-caching Q_BENCHMARK_DATA_DIR=./_benchmark_data_with_qsql_caches pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+Q_BENCHMARK_NAME=${venv_name} Q_BENCHMARK_DATA_DIR=./_benchmark_data pytest -m benchmark -k test_q_matrix -v -s $PYTEST_OPTIONS
+
+RESULT_FILE="${Q_BENCHMARK_RESULTS_FOLDER}/$venv_name.benchmark-results"
+echo "==== Done. Results are in $RESULT_FILE"
+ALL_FILES[${#ALL_FILES[@]}]="$RESULT_FILE"
+echo "Deactivating"
+pyenv deactivate
+done
+
+exit 0
+
+pyenv activate q-benchmark-${LATEST_PYTHON_VERSION}
+echo "==== testing textql ==="
+if [[ -f `ls $Q_BENCHMARK_RESULTS_FOLDER/textql*.benchmark-results` ]]
+then
+	echo "Results files for textql already exist. Skipping benchmark for textql"
+else
+	pytest -m benchmark -k test_textql_matrix -v -s $PYTEST_OPTIONS
+	RESULT_FILE="textql*.benchmark-results"
+	ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+	echo "Done. Results are in textql.benchmark-results"
+fi
+
+echo "==== testing octosql ==="
+if [[ -f $Q_BENCHMARK_RESULTS_FOLDER/octosql.benchmark-results ]]
+then
+	echo "Results files for octosql aready exist. Skipping benchmark for octosql"
+else
+	pytest -m benchmark -k test_octosql_matrix -v -s $PYTEST_OPTIONS
+	RESULT_FILE="octosql*.benchmark-results"
+	ALL_FILES[${#ALL_FILES[@]}]="${Q_BENCHMARK_RESULTS_FOLDER}/$RESULT_FILE"
+	echo "Done. Results are in octosql.benchmark-results"
+fi
+
+summary_file="$Q_BENCHMARK_RESULTS_FOLDER/summary.benchmark-results"
+
+rm -vf $summary_file
+
+paste ${ALL_FILES[*]} > $summary_file
+echo "Done. final results file is $summary_file"
+pyenv deactivate

@@ -1,0 +1,35 @@
+# frozen_string_literal: true
+
+# Formula for q
+class Q < Formula
+  desc "Run SQL directly on CSV or TSV files"
+  homepage "https://harelba.github.io/q/"
+  # Building directly from master for now, eventually it will be tag-based so the version tag will be downloaded
+  url "https://github.com/harelba/q/archive/master.tar.gz"
+  version "{{ .Q_VERSION }}"
+
+  # Removed for now, until everything is finalized
+  # sha256 "0844aed6658d0347a299b84bee978c88724d45093e8cbd7b05506ecc0b93c98c"
+
+  license "GPL-3.0-or-later"
+  revision 1
+
+  depends_on "pyoxidizer" => :build
+  depends_on "python@3.8" => :build
+  depends_on "ronn" => :build
+  depends_on xcode: ["12.4", :build]
+
+  def install
+    system "pyoxidizer", "build", "--release"
+    bin.install "./build/x86_64-apple-darwin/release/install/q"
+
+    system "ronn", "--roff", "--section=1", "doc/USAGE.markdown"
+    man1.install "doc/USAGE.1" => "q.1"
+  end
+
+  test do
+    seq = (1..100).map(&:to_s).join("\n")
+    output = pipe_output("#{bin}/q -c 1 'select sum(c1) from -'", seq)
+    assert_equal "5050\n", output
+  end
+end

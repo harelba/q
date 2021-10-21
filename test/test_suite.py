@@ -48,14 +48,14 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
-Q_EXECUTABLE = os.path.abspath(os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py')))
 Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
 
-
 if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
+    Q_EXECUTABLE = os.path.abspath(os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py')))
     if not os.path.exists(Q_EXECUTABLE):
         raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
 else:
+    Q_EXECUTABLE = os.getenv('Q_EXECUTABLE')
     # Skip checking of executable (useful for testing that q is in the path)
     pass
 
@@ -1795,7 +1795,7 @@ class BasicTests(AbstractQTestCase):
         large_file_data = six.b("val\n") + six.b("\n").join(x)
         tmpfile = self.create_file_with_data(large_file_data)
 
-        cmd = '(echo id ; seq 1 2 10) | bin/q.py -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)"' % tmpfile.name
+        cmd = '(echo id ; seq 1 2 10) | %s -c 1 -H -O "select stdin.*,f.* from - stdin left join %s f on (stdin.id * 10 = f.val)"' % (Q_EXECUTABLE,tmpfile.name)
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
@@ -4755,7 +4755,7 @@ class FormattingTests(AbstractQTestCase):
         perl_regex = "'s/1\n/column_name\n1\n/;'"
         # TODO Decide if this breaking change is reasonable
         #cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ' + Q_EXECUTABLE + ' -f 1=%4.3f,2=%4.3f "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
-        cmd = 'seq 1 10 | perl -pe ' + perl_regex + ' | ' + Q_EXECUTABLE + ' -f 1={:4.3f},2={:4.3f} "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
+        cmd = 'seq 1 10 | LANG=C perl -pe ' + perl_regex + ' | ' + Q_EXECUTABLE + ' -f 1={:4.3f},2={:4.3f} "select sum(column_name) mysum,avg(column_name) myavg from -" -c 1 -H -O'
 
         retcode, o, e = run_command(cmd)
 

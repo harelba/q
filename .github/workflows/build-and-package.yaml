@@ -344,7 +344,7 @@ jobs:
 
         seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
 
-        echo 'select sum(c1),count(*) from `-`;' | sqlite3 test.sqlite
+        echo "select sum(c1),count(*) from data_stream_stdin" | sqlite3 test.sqlite
 
   # TODO Windows build/test/package flow is running, but q executable is still not running well, due to pyox+sqlite3 issue
   build-windows:

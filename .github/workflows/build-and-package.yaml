@@ -2,10 +2,18 @@ name: BuildAndPackage
 
 on:
   push:
-    branch:
-      - master
+    branches: master
+    paths-ignore:
+      - "*.md"
+      - "*.markdown"
+      - "mkdocs/**/*"
   # Remove comment in order to pre-release on a PR, to validate packaging flow
   pull_request:
+    branches: master
+    paths-ignore:
+      - "*.md"
+      - "*.markdown"
+      - "mkdocs/**/*"
 
 jobs:
   create-man:

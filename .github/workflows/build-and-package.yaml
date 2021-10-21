@@ -4,8 +4,6 @@ on:
   push:
     branch:
       - master
-    tags:
-      - "v*"
   # Remove comment in order to pre-release on a PR, to validate packaging flow
   pull_request:
 
@@ -484,7 +482,8 @@ jobs:
     # this is why the dependency here is not on test-X-packaging jobs
     needs: [package-linux-deb, package-linux-rpm, package-mac]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
+    # TODO Push to master will now pre-release as well, until things stabilize
+    # if: ${{ github.event_name == 'pull_request' }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
@@ -504,7 +503,10 @@ jobs:
     # TODO Windows is not here so users won't be confused by seeing an MSI (it's still not production-grade, you need to have sqlite3 dll in the path)
     needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    # Disabled on purpose for now - Changing the beta release to a real one will be done manually until everything stabilizes
+    # and then this will be reinstated
+    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    if: ${{ false }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

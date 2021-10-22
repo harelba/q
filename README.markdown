@@ -7,9 +7,10 @@ q treats ordinary files as database tables, and supports all SQL constructs, suc
 
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
-## New beta version `3.1.0-beta` is available, which contains the following major changes/additions:
+## New beta version `3.1.0-beta` is available
+(Full Details [here](QSQL-NOTES.md))
 
-This is the list of new/changed functionality in this version:
+This is the list of new/changed functionality in this version, major stuff, please make sure to read it and the details link as well.
 
 * **Automatic Immutable Caching** - Automatic caching of data files (into `<my-csv-filename>.qsql` files), with huge speedups for medium/large files. Enabled through `-C readwrite` or `-C read`
 * **Direct querying of standard sqlite databases** - Just use it as a table name in the query. Format is `select ... from <sqlitedb_filename>:::<table_name>`, or just `<sqlitedb_filename>` if the database contains only one table. Multiple separate sqlite databases are fully supported in the same query.
@@ -19,7 +20,7 @@ This is the list of new/changed functionality in this version:
 * **Only python3 is supported from now on** - Shouldn't be an issue, since q is a self-contained binary executable which has its own python embedded in it. Internally, q is now packaged with Python 3.8. After everything cools down, I'll probably bump this to 3.9/3.10.
 * **Minimal Linux Version Bumped** - Works with CentOS 8, Ubuntu 18.04+, Debian 10+. Currently only for x86_64. Depends on glibc version 2.25+. Haven't tested it on other architectures. Issuing other architectures will be possible later on
 
-For details on the changes and the new usage, see [here](QSQL-NOTES.md)
+Full details on the changes and the new usage is in [here](QSQL-NOTES.md)
 
 The version is still in early testing, for two reasons:
 

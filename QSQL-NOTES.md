@@ -1,6 +1,6 @@
 
 # New beta version 3.1.0-beta is available
-Installation instructions [at the end of this document](TBD)
+Installation instructions [at the end of this document](QSQL-NOTES.md#installation-of-the-new-beta-release)
 
 Contains a lot of major changes, see sections below for details.
 

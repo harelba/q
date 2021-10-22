@@ -3159,32 +3159,37 @@ def dump_default_values_as_qrc(parser,exclusions):
             print("%s=%s" % (k,m[k]),file=sys.stdout)
 
 USAGE_TEXT = """
-    q allows performing SQL-like statements on tabular text data.
+	q <flags> <query>
 
-    Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
+	Example Execution for a delimited file:
 
-    Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-        When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
+		q "select * from myfile.csv"
 
-    Column types are detected automatically. Use -A in order to see the column name/type analysis.
+	Example Execution for an sqlite3 database:
 
-    Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
+		q "select * from mydatabase.sqlite:::my_table_name"
 
-    All sqlite3 SQL constructs are supported.
+            or
 
-    Examples:
+		q "select * from mydatabase.sqlite"
 
-      Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-        This example would print a count of each unique permission string in the current folder.
+            if the database file contains only one table
 
-      Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-        This example would provide the average and the sum of the numbers in the range 1 to 1000
+	Auto-caching of delimited files can be activated through `-C readwrite` (writes new caches if needed)  or `-C read` (only reads existing cache files)
 
-      Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-        This example will output the total size in MB per user+group in the /tmp subtree
+	Setting the default caching mode (`-C`) can be done by writing a `~/.qrc` file. See docs for more info.
+	
+q's purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.
 
+q allows the following:
 
-    See the help or http://harelba.github.io/q/ for more details.
+* Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file
+* Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory
+
+Changing the default values for parameters can be done by creating a `~/.qrc` file. Run q with `--dump-defaults` in order to dump a default `.qrc` file into stdout.
+
+See https://github.com/harelba/q for more details.
+
 """
 
 def run_standalone():

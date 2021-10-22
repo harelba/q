@@ -1,5 +1,44 @@
 
-# New beta version 3.1.0-beta is available, which contains the following major changes/additions:
+# New beta version 3.1.0-beta is available
+
+Contains a lot of major changes, see sections below for details.
+
+## Basic Example of using the caching
+```
+# Prepare some data
+$ seq 1 1000000 > myfile.csv
+
+# read from the resulting file (-c 1 just prevents the warning of having one column only)
+$ time q -c 1 "select sum(c1),count(*) from myfile.csv"
+500000500000 1000000
+q -c 1 "select sum(c1),count(*) from myfile.csv"  4.02s user 0.06s system 99% cpu 4.108 total
+
+# Running with `-C readwrite` auto-creates a cache file if there is none. The cache filename would be myfile.csv.qsql. The query runs as usual
+$ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
+time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
+500000500000 1000000
+q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite  3.96s user 0.08s system 99% cpu 4.057 total
+
+# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed.
+$ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C read
+500000500000 1000000
+q -c 1 "select sum(c1),count(*) from myfile.csv" -C read  0.17s user 0.05s system 94% cpu 0.229 total
+
+# You can query the qsql file directly
+$ time q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.05s system 95% cpu 0.226 total
+
+# Now let's delete the original csv file
+$ rm -vf myfile.csv
+
+# Running another query on the qsql file just works
+$ q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.04s system 94% cpu 0.226 total
+
+# See the `.qrc` section below if you want to set the default `-C` (`--caching-mode`) to something other than `none` (the default)
+```
 
 The following sections provide the details of each of the new functionality in this major version.
 
@@ -32,7 +71,7 @@ caching_mode=read
 
 All other flags and parameters to q can be controlled by the `.qrc` file. To see the proper names for each parameter, run `q --dump-defaults` and it will dump a default `.qrc` file that contains all parameters to `stdout`.
 
-### Direct querying of standard sqlite databases
+## Direct querying of standard sqlite databases
 q now supports direct querying of standard sqlite databases. The syntax for accessing a table inside an sqlite database is `<sqlite-filename>:::<table_name>`. A query can contain any mix of sqlite files, qsql files or regular delimited files.
 
 For example, this command joins two tables from two separate sqlite databases:
@@ -69,7 +108,7 @@ This database can be accessed directly by q later on, by providing `<sqlite-data
 
 This table-name normalisation happens also inside `.qsql` cache files, but in most cases there won't be any need to know these table names, since q automatically detects table names for databases which have a single-table.
 
-### File-concatenation and wildcard-matching features - Breaking change
+## File-concatenation and wildcard-matching features - Breaking change
 File concatenation using '+' has been removed in this version, which is a breaking change.
 
 This was a controversial feature anyway, and can be done using standard SQL relatively easily. It also complicated the caching implementation significantly, and it seemed that it was not worth it. If there's demand for bringing this feature back, please write to me and I'll consider re-adding it. 
@@ -94,6 +133,5 @@ Removed the dual py2/py3 support. Since q is packaged as a self-contained execut
 Users which for some reason still use q's main source code file directly and use python 2 would need to stay with the latest 2.0.19 release. In some next version, q's code structure is going to change significantly anyway in order to become a standard python module, so using the main source code file directly would not be possible.
 
 If you are such a user, and this decision hurts you considerably, please ping me.
-
 
 

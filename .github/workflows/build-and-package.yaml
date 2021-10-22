@@ -490,8 +490,8 @@ jobs:
     # this is why the dependency here is not on test-X-packaging jobs
     needs: [package-linux-deb, package-linux-rpm, package-mac]
     runs-on: ubuntu-latest
-    # TODO Push to master will now pre-release as well, until things stabilize
-    # if: ${{ github.event_name == 'pull_request' }}
+    # Disabled on purpose for now, until beta is over
+    if: ${{ false }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

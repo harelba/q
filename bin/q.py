@@ -142,6 +142,28 @@ def sqrt(data):
 def power(data,p):
     return data**p
 
+def file_ext(data):
+    if data is None:
+        return None
+
+    return os.path.splitext(data)[1]
+
+def file_folder(data):
+    if data is None:
+        return None
+    return os.path.split(data)[0]
+
+def file_basename(data):
+    if data is None:
+        return None
+    return os.path.split(data)[1]
+    
+def file_basename_no_ext(data):
+    if data is None:
+        return None
+
+    return os.path.split(os.path.splitext(data)[0])[-1]
+
 def percentile(l, p):
     # TODO Alpha implementation, need to provide multiple interpolation methods, and add tests
     if not l:
@@ -271,6 +293,26 @@ user_functions = [
                     "Raise expr1 to the power of expr2",
                     power,
                     2),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "file_ext","file_ext(<expr>) = <filename-extension-or-empty-string>",
+                    "Get the extension of a filename",
+                    file_ext,
+                    1),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "file_folder","file_folder(<expr>) = <folder-name-of-filename>",
+                    "Get the folder part of a filename",
+                    file_folder,
+                    1),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "file_basename","file_basename(<expr>) = <basename-of-filename-including-extension>",
+                    "Get the basename of a filename, including extension if any",
+                    file_basename,
+                    1),
+    UserFunctionDef(FunctionType.REGULAR,
+                    "file_basename_no_ext","file_basename_no_ext(<expr>) = <basename-of-filename-without-extension>",
+                    "Get the basename of a filename, without the extension if there is one",
+                    file_basename_no_ext,
+                    1),
     UserFunctionDef(FunctionType.AGG,
                     "percentile","percentile(<expr>,<percentile-in-the-range-0-to-1>) = <percentile-value>",
                     "Calculate the strict percentile of a set of a values.",

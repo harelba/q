@@ -8,9 +8,9 @@ q treats ordinary files as database tables, and supports all SQL constructs, suc
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
 ## New beta version `3.1.0-beta` is available
-(Full Details [here](QSQL-NOTES.md))
+Full Details [here](QSQL-NOTES.md), and an example of the caching is in [here](QSQL-NOTES.md#basic-example-of-using-the-caching).
 
-This is the list of new/changed functionality in this version, major stuff, please make sure to read it and the details link as well.
+This is the list of new/changed functionality in this version, large changes, please make sure to read it and the details link as well.
 
 * **Automatic Immutable Caching** - Automatic caching of data files (into `<my-csv-filename>.qsql` files), with huge speedups for medium/large files. Enabled through `-C readwrite` or `-C read`
 * **Direct querying of standard sqlite databases** - Just use it as a table name in the query. Format is `select ... from <sqlitedb_filename>:::<table_name>`, or just `<sqlitedb_filename>` if the database contains only one table. Multiple separate sqlite databases are fully supported in the same query.

@@ -3279,7 +3279,7 @@ def initialize_command_line_parser(p, qrc_filename):
         default_output_delimiter = get_option_with_default(p, 'string', 'output_delimiter', None)
         default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
         default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
-        default_output_header = get_option_with_default(p, 'string', 'output_header', False)
+        default_output_header = get_option_with_default(p, 'boolean', 'output_header', False)
         default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
         default_formatting = get_option_with_default(p, 'string', 'formatting', None)
         default_output_encoding = get_option_with_default(p, 'string', 'output_encoding', 'none')

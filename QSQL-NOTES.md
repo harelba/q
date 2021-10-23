@@ -20,7 +20,7 @@ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite  3.96s user 0.08s system 99% cpu 4.057 total
 
-# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed.
+# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed. As the file gets bigger, the difference will be much more noticable
 $ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C read
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C read  0.17s user 0.05s system 94% cpu 0.229 total

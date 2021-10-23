@@ -56,7 +56,6 @@ import math
 import six
 import io
 import json
-import sqlitebck
 import datetime
 import hashlib
 
@@ -1699,7 +1698,8 @@ class MaterializedDelimitedFileState(MaterializedState):
     def _store_qsql(self, source_sqlite_db, disk_db_filename):
         xprint("Storing data as disk db")
         disk_db_conn = sqlite3.connect(disk_db_filename)
-        sqlitebck.copy(source_sqlite_db.conn,disk_db_conn)
+        with disk_db_conn:
+            source_sqlite_db.conn.backup(disk_db_conn)
         xprint("Written db to disk: disk db filename %s" % (disk_db_filename))
         disk_db_conn.close()
 

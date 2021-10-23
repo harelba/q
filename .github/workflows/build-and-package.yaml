@@ -304,8 +304,10 @@ jobs:
 
         mkdir brew
 
+        export BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})
+
         # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' > ./brew/q.rb
+        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' | sed "s/{{ .Q_BRANCH_NAME }}/${BRANCH_NAME}/g" > ./brew/q.rb
 
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
@@ -352,10 +354,8 @@ jobs:
 
         echo "select sum(c1),count(*) from data_stream_stdin" | sqlite3 test.sqlite
 
-  # TODO Windows build/test/package flow is running, but q executable is still not running well, due to pyox+sqlite3 issue
   build-windows:
     runs-on: windows-latest
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -380,7 +380,7 @@ jobs:
       run: |
         set -e -x
 
-        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
+        # TODO win requirements are now the same, so this can go away hopefully
         cp requirements-win-x86_64.txt requirements.txt
 
         pyoxidizer build --release
@@ -488,7 +488,7 @@ jobs:
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
-    needs: [package-linux-deb, package-linux-rpm, package-mac]
+    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
     runs-on: ubuntu-latest
     # TODO Push to master will now pre-release as well, until things stabilize
     # if: ${{ github.event_name == 'pull_request' }}

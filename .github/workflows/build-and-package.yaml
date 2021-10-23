@@ -311,7 +311,7 @@ jobs:
 
         echo "Resulting formula:"
         cat ./brew/q.rb
-        
+
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
 
@@ -400,7 +400,7 @@ jobs:
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: win-q
+        name: win-q.exe
         path: packages/windows/win-q.exe
 
   test-windows:

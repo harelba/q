@@ -304,7 +304,7 @@ jobs:
 
         mkdir brew
 
-        export BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})
+        export BRANCH_NAME=${{ github.event.pull_request.head.ref }}
 
         # TODO temp, since template rendering action doesn't work in mac
         cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' | sed "s/{{ .Q_BRANCH_NAME }}/${BRANCH_NAME}/g" > ./brew/q.rb

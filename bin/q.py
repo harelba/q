@@ -1319,7 +1319,7 @@ def normalize_filename_to_table_name(filename):
         filename = filename[:-7]
     elif filename.lower().endswith('.sqlite3'):
         filename = filename[:-8]
-    return filename.replace("-","_dash_").replace(".","_dot_").replace('?','_qm_').replace("/","_slash_").replace("\\","_backslash_").replace(":","_colon_").replace(" ","_space_")
+    return filename.replace("-","_dash_").replace(".","_dot_").replace('?','_qm_').replace("/","_slash_").replace("\\","_backslash_").replace(":","_colon_").replace(" ","_space_").replace("+","_plus_")
 
 def validate_content_signature(original_filename, source_signature,other_filename, content_signature,scope=None,dump=False):
     if dump:

@@ -13,7 +13,7 @@ def make_exe():
     policy.set_resource_handling_mode("classify")
     policy.resources_location = "in-memory"
     policy.resources_location_fallback = "filesystem-relative:Lib"
-    policy.allow_in_memory_shared_library_loading = True
+    policy.allow_in_memory_shared_library_loading = False
 
     python_config = dist.make_python_interpreter_config()
 

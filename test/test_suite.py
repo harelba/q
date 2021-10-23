@@ -6,9 +6,10 @@
 # Prefer end-to-end tests, running the actual q command and testing stdout/stderr, and the return code.
 # Some utilities are provided for making that easy, see other tests for examples.
 #
-# Don't forget to use the Q_EXECUTABLE instead of hardcoding the q command line. This will be used in the near future
-# in order to test the resulting binary executables as well, instead of just executing the q python source code.
+# Q_EXECUTABLE env var can be used to inject the path of q. This allows full e2e testing of the resulting executable
+# instead of just testing the python code.
 #
+# Tests are compatible with Linux and OSX (path separators, tmp folder, etc.).
 
 from __future__ import print_function
 

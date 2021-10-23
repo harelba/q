@@ -400,7 +400,7 @@ jobs:
         name: win-q.exe
         path: packages/windows/win-q.exe
 
-  test-windows:
+  not-really-test-windows:
     needs: build-windows
     runs-on: windows-latest
     steps:
@@ -411,32 +411,21 @@ jobs:
       with:
         python-version: '3.8'
         architecture: 'x64'
-    - name: Prepare Testing
-      shell: bash
-      run: |
-        set -e -x
-
-        pip3 install wheel
-
-        pip3 install -r test-requirements.txt
     - name: Download Windows Executable
       uses: actions/download-artifact@v2
       with:
         name: win-q.exe
-    - name: Run Tests on Windows Executable
-      continue-on-error: true
+    - name: Not-Really-Test Windows
       shell: bash
       run: |
-        set -e -x
+        echo "Tests are not compatible with Windows (path separators, tmp folder names etc.). Only a sanity wil be tested"
 
-        find ./ -ls
+        chmod +x ./win-q.exe
 
-        chmod 755 ./win-q.exe
-
-        Q_EXECUTABLE=`pwd`/win-q.exe Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
+        seq 1 10000 | ./win-q.exe -c 1 "select sum(c1),count(*) from -" -S some-db.sqlite
 
   package-windows:
-    needs: [create-man, test-windows]
+    needs: [create-man, not-really-test-windows]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -535,8 +524,7 @@ jobs:
           artifacts/**/*
 
   perform-release:
-    # TODO Windows is not here so users won't be confused by seeing an MSI (it's still not production-grade, you need to have sqlite3 dll in the path)
-    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging]
+    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging]
     runs-on: ubuntu-latest
     # Disabled on purpose for now - Changing the beta release to a real one will be done manually until everything stabilizes
     # and then this will be reinstated
@@ -547,16 +535,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         path: artifacts/
-    - name: Delete Windows Artifacts so they're not part of the release for now
-      run: |
-        set -x -e
-
-        echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
-
-        set +e
-        rm -vf artifacts/*.msi
-        rm -vf artifacts/win-q.exe
-        set -e
     - uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"

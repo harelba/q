@@ -406,11 +406,34 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Fail deliberately - No tests on Windows
-      continue-on-error: true
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Prepare Testing
+      shell: bash
       run: |
-        echo "Tests are not actually running on the Windows Executable itself. Only the packaging is later tested"
-        exit 1
+        set -e -x
+
+        pip3 install wheel
+
+        pip3 install -r test-requirements.txt
+    - name: Download Windows Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: win-q.exe
+    - name: Run Tests on Windows Executable
+      continue-on-error: true
+      shell: bash
+      run: |
+        set -e -x
+
+        find ./ -ls
+
+        chmod 755 ./win-q.exe
+
+        Q_EXECUTABLE=`pwd`/win-q.exe Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
   package-windows:
     needs: [create-man, test-windows]
@@ -446,17 +469,19 @@ jobs:
 
         find ./ -ls
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0-beta.msi
+        # TODO Windows versions do not support the -beta postfix
+
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-3.1.0-beta.msi
+        cp $Q_MSI packages/windows/q-text-as-data-3.1.0.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-beta.msi
-        path: packages/windows/q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-3.1.0.msi
+        path: packages/windows/q-text-as-data-3.1.0.msi
 
   test-windows-packaging:
     needs: package-windows
@@ -467,12 +492,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-3.1.0.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0-beta.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -481,7 +506,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0-beta.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 

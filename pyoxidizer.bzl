@@ -61,7 +61,7 @@ def make_msi(exe):
         # The name of your application.
         "q-text-as-data",
         # The version of your application.
-        "3.1.0-beta",
+        "3.1.0",
         # The author/manufacturer of your application.
         "Harel Ben-Attia"
     )

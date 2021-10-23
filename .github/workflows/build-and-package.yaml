@@ -383,9 +383,6 @@ jobs:
       run: |
         set -e -x
 
-        # TODO win requirements are now the same, so this can go away hopefully
-        cp requirements-win-x86_64.txt requirements.txt
-
         pyoxidizer build --release
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q

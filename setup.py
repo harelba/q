@@ -19,8 +19,7 @@ setup(
     long_description_content_type="text/markdown",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.11.0',
-        'sqlitebck'
+        'six==1.11.0'
     ],
     package_dir={"": "bin"},
     packages=setuptools.find_packages(where="bin"),

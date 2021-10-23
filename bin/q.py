@@ -66,6 +66,7 @@ long = int
 unicode = six.text_type
 
 DEBUG = bool(os.environ.get('Q_DEBUG', None)) or '-V' in sys.argv
+SQL_DEBUG = False
 
 if DEBUG:
     def xprint(*args,**kwargs):
@@ -75,11 +76,16 @@ if DEBUG:
         print(datetime.datetime.utcnow().isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
 
     def sqlprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
+        pass
 else:
     def xprint(*args,**kwargs): pass
     def iprint(*args,**kwargs): pass
     def sqlprint(*args,**kwargs): pass
+
+if SQL_DEBUG:
+    def sqlprint(*args,**kwargs):
+        print(datetime.datetime.utcnow().isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
+
 
 def get_stdout_encoding(encoding_override=None):
     if encoding_override is not None and encoding_override != 'none':
@@ -1330,7 +1336,7 @@ def validate_content_signature(original_filename, source_signature,other_filenam
         scope = []
     for k in source_signature:
         if type(source_signature[k]) == OrderedDict:
-            return validate_content_signature(original_filename, source_signature[k],other_filename, content_signature[k],scope + [k])
+            validate_content_signature(original_filename, source_signature[k],other_filename, content_signature[k],scope + [k])
         else:
             if k not in content_signature:
                 raise ContentSignatureDataDiffersException("%s Content Signatures differ. %s is missing from content signature" % (s,k))
@@ -1373,8 +1379,10 @@ class DelimitedFileReader(object):
         if self.atomic_fns is None or len(self.atomic_fns) == 0:
             return "data stream-lmt"
         else:
-            x = ",".join(map(str,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
-            return hashlib.sha1(six.b(x)).hexdigest()
+            x = ",".join(map(lambda x: ':%s:' % x,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
+            res = hashlib.sha1(six.b(x)).hexdigest() + '///' + x
+            xprint("Hash of last modification time is %s" % res)
+            return res
 
     def open_file(self):
         if self.external_f:

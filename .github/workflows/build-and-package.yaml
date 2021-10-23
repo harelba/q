@@ -304,8 +304,13 @@ jobs:
 
         mkdir brew
 
+        export BRANCH_NAME=${{ github.event.pull_request.head.ref }}
+
         # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' > ./brew/q.rb
+        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' | sed "s/{{ .Q_BRANCH_NAME }}/${BRANCH_NAME}/g" > ./brew/q.rb
+
+        echo "Resulting formula:"
+        cat ./brew/q.rb
 
         brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
         brew test ./brew/q.rb
@@ -352,10 +357,8 @@ jobs:
 
         echo "select sum(c1),count(*) from data_stream_stdin" | sqlite3 test.sqlite
 
-  # TODO Windows build/test/package flow is running, but q executable is still not running well, due to pyox+sqlite3 issue
   build-windows:
     runs-on: windows-latest
-    if: ${{ false }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -380,9 +383,6 @@ jobs:
       run: |
         set -e -x
 
-        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
-        cp requirements-win-x86_64.txt requirements.txt
-
         pyoxidizer build --release
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
@@ -397,23 +397,36 @@ jobs:
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: win-q
+        name: win-q.exe
         path: packages/windows/win-q.exe
 
-  test-windows:
+  not-really-test-windows:
     needs: build-windows
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Fail deliberately - No tests on Windows
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Download Windows Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: win-q.exe
+    - name: Not-Really-Test Windows
+      shell: bash
       continue-on-error: true
       run: |
-        echo "Tests are not actually running on the Windows Executable itself. Only the packaging is later tested"
-        exit 1
+        echo "Tests are not compatible with Windows (path separators, tmp folder names etc.). Only a sanity wil be tested"
+
+        chmod +x ./win-q.exe
+
+        seq 1 10000 | ./win-q.exe -c 1 "select sum(c1),count(*) from -" -S some-db.sqlite
 
   package-windows:
-    needs: [create-man, test-windows]
+    needs: [create-man, not-really-test-windows]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -439,24 +452,23 @@ jobs:
       run: |
         set -e -x
 
-        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
-        cp requirements-win-x86_64.txt requirements.txt
-
         pyoxidizer build --release msi_installer
 
         find ./ -ls
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0-beta.msi
+        # TODO Windows versions do not support the -beta postfix
+
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-3.1.0-beta.msi
+        cp $Q_MSI packages/windows/q-text-as-data-3.1.0.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-beta.msi
-        path: packages/windows/q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-3.1.0.msi
+        path: packages/windows/q-text-as-data-3.1.0.msi
 
   test-windows-packaging:
     needs: package-windows
@@ -467,12 +479,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-3.1.0.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0-beta.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -481,14 +493,14 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0-beta.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
-    needs: [package-linux-deb, package-linux-rpm, package-mac]
+    needs: [package-linux-deb, package-linux-rpm, package-mac, package-windows]
     runs-on: ubuntu-latest
     # TODO Push to master will now pre-release as well, until things stabilize
     # if: ${{ github.event_name == 'pull_request' }}
@@ -513,8 +525,7 @@ jobs:
           artifacts/**/*
 
   perform-release:
-    # TODO Windows is not here so users won't be confused by seeing an MSI (it's still not production-grade, you need to have sqlite3 dll in the path)
-    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging]
+    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging]
     runs-on: ubuntu-latest
     # Disabled on purpose for now - Changing the beta release to a real one will be done manually until everything stabilizes
     # and then this will be reinstated
@@ -525,16 +536,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         path: artifacts/
-    - name: Delete Windows Artifacts so they're not part of the release for now
-      run: |
-        set -x -e
-
-        echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
-
-        set +e
-        rm -vf artifacts/*.msi
-        rm -vf artifacts/win-q.exe
-        set -e
     - uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"

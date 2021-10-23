@@ -39,11 +39,11 @@ The current production version `2.0.19` installation is extremely simple.
 Instructions for all OSs are [here](http://harelba.github.io/q/#installation). 
 
 ### Installation of the new beta release
-For now, only Linux RPM, DEB and Mac OSX are supported. Almost made the Windows version work, but there's some issue there, and the windows executable requires some external dependencies which I'm trying to eliminate.
+For now, only Linux RPM, DEB, Mac OSX and Windows are supported. Packages for additional Linux Distros will be added later (it should be rather easy now, due to the use of `fpm`).
 
 The beta OSX version is not in `brew` yet, you'll need to take the `macos-q` executable, put it in your filesystem and `chmod +x` it. 
 
-DEB/RPM are working well, although for some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later.
+Note: For some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later. If you have any thoughts about this, please drop me a line.
 
 Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.0-beta).
 

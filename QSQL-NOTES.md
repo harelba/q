@@ -20,7 +20,7 @@ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite  3.96s user 0.08s system 99% cpu 4.057 total
 
-# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed.
+# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed. As the file gets bigger, the difference will be much more noticable
 $ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C read
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C read  0.17s user 0.05s system 94% cpu 0.229 total
@@ -137,11 +137,12 @@ If you are such a user, and this decision hurts you considerably, please ping me
 
 
 # Installation of the new beta release
-For now, only Linux RPM, DEB and Mac OSX are supported. Almost made the Windows version work, but there's some issue there, and the windows executable requires some external dependencies which I'm trying to eliminate.
+For now, only Linux RPM, DEB, Mac OSX and Windows are supported. Packages for additional Linux Distros will be added later (it should be rather easy now, due to the use of `fpm`).
 
 The beta OSX version is not in `brew` yet, you'll need to take the `macos-q` executable, put it in your filesystem and `chmod +x` it.
 
-DEB/RPM are working well, although for some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later.
+Note: For some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later. If you have any thoughts about this, please drop me a line.
 
 Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.0-beta).
+
 

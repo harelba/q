@@ -1,5 +1,5 @@
 
-# New beta version 3.1.0-beta is available
+# New beta version 3.1.1-beta is available
 Installation instructions [at the end of this document](QSQL-NOTES.md#installation-of-the-new-beta-release)
 
 Contains a lot of major changes, see sections below for details.
@@ -143,6 +143,6 @@ The beta OSX version is not in `brew` yet, you'll need to take the `macos-q` exe
 
 Note: For some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later. If you have any thoughts about this, please drop me a line.
 
-Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.0-beta).
+Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.1-beta).
 
 

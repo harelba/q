@@ -7,7 +7,7 @@ q treats ordinary files as database tables, and supports all SQL constructs, suc
 
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
-## New beta version `3.1.0-beta` is available
+## New beta version `3.1.1-beta` is available
 Full Details [here](QSQL-NOTES.md), and an example of the caching is in [here](QSQL-NOTES.md#basic-example-of-using-the-caching).
 
 This is the list of new/changed functionality in this version, large changes, please make sure to read it and the details link as well.
@@ -32,7 +32,7 @@ The version is still in early testing, for two reasons:
 If you're testing it out, I'd be more than happy to get any feedback. Please write all your feedback in [this issue](https://github.com/harelba/q/issues/281), instead of opening separate issues. That would really help me with managing this.
 
 ## Installation.
-**This will currently install the latest standard version `2.0.19`. See below if you want to download the `3.1.0-beta` version**
+**This will currently install the latest standard version `2.0.19`. See below if you want to download the `3.1.1-beta` version**
 
 The current production version `2.0.19` installation is extremely simple. 
 
@@ -45,7 +45,7 @@ The beta OSX version is not in `brew` yet, you'll need to take the `macos-q` exe
 
 Note: For some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later. If you have any thoughts about this, please drop me a line.
 
-Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.0-beta).
+Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.1-beta).
 
 ## Examples
 

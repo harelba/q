@@ -35,7 +35,7 @@ from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 from uuid import uuid4
 
-q_version = '3.1.0-beta'
+q_version = '3.1.1-beta'
 
 #__all__ = [ 'QTextAsData' ]
 
@@ -3279,7 +3279,7 @@ def initialize_command_line_parser(p, qrc_filename):
         default_output_delimiter = get_option_with_default(p, 'string', 'output_delimiter', None)
         default_pipe_delimited_output = get_option_with_default(p, 'boolean', 'pipe_delimited_output', False)
         default_tab_delimited_output = get_option_with_default(p, 'boolean', 'tab_delimited_output', False)
-        default_output_header = get_option_with_default(p, 'string', 'output_header', False)
+        default_output_header = get_option_with_default(p, 'boolean', 'output_header', False)
         default_beautify = get_option_with_default(p, 'boolean', 'beautify', False)
         default_formatting = get_option_with_default(p, 'string', 'formatting', None)
         default_output_encoding = get_option_with_default(p, 'string', 'output_encoding', 'none')

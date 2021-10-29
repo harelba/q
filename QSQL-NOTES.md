@@ -5,7 +5,7 @@ Installation instructions [at the end of this document](QSQL-NOTES.md#installati
 Contains a lot of major changes, see sections below for details.
 
 ## Basic Example of using the caching
-```
+```bash
 # Prepare some data
 $ seq 1 1000000 > myfile.csv
 

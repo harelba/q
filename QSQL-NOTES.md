@@ -20,12 +20,17 @@ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite  3.96s user 0.08s system 99% cpu 4.057 total
 
-# Now run with `-C read`. The query will run from the cache file and not the original. Change the query and run it several times, to notice the difference in speed. As the file gets bigger, the difference will be much more noticable
+# Now run with `-C read`. The query will run from the cache file and not the original. As the file gets bigger, the difference will be much more noticable
 $ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C read
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv" -C read  0.17s user 0.05s system 94% cpu 0.229 total
 
-# You can query the qsql file directly
+# Now let's try another query on that file. Notice the short query duration. The cache is being used for any query that uses this file, and queries on multiple files that contain caches will reuse the cache as well.
+$ time q -c 1 "select avg(c1) from myfile.csv" -C read
+500000.5
+q -c 1 "select avg(c1) from myfile.csv" -C read  0.16s user 0.05s system 99% cpu 0.217 total
+
+# You can also query the qsql file directly
 $ time q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.05s system 95% cpu 0.226 total
@@ -33,7 +38,7 @@ q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.05s system 9
 # Now let's delete the original csv file
 $ rm -vf myfile.csv
 
-# Running another query on the qsql file just works
+# Running another query directly on the qsql file just works
 $ q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
 500000500000 1000000
 q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.04s system 94% cpu 0.226 total

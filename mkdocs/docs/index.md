@@ -5,7 +5,7 @@
 
 
 ## Overview
-q's purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.
+q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data.
 
 q allows the following:
 
@@ -118,7 +118,24 @@ Title                                      total_album_time_seconds
 ### Analysis Examples
 
 ```bash
-# Let's create a simple CSV file
+# Let's create a simple CSV file without a header
+$ cat > some-data-without-header.csv
+harel,1,2
+ben,3,4
+attia,5,6
+<Ctrl-D>
+
+# Let's run q on it with -A, to see the detected structure of the file. `-d ,` sets the delimiter to a comma
+$ q -d , "select * from some-data-without-header.csv
+Table: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Sources:
+    source_type: file source: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Fields:
+    `c1` - text
+    `c2` - int
+    `c3` - int
+
+# Now let's create another simple CSV file, this time with a header (-H tells q to expect a header in the file)
 $ cat > some-data.csv
 planet_id,name,diameter_km,length_of_day_hours
 1000,Earth,12756,24
@@ -126,7 +143,7 @@ planet_id,name,diameter_km,length_of_day_hours
 3000,Jupiter,142984,9.9
 <Ctrl-D>
 
-# Run q with -A to see the analysis results
+# Let's run q with -A to see the analysis results.
 $ q -b -O -H -d , "select * from some-data.csv" -A
 Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
   Sources:
@@ -144,7 +161,7 @@ planet_id,name   ,diameter_km,length_of_day_hours
 2000     ,Mars   ,6792       ,24.7
 3000     ,Jupiter,142984     ,9.9
 
-# Running another query that uses some-data.csv with -A will now show that a qsql exists for that file. The soure-type 
+# Running another query that uses some-data.csv with -A will now show that a qsql exists for that file. The source-type 
 # will be "file-with-unused-qsql". The qsql cache is not being used, since by default, q does not activate caching
 # so backward compatibility is maintained
 $ q -b -O -H -d , "select * from some-data.csv" -A
@@ -196,12 +213,14 @@ Download the tool using the links in the [installation](#installation) below and
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/v3.1.2-beta/macos-q)|run `brew install q`|A man page is available, just run `man q`||
+|[OSX](https://github.com/harelba/q/releases/download/v3.1.2-beta/macos-q)|`brew install` will install the previous `2.0.19` for now, until homebrew approves the new version. In the mean time, you can download the new version executable from the link, `chmod +x` it and then run. You might need to run it the first time from Finder using Right-Click -> Open, and then click the Open button. After the first time, it will run from the command line without any issues. |A man page is available, just run `man q`||
 |[RPM Package](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2-beta.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
 |[DEB Package](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2-beta-1.x86_64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`. Some installations don't install the man page properly for some reason. I'll fix this soon|
 |[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2.msi)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new `cmd`/`bash` window after the installation is done.|
 |[Source tar.gz](https://github.com/harelba/q/archive/refs/tags/v3.1.2-beta.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
 |[Source zip](https://github.com/harelba/q/archive/refs/tags/v3.1.2-beta.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+
+I will add packages for additional Linux Distributions if there's demand for it. If you're interested in another Linux distribution, please ping me. It's relatively easy to add new ones with the new packaging flow.
 
 The previous version `2.0.19` can be downloaded directly from [here](https://github.com/harelba/q/releases/tag/2.0.19). Please let me know if for some reason the new version is not suitable for your needs, and you're planning on using the previous one.
 
@@ -241,7 +260,7 @@ The following filename types are supported:
 * Delimited-file filenames, including relative/absolute paths. E.g. `./my_folder/my_file.csv` or `/var/tmp/my_file.csv`
 * sqlite3 database filenames, with an additional `:::<table_name>` for accessing a specific table. For example `mydatabase.sqlite3:::users_table`.
 * In cases where the database contains only one table, then denoting the table name is not needed. For example, if `my_single_table_database.sqlite` contains only one file, then the table name can just use `my_single_table_database.sqlite` without the `:::<table-name>` part.
-* `.qsql` cache files. q can auto-generate cache files for delimited files, and they can be queries directly as a table, since they contain only one table, as they are essentially standard sqlite datbases
+* `.qsql` cache files. q can auto-generate cache files for delimited files, and they can be queried directly as a table, since they contain only one table, as they are essentially standard sqlite datbases
 
 Use `-H` to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. `q "SELECT c3,c8 from ..."`).
 
@@ -256,8 +275,10 @@ Query/Input/Output encodings are fully supported (and q tries to provide out-of-
 All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
 
 ### Query
-Each parameter that q gets is a full SQL query. All queries are executed one after another, outputing the results to standard output. Note that data loading is done only once, so when passing multiple queries on the same command-line, only the first one will take a long time. The rest will starting running almost instantanously, since all the data will already have been loaded. Remeber to double-quote each of the queries - Each parameter is a full SQL query.
+q gets a full SQL query as a parameter. Remember to double-quote the query.
 
+Historically, q supports multiple queries on the same command-line, loading each data file only once, even if it is used by multiple queries on the same q invocation. This is still supported. However, due to the new automatic-caching capabilities, this is not really required. Activate caching, and a cache file will be automatically created for each file. q Will use the cache behind the scenes in order to speed up queries. The speed up is extremely significant, so consider using caching for large files.
+ 
 Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.

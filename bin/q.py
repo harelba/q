@@ -35,7 +35,7 @@ from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 from uuid import uuid4
 
-q_version = '3.1.1-beta'
+q_version = '3.1.2-beta'
 
 #__all__ = [ 'QTextAsData' ]
 

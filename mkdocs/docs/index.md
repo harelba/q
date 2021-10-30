@@ -196,12 +196,12 @@ Download the tool using the links in the [installation](#installation) below and
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/v3.1.1-beta/macos-q)|run `brew install q`|A man page is available, just run `man q`||
-|[RPM Package](https://github.com/harelba/q/releases/download/v3.1.1-beta/q-text-as-data-3.1.1-beta.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
-|[DEB Package](https://github.com/harelba/q/releases/download/v3.1.1-beta/q-text-as-data-3.1.1-beta-1.x86_64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`. Some installations don't install the man page properly for some reason. I'll fix this soon|
-|[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.1-beta/q-text-as-data-3.1.1.msi)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new `cmd`/`bash` window after the installation is done.|
-|[Source tar.gz](https://github.com/harelba/q/archive/refs/tags/v3.1.1-beta.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
-|[Source zip](https://github.com/harelba/q/archive/refs/tags/v3.1.1-beta.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+|[OSX](https://github.com/harelba/q/releases/download/v3.1.2-beta/macos-q)|run `brew install q`|A man page is available, just run `man q`||
+|[RPM Package](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2-beta.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
+|[DEB Package](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2-beta-1.x86_64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`. Some installations don't install the man page properly for some reason. I'll fix this soon|
+|[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.2-beta/q-text-as-data-3.1.2.msi)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new `cmd`/`bash` window after the installation is done.|
+|[Source tar.gz](https://github.com/harelba/q/archive/refs/tags/v3.1.2-beta.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+|[Source zip](https://github.com/harelba/q/archive/refs/tags/v3.1.2-beta.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
 
 The previous version `2.0.19` can be downloaded directly from [here](https://github.com/harelba/q/releases/tag/2.0.19). Please let me know if for some reason the new version is not suitable for your needs, and you're planning on using the previous one.
 

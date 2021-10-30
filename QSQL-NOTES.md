@@ -1,50 +1,15 @@
 
-# New beta version 3.1.1-beta is available
-Installation instructions [at the end of this document](QSQL-NOTES.md#installation-of-the-new-beta-release)
+## New major version `3.1.2` is available
+This is the list of new/changed functionality in this version, large changes, please make sure to read the details if you're already using q.
 
-Contains a lot of major changes, see sections below for details.
-
-## Basic Example of using the caching
-```bash
-# Prepare some data
-$ seq 1 1000000 > myfile.csv
-
-# read from the resulting file (-c 1 just prevents the warning of having one column only)
-$ time q -c 1 "select sum(c1),count(*) from myfile.csv"
-500000500000 1000000
-q -c 1 "select sum(c1),count(*) from myfile.csv"  4.02s user 0.06s system 99% cpu 4.108 total
-
-# Running with `-C readwrite` auto-creates a cache file if there is none. The cache filename would be myfile.csv.qsql. The query runs as usual
-$ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
-time q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite
-500000500000 1000000
-q -c 1 "select sum(c1),count(*) from myfile.csv" -C readwrite  3.96s user 0.08s system 99% cpu 4.057 total
-
-# Now run with `-C read`. The query will run from the cache file and not the original. As the file gets bigger, the difference will be much more noticable
-$ time q -c 1 "select sum(c1),count(*) from myfile.csv" -C read
-500000500000 1000000
-q -c 1 "select sum(c1),count(*) from myfile.csv" -C read  0.17s user 0.05s system 94% cpu 0.229 total
-
-# Now let's try another query on that file. Notice the short query duration. The cache is being used for any query that uses this file, and queries on multiple files that contain caches will reuse the cache as well.
-$ time q -c 1 "select avg(c1) from myfile.csv" -C read
-500000.5
-q -c 1 "select avg(c1) from myfile.csv" -C read  0.16s user 0.05s system 99% cpu 0.217 total
-
-# You can also query the qsql file directly
-$ time q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
-500000500000 1000000
-q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.05s system 95% cpu 0.226 total
-
-# Now let's delete the original csv file
-$ rm -vf myfile.csv
-
-# Running another query directly on the qsql file just works
-$ q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"
-500000500000 1000000
-q -c 1 "select sum(c1),count(*) from myfile.csv.qsql"  0.17s user 0.04s system 94% cpu 0.226 total
-
-# See the `.qrc` section below if you want to set the default `-C` (`--caching-mode`) to something other than `none` (the default)
-```
+* **Automatic Immutable Caching** - Automatic caching of data files (into `<my-csv-filename>.qsql` files), with huge speedups for medium/large files. Enabled through `-C readwrite` or `-C read`
+* **Direct querying of standard sqlite databases** - Just use it as a table name in the query. Format is `select ... from <sqlitedb_filename>:::<table_name>`, or just `<sqlitedb_filename>` if the database contains only one table. Multiple separate sqlite databases are fully supported in the same query.
+* **Direct querying of the `qsql` cache files** - The user can query directly from the `qsql` files, removing the need for the original files. Just use `select ... from <my-csv-filename>.qsql`. Please wait until the non-beta version is out before thinking about deleting any of your original files...
+* **Revamped `.qrc` mechanism** - allows opting-in to caching without specifying it in every query. By default, caching is **disabled**, for backward compatibility and for finding usability issues.
+* **Save-to-db is now reusable for queries** - `--save-db-to-disk` option (`-S`) has been enhanced to match the new capabilities. You can query the resulting file directly through q, using the method mentioned above (it's just a standard sqlite database).
+* **Only python3 is supported from now on** - Shouldn't be an issue, since q is a self-contained binary executable which has its own python embedded in it. Internally, q is now packaged with Python 3.8. After everything cools down, I'll probably bump this to 3.9/3.10.
+* **Minimal Linux Version Bumped** - Works with CentOS 8, Ubuntu 18.04+, Debian 10+. Currently only for x86_64. Depends on glibc version 2.25+. Haven't tested it on other architectures. Issuing other architectures will be possible later on
+* **Completely revamped binary packaging** - Using [pyoxidizer](https://github.com/indygreg/PyOxidizer)
 
 The following sections provide the details of each of the new functionality in this major version.
 
@@ -139,15 +104,3 @@ Removed the dual py2/py3 support. Since q is packaged as a self-contained execut
 Users which for some reason still use q's main source code file directly and use python 2 would need to stay with the latest 2.0.19 release. In some next version, q's code structure is going to change significantly anyway in order to become a standard python module, so using the main source code file directly would not be possible.
 
 If you are such a user, and this decision hurts you considerably, please ping me.
-
-
-# Installation of the new beta release
-For now, only Linux RPM, DEB, Mac OSX and Windows are supported. Packages for additional Linux Distros will be added later (it should be rather easy now, due to the use of `fpm`).
-
-The beta OSX version is not in `brew` yet, you'll need to take the `macos-q` executable, put it in your filesystem and `chmod +x` it.
-
-Note: For some reason showing the q manual (`man q`) does not work for Debian, even though it's packaged in the DEB file. I'll get around to fixing it later. If you have any thoughts about this, please drop me a line.
-
-Download the relevant files directly from [The Beta Release Assets](https://github.com/harelba/q/releases/tag/v3.1.1-beta).
-
-

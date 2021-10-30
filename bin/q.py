@@ -337,7 +337,7 @@ class Sqlite3DB(object):
 
     QCATALOG_TABLE_NAME = '_qcatalog'
     NUMERIC_COLUMN_TYPES =  {int, long, float}
-    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT' }
+    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'REAL', None: 'TEXT' }
 
 
     def __str__(self):
@@ -1025,6 +1025,9 @@ class TableColumnInferer(object):
                 # return it
                 return type_list_without_nulls[0]
             else:
+                # If there are only two types, one float an one int, then choose a float type
+                if len(set(type_list_without_nulls)) == 2 and float in type_list_without_nulls and int in type_list_without_nulls:
+                    return float
                 return str
 
     def do_analysis(self):

@@ -12,7 +12,19 @@ q treats ordinary files as database tables, and supports all SQL constructs, suc
 
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
-Usage examples are in [here](http://harelba.github.io/q/#examples)
+## Usage Examples
+
+Here are some example commands to get the idea:
+
+```bash
+$ q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
+
+$ ps -ef | q -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+
+$ q "select count(*) from some_db.sqlite3:::albums a left join another_db.sqlite3:::tracks t on (a.album_id = t.album_id)"
+```
+
+Detailed examples are in [here](http://harelba.github.io/q/#examples)
 
 ## Installation.
 **New Major Version `3.1.2` is out with a lot of significant additions.**

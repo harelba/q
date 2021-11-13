@@ -55,5 +55,5 @@ Twitter [@harelba](https://twitter.com/harelba)
 
 Email [harelba@gmail.com](mailto:harelba@gmail.com)
 
-q on twitter: #qtextasdata
+q on twitter: [#qtextasdata](https://twitter.com/hashtag/qtextasdata?src=hashtag_click)
 

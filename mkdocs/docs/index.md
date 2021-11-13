@@ -12,6 +12,18 @@ q allows the following:
 * Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file
 * Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory
 
+The following table shows the impact of using caching:
+
+|    Rows   | Columns | File Size | Query time without caching | Query time with caching | Speed Improvement |
+|:---------:|:-------:|:---------:|:--------------------------:|:-----------------------:|:-----------------:|
+| 5,000,000 |   100   |   4.8GB   |    4 minutes, 47 seconds   |       1.92 seconds      |        x149       |
+| 1,000,000 |   100   |   983MB   |        50.9 seconds        |      0.461 seconds      |        x110       |
+| 1,000,000 |    50   |   477MB   |        27.1 seconds        |      0.272 seconds      |        x99        |
+|  100,000  |   100   |    99MB   |         5.2 seconds        |      0.141 seconds      |        x36        |
+|  100,000  |    50   |    48MB   |         2.7 seconds        |      0.105 seconds      |        x25        |
+
+Notice that for the current version, caching is **not enabled** by default, since the caches take disk space. Use `-C readwrite` or `-C read` to enable it for a query, or add `caching_mode` to `.qrc` to set a new default.
+ 
 q treats ordinary files as database tables, and supports all SQL constructs, such as `WHERE`, `GROUP BY`, `JOIN`s, etc. It supports automatic column name and type detection, and provides full support for multiple character encodings.
 
 q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
@@ -225,7 +237,7 @@ I will add packages for additional Linux Distributions if there's demand for it.
 The previous version `2.0.19` can be downloaded directly from [here](https://github.com/harelba/q/releases/tag/2.0.19). Please let me know if for some reason the new version is not suitable for your needs, and you're planning on using the previous one.
 
 ## Requirements
-q is packaged as a compiled standalone-executable that has no dependencies, not even python itself. This is done by using [pyoxidizer](https://github.com/indygreg/PyOxidizer).
+q is packaged as a compiled standalone-executable that has no dependencies, not even python itself. This was done by using [pyoxidizer](https://github.com/indygreg/PyOxidizer).
 
 ## Usage
 
@@ -542,9 +554,9 @@ Column name detection is supported for JOIN scenarios as well. Just specify `-H`
 ## Implementation
 Behind the scenes q creates a "virtual" sqlite3 database that does not contain data of its own, but attaches to multiple other databases as follows:
 
-* When reading delimited files or data from `stdin`, it will analyze the data and construct an in-memory "adhoc database" that contains it. The virtual database will be attached to this adhoc database
+* When reading delimited files or data from `stdin`, it will analyze the data and construct an in-memory "adhoc database" that contains it. This adhoc database will be attached to the virtual database
 * When a delimited file has a `.qsql` cache, it will attach to that file directly, without having to read it into memory
-* When querying a standard sqlite3 file, it will attach the virtual database to it as well, without reading it into memory. sqlite3 files are auto-detected, no need for any special filename extension
+* When querying a standard sqlite3 file, it will be attached to the virtual database to it as well, without reading it into memory. sqlite3 files are auto-detected, no need for any special filename extension
 
 The user query will be executed directly on the virtual database, using the attached databases.
 

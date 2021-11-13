@@ -1,4 +1,4 @@
-![Build And Package](https://github.com/harelba/q/workflows/BuildAndPackage/badge.svg)
+[![Build and Package](https://github.com/harelba/q/workflows/BuildAndPackage/badge.svg?branch=master)](https://github.com/harelba/q/actions?query=branch%3Amaster)
 
 
 # q - Text as Data

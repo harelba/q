@@ -6,10 +6,10 @@ q's purpose is to bring SQL expressive power to the Linux command line and to pr
 
 q allows the following:
 
-* Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file. The following table shows the impact of caching:
+* Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file. 
 * Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory
 
-The following tables shows the impact of using caching:
+The following table shows the impact of using caching:
 
 |    Rows   | Columns | File Size | Query time without caching | Query time with caching | Speed Improvement |
 |:---------:|:-------:|:---------:|:--------------------------:|:-----------------------:|:-----------------:|

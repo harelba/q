@@ -11,7 +11,7 @@ This is the list of new/changed functionality in this version, large changes, pl
 * **Minimal Linux Version Bumped** - Works with CentOS 8, Ubuntu 18.04+, Debian 10+. Currently only for x86_64. Depends on glibc version 2.25+. Haven't tested it on other architectures. Issuing other architectures will be possible later on
 * **Completely revamped binary packaging** - Using [pyoxidizer](https://github.com/indygreg/PyOxidizer)
 
-The following sections provide the details of each of the new functionality in this major version.
+The following sections provide the details of each of the new functionalities in this major version.
 
 ## Automatic caching of data files
 Speeding up subsequent reads from the same file by several orders of magnitude by automatically creating an immutable cache file for each tabular text file.  

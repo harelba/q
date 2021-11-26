@@ -4,7 +4,7 @@
 class Q < Formula
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
-  url "https://github.com/harelba/q/archive/v3.1.5.tar.gz"
+  url "https://github.com/harelba/q/archive/v3.1.6.tar.gz"
 
   sha256 "0f4656b19087332d5113dd38907b50d70c55a57b3e97f810b8090132412dc9fb"
 

@@ -3,7 +3,7 @@
 from setuptools import setup
 import setuptools
 
-q_version = '3.1.5'
+q_version = '3.1.6'
 
 with open("README.markdown", "r", encoding="utf-8") as fh:
     long_description = fh.read()

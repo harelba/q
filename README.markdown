@@ -39,7 +39,7 @@ $ q "select count(*) from some_db.sqlite3:::albums a left join another_db.sqlite
 Detailed examples are in [here](http://harelba.github.io/q/#examples)
 
 ## Installation.
-**New Major Version `3.1.5` is out with a lot of significant additions.**
+**New Major Version `3.1.6` is out with a lot of significant additions.**
 
 Instructions for all OSs are [here](http://harelba.github.io/q/#installation).
 

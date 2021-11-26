@@ -1038,8 +1038,8 @@ class TableColumnInferer(object):
         else:
             raise Exception('Unknown parsing mode %s' % self.mode)
 
-        if self.column_count == 1 and self.expected_column_count != 1:
-            print("Warning: column count is one - did you provide the correct delimiter?", file=sys.stderr)
+        if self.column_count == 1 and self.expected_column_count != 1 and self.expected_column_count is not None:
+            print(f"Warning: column count is one (expected column count is {self.expected_column_count} - did you provide the correct delimiter?", file=sys.stderr)
 
         self.infer_column_types()
         self.infer_column_names()

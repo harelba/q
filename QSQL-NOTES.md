@@ -1,6 +1,6 @@
 
-## New major version `3.1.2` is available
-This is the list of new/changed functionality in this version, large changes, please make sure to read the details if you're already using q.
+## Major changes and additions in the new `3.x` version
+This is the list of new/changed functionality in this version. Large changes, please make sure to read the details if you're already using q.
 
 * **Automatic Immutable Caching** - Automatic caching of data files (into `<my-csv-filename>.qsql` files), with huge speedups for medium/large files. Enabled through `-C readwrite` or `-C read`
 * **Direct querying of standard sqlite databases** - Just use it as a table name in the query. Format is `select ... from <sqlitedb_filename>:::<table_name>`, or just `<sqlitedb_filename>` if the database contains only one table. Multiple separate sqlite databases are fully supported in the same query.
@@ -16,7 +16,7 @@ The following sections provide the details of each of the new functionalities in
 ## Automatic caching of data files
 Speeding up subsequent reads from the same file by several orders of magnitude by automatically creating an immutable cache file for each tabular text file.  
 
-For example, reading a 0.9GB file with 1M rows and 100 columns without caching takes ~50 seconds. When the cache exists, querying the same file will take less than 1 second. Obviously, the cache can be used in order to perform any query and not just the original query that was used for creating the cache.
+For example, reading a 0.9GB file with 1M rows and 100 columns without caching takes ~50 seconds. When the cache exists, querying the same file will take around ~1-2 seconds. Obviously, the cache can be used in order to perform any query and not just the original query that was used for creating the cache.
 
 When caching is enabled, the cache is created on the first read of a file, and used automatically when reading it in other queries. A separate cache is being created for each file that is being used, allowing reuse in multiple use-cases. For example, if two csv files each have their own cache file from previous queries, then running a query that JOINs these two files would use the caches as well (without loading the data into memory), speeding it up considerably.
 

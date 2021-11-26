@@ -1243,11 +1243,10 @@ class BasicTests(AbstractQTestCase):
             'seq 1 10 | ' + Q_EXECUTABLE + ' "select sum(c1),avg(c1) from -"')
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 1)
-        self.assertTrue(len(e) == 1)
+        self.assertTrue(len(e) == 0)
 
         s = sum(range(1, 11))
         self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
-        self.assertTrue(one_column_warning(e))
 
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -2180,11 +2179,10 @@ class GzippingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 1)
-        self.assertTrue(len(e) == 1)
+        self.assertTrue(len(e) == 0)
 
         s = sum(range(1, 11))
         self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
-        self.assertTrue(one_column_warning(e))
 
         self.cleanup(tmpfile)
 
@@ -2199,12 +2197,10 @@ class DelimiterTests(AbstractQTestCase):
 
         self.assertNotEqual(retcode, 0)
         self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 3)
+        self.assertEqual(len(e), 2)
 
-        self.assertTrue(e[0].startswith(
-            six.b("Warning: column count is one - did you provide the correct delimiter")))
-        self.assertTrue(e[1].startswith(six.b("Bad header row")))
-        self.assertTrue(six.b("Column name cannot contain commas") in e[2])
+        self.assertTrue(e[0].startswith(six.b("Bad header row")))
+        self.assertTrue(six.b("Column name cannot contain commas") in e[1])
 
         self.cleanup(tmpfile)
 
@@ -4658,10 +4654,9 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(e), 1)
+        self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
         self.assertEqual(o[0],six.b('data without commas 1'))
         self.assertEqual(o[1],six.b('data without commas 2'))
 

@@ -1,6 +1,5 @@
 [![Build and Package](https://github.com/harelba/q/workflows/BuildAndPackage/badge.svg?branch=master)](https://github.com/harelba/q/actions?query=branch%3Amaster)
 
-
 # q - Text as Data
 q's purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.
 
@@ -40,7 +39,7 @@ $ q "select count(*) from some_db.sqlite3:::albums a left join another_db.sqlite
 Detailed examples are in [here](http://harelba.github.io/q/#examples)
 
 ## Installation.
-**New Major Version `3.1.3` is out with a lot of significant additions.**
+**New Major Version `3.1.4` is out with a lot of significant additions.**
 
 Instructions for all OSs are [here](http://harelba.github.io/q/#installation).
 
@@ -56,4 +55,7 @@ Twitter [@harelba](https://twitter.com/harelba)
 Email [harelba@gmail.com](mailto:harelba@gmail.com)
 
 q on twitter: [#qtextasdata](https://twitter.com/hashtag/qtextasdata?src=hashtag_click)
+
+Patreon: [harelba](https://www.patreon.com/harelba) - All the money received is donated to the [Center for the Prevention and Treatment of Domestic Violence](https://www.gov.il/he/departments/bureaus/molsa-almab-ramla) in my hometown - Ramla, Israel.
+
 

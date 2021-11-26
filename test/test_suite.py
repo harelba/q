@@ -4668,10 +4668,9 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(e), 1)
+        self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
         self.assertEqual(o[0],six.b('data without commas 1'))
         self.assertEqual(o[1],six.b('data without commas 2'))
 

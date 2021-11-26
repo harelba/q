@@ -528,10 +528,7 @@ jobs:
   perform-release:
     needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging]
     runs-on: ubuntu-latest
-    # Disabled on purpose for now - Changing the beta release to a real one will be done manually until everything stabilizes
-    # and then this will be reinstated
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-    if: ${{ false }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

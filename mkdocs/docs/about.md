@@ -6,5 +6,5 @@
 
 ### Email [harelba@gmail.com](mailto:harelba@gmail.com)
 
-### Chinese translation [jinzhencheng@outlook.com](jinzhencheng@outlook.com)
+### Chinese translation [jinzhencheng@outlook.com](mailto:jinzhencheng@outlook.com)
 

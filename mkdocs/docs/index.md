@@ -5,19 +5,56 @@
 
 
 ## Overview
-q is a command line tool that allows direct execution of SQL-like queries on CSVs/TSVs (and any other tabular text files).
+q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data.
 
-q treats ordinary files as database tables, and supports all SQL constructs, such as WHERE, GROUP BY, JOINs etc. It supports automatic column name and column type detection, and provides full support for multiple encodings.
+q allows the following:
 
-``` bash
-q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
+* Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file
+* Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory
+
+The following table shows the impact of using caching:
+
+|    Rows   | Columns | File Size | Query time without caching | Query time with caching | Speed Improvement |
+|:---------:|:-------:|:---------:|:--------------------------:|:-----------------------:|:-----------------:|
+| 5,000,000 |   100   |   4.8GB   |    4 minutes, 47 seconds   |       1.92 seconds      |        x149       |
+| 1,000,000 |   100   |   983MB   |        50.9 seconds        |      0.461 seconds      |        x110       |
+| 1,000,000 |    50   |   477MB   |        27.1 seconds        |      0.272 seconds      |        x99        |
+|  100,000  |   100   |    99MB   |         5.2 seconds        |      0.141 seconds      |        x36        |
+|  100,000  |    50   |    48MB   |         2.7 seconds        |      0.105 seconds      |        x25        |
+
+Notice that for the current version, caching is **not enabled** by default, since the caches take disk space. Use `-C readwrite` or `-C read` to enable it for a query, or add `caching_mode` to `.qrc` to set a new default.
+ 
+q treats ordinary files as database tables, and supports all SQL constructs, such as `WHERE`, `GROUP BY`, `JOIN`s, etc. It supports automatic column name and type detection, and provides full support for multiple character encodings.
+
+The new features - autocaching, direct querying of sqlite database and the use of `~/.qrc` file are described in detail in [here](https://github.com/harelba/q/blob/master/QSQL-NOTES.md).
+
+## Basic Usage
+
+```bash
+	q <flags> <query>
+
+Example Execution for a delimited file:
+
+    q "select * from myfile.csv"
+
+Example Execution for an sqlite3 database:
+
+    q "select * from mydatabase.sqlite:::my_table_name"
+
+        or
+
+    q "select * from mydatabase.sqlite"
+
+        if the database file contains only one table
+
+Auto-caching of delimited files can be activated through `-C readwrite` 
+(writes new caches if needed)  or `-C read` (only reads existing cache files)
+
+Setting the default caching mode (`-C`) can be done by 
+writing a `~/.qrc` file. See docs for more info.
 ```
 
-``` bash
-ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
-```
-
-Look at some examples [here](#examples), or just download the tool using the links in the [installation](#installation) below and play with it.
+Download the tool using the links in the [installation](#installation) below and play with it.
 
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
@@ -32,29 +69,220 @@ Look at some examples [here](#examples), or just download the tool using the lin
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|run `brew install q`|man page is not available for this release yet. Use `q --help` for now||
-|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
-|[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`.|
-|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new cmd window after the installation is done.|
-|[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
-|[zip](https://github.com/harelba/q/archive/2.0.19.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+|[OSX](https://github.com/harelba/q/releases/download/v3.1.3/macos-q)|`brew install` will install the previous `2.0.19` for now, until homebrew approves the new version. In the mean time, you can download the new version executable from the link, `chmod +x` it and then run. You might need to run it the first time from Finder using Right-Click -> Open, and then click the Open button. After the first time, it will run from the command line without any issues. |A man page is available, just run `man q`||
+|[RPM Package](https://github.com/harelba/q/releases/download/v3.1.3/q-text-as-data-3.1.3.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
+|[DEB Package](https://github.com/harelba/q/releases/download/v3.1.3/q-text-as-data-3.1.3-1.x86_64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`. Some installations don't install the man page properly for some reason. I'll fix this soon|
+|[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.3/q-text-as-data-3.1.3.msi)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new `cmd`/`bash` window after the installation is done.|
+|[Source tar.gz](https://github.com/harelba/q/archive/refs/tags/v3.1.3.tar.gz)|Full source file tree for latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
+|[Source zip](https://github.com/harelba/q/archive/refs/tags/v3.1.3.zip)|Full source file tree for the latest stable version. Note that q.py cannot be used directly anymore, as it requires python dependencies||
 
-**Older versions can be downloaded [here](https://github.com/harelba/packages-for-q). Please let me know if you plan on using an older version, and why - I know of no reason to use any of them.**
+I will add packages for additional Linux Distributions if there's demand for it. If you're interested in another Linux distribution, please ping me. It's relatively easy to add new ones with the new packaging flow.
+
+The previous version `2.0.19` can be downloaded directly from [here](https://github.com/harelba/q/releases/tag/2.0.19). Please let me know if for some reason the new version is not suitable for your needs, and you're planning on using the previous one.
 
 ## Requirements
-As of version `2.0.9`, there's no need for any external dependency. Python itself (3.7), and any needed libraries are self-contained inside the installation, isolated from the rest of your system.
+q is packaged as a compiled standalone-executable that has no dependencies, not even python itself. This was done by using the awesome [pyoxidizer](https://github.com/indygreg/PyOxidizer) project.
 
-## Usage
 
-``` bash
-q <flags> "<query>"
+## Examples
 
-  Simplest execution is `q "SELECT * FROM myfile"` which prints the entire file.
+This section shows example flows that highlight the main features. For more basic examples, see [here](#getting-started-examples).
+
+### Basic Examples:
+
+```bash
+# Prepare some data
+$ seq 1 1000000 > myfile.csv
+
+# Query it
+$ q "select sum(c1),count(*) from myfile.csv where c1 % 3 = 0"
+166666833333 333333
+
+# Use q to query from stdin
+$ ps -ef | q -b -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+501 288
+0   115
+270 17
 ```
 
-q allows performing SQL-like statements on tabular text data. Its purpose is to bring SQL expressive power to the Linux command line and to provide easy access to text as actual data.
+### Auto-caching Examples
 
-Query should be an SQL-like query which contains *filenames instead of table names* (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes). Multiple files can be used as one table by either writing them as `filename1+filename2+...` or by using shell wildcards (e.g. `my_files*.csv`).
+```bash
+# (time command output has been shortened for berevity)
+
+# Prepare some data
+$ seq 1 1000000 > myfile.csv
+
+# Read from the resulting file 
+$ time q "select sum(c1),count(*) from myfile.csv"
+500000500000 1000000
+total_time=4.108 seconds
+
+# Running with `-C readwrite` auto-creates a cache file if there is none. The cache filename would be myfile.csv.qsql. The query runs as usual
+$ time q "select sum(c1),count(*) from myfile.csv" -C readwrite
+500000500000 1000000
+total_time=4.057 seconds
+
+# Now run with `-C read`. The query will run from the cache file and not the original. As the file gets bigger, the difference will be much more noticable
+$ time q "select sum(c1),count(*) from myfile.csv" -C read
+500000500000 1000000
+total_time=0.229 seconds
+
+# Now let's try another query on that file. Notice the short query duration. The cache is being used for any query that uses this file, and queries on multiple files that contain caches will reuse the cache as well.
+$ time q "select avg(c1) from myfile.csv" -C read
+500000.5
+total_time=0.217 seconds
+
+# You can also query the qsql file directly, as it's just a standard sqlite3 DB file (see next section for q's support of reading directly from sqlite DBs)
+$ time q "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+total_time=0.226 seconds
+
+# Now let's delete the original csv file (be careful when deleting original data)
+$ rm -vf myfile.csv
+
+# Running another query directly on the qsql file just works
+$ time q "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+total_time=0.226 seconds
+
+# See the `.qrc` section below if you want to set the default `-C` (`--caching-mode`) to something other than `none` (the default)
+```
+
+### Direct sqlite Querying Examples
+
+```bash
+# Download example sqlite3 database from https://www.sqlitetutorial.net/sqlite-sample-database/ and unzip it. The resulting file will be chinook.db
+$ curl -L https://www.sqlitetutorial.net/wp-content/uploads/2018/03/chinook.zip | tar -xvf -
+
+# Now we can query the database directly, specifying the name of the table in the query (<db_name>:::<table_name>)
+$ q "select count(*) from chinook.db:::albums"
+347
+
+# Let's take the top 5 longest tracks of album id 34. The -b option just beautifies the output, and -O tells q to output the column names as headers
+$ q "select * from chinook.db:::tracks where albumid = '34' order by milliseconds desc limit 5" -b -O
+TrackId Name                       AlbumId MediaTypeId GenreId Composer Milliseconds Bytes    UnitPrice
+407     "Só Tinha De Ser Com Você" 34      1           7       Vários   389642       13085596 0.99
+398     "Only A Dream In Rio"      34      1           7       Vários   371356       12192989 0.99
+393     "Tarde Em Itapoã"          34      1           7       Vários   313704       10344491 0.99
+401     "Momentos Que Marcam"      34      1           7       Vários   280137       9313740  0.99
+391     "Garota De Ipanema"        34      1           7       Vários   279536       9141343  0.99
+
+# Let's now copy the chinook database to another file, as if it's just another different database
+$ cp chinook.db another_db.db
+
+# Now we can run a join query between the two databases. They could have been any two different databases, using the copy of chinook is just for simplicity
+# Let's get the top-5 longest albums, using albums from the first database and tracks from the second database. The track times are converted to seconds, and rounded to two digits after the decimal point.
+$ q -b -O "select a.title,round(sum(t.milliseconds)/1000.0/60,2) total_album_time_seconds from chinook.db:::albums a left join another_database.db:::tracks t on (a.albumid = t.albumid) group by a.albumid order by total_album_time_seconds desc limit 5"
+Title                                      total_album_time_seconds
+"Lost, Season 3"                           1177.76
+"Battlestar Galactica (Classic), Season 1" 1170.23
+"Lost, Season 1"                           1080.92
+"Lost, Season 2"                           1054.83
+"Heroes, Season 1"                         996.34
+```
+
+### Analysis Examples
+
+```bash
+# Let's create a simple CSV file without a header. Make sure to copy only the three lines, press enter, and
+# then press Ctrl-D to exit so the file will be written.
+$ cat > some-data-without-header.csv
+harel,1,2
+ben,3,4
+attia,5,6
+<Ctrl-D>
+
+# Let's run q on it with -A, to see the detected structure of the file. `-d ,` sets the delimiter to a comma
+$ q -d , "select * from some-data-without-header.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Sources:
+    source_type: file source: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Fields:
+    `c1` - text
+    `c2` - int
+    `c3` - int
+
+# Now let's create another simple CSV file, this time with a header (-H tells q to expect a header in the file)
+$ cat > some-data.csv
+planet_id,name,diameter_km,length_of_day_hours
+1000,Earth,12756,24
+2000,Mars,6792,24.7
+3000,Jupiter,142984,9.9
+<Ctrl-D>
+
+# Let's run q with -A to see the analysis results.
+$ q -b -O -H -d , "select * from some-data.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: file source: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# Let's run it with `-C readwrite` so a cache will be created
+$ q -b -O -H -d , "select * from some-data.csv" -C readwrite
+planet_id,name   ,diameter_km,length_of_day_hours
+1000     ,Earth  ,12756      ,24.0
+2000     ,Mars   ,6792       ,24.7
+3000     ,Jupiter,142984     ,9.9
+
+# Running another query that uses some-data.csv with -A will now show that a qsql exists for that file. The source-type 
+# will be "file-with-unused-qsql". The qsql cache is not being used, since by default, q does not activate caching
+# so backward compatibility is maintained
+$ q -b -O -H -d , "select * from some-data.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: file-with-unused-qsql source: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# Now let's run another query, this time with `-C read`, telling q to use the qsql caches. This time source-type will 
+# be "qsql-file-with-original", and the cache will be used when querying:
+$ q -b -O -H -d , "select * from some-data.csv" -A -C read
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: qsql-file-with-original source: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# Let's now read directly from the qsql file. Notice the change in the table name inside the query. `-C read` is not needed
+# here. The source-type will be "qsql-file" 
+$ q -b -O -H -d , "select * from some-data.csv.qsql" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Sources:
+    source_type: qsql-file source: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+```
+
+### Usage
+Query should be an SQL-like query which contains filenames instead of table names (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes).
+
+All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
+
+q gets a full SQL query as a parameter. Remember to double-quote the query.
+
+Historically, q supports multiple queries on the same command-line, loading each data file only once, even if it is used by multiple queries on the same q invocation. This is still supported. However, due to the new automatic-caching capabilities, this is not really required. Activate caching, and a cache file will be automatically created for each file. q Will use the cache behind the scenes in order to speed up queries. The speed up is extremely significant, so consider using caching for large files.
+
+The following filename types are supported:
+
+* **Delimited-file filenames** - including relative/absolute paths. E.g. `./my_folder/my_file.csv` or `/var/tmp/my_file.csv`
+* **sqlite3 database filenames**
+    * **With Multiple Tables** - Add an additional `:::<table_name>` for accessing a specific table. For example `mydatabase.sqlite3:::users_table`.
+    * **With One Table Only** - Just specify the database filename, no need for a table name postfix. For example `my_single_table_database.sqlite`.
+* **`.qsql` cache files** - q can auto-generate cache files for delimited files, and they can be queried directly as a table, since they contain only one table, as they are essentially standard sqlite datbases
 
 Use `-H` to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. `q "SELECT c3,c8 from ..."`).
 
@@ -62,69 +290,41 @@ Use `-d` to specify the input delimiter.
 
 Column types are auto detected by the tool, no casting is needed. Note that there's a flag `--as-text` which forces all columns to be treated as text columns.
 
-Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard.
+Please note that column names that include spaces need to be used in the query with back-ticks, as per the sqlite standard. Make sure to use single-quotes around the query, so bash/zsh won't interpret the backticks.
 
 Query/Input/Output encodings are fully supported (and q tries to provide out-of-the-box usability in that area). Please use `-e`,`-E` and `-Q` to control encoding if needed.
-
-All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
-
-### Query
-Each parameter that q gets is a full SQL query. All queries are executed one after another, outputing the results to standard output. Note that data loading is done only once, so when passing multiple queries on the same command-line, only the first one will take a long time. The rest will starting running almost instantanously, since all the data will already have been loaded. Remeber to double-quote each of the queries - Each parameter is a full SQL query.
-
-Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER BY etc. are allowed.
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.
 
 The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
 
-NOTE: Full type detection is implemented, so there is no need for any casting or anything.
-
-NOTE2: When using the `-O` output header option, use column name aliases if you want to control the output column names. For example, `q -O -H "select count(*) cnt,sum(*) as mysum from -"` would output `cnt` and `mysum` as the output header column names.
-
-### Flags
+NOTE: When using the `-O` output header option, use column name aliases if you want to control the output column names. For example, `q -O -H "select count(*) cnt,sum(*) as mysum from -"` would output `cnt` and `mysum` as the output header column names.
 
 ``` bash
-Usage: 
-        q allows performing SQL-like statements on tabular text data.
-
-        Its purpose is to bring SQL expressive power to manipulating text data using the Linux command line.
-
-        Basic usage is q "<sql like query>" where table names are just regular file names (Use - to read from standard input)
-            When the input contains a header row, use -H, and column names will be set according to the header row content. If there isn't a header row, then columns will automatically be named c1..cN.
-
-        Column types are detected automatically. Use -A in order to see the column name/type analysis.
-
-        Delimiter can be set using the -d (or -t) option. Output delimiter can be set using -D
-
-        All sqlite3 SQL constructs are supported.
-
-        Examples:
-
-              Example 1: ls -ltrd * | q "select c1,count(1) from - group by c1"
-            This example would print a count of each unique permission string in the current folder.
-
-          Example 2: seq 1 1000 | q "select avg(c1),sum(c1) from -"
-            This example would provide the average and the sum of the numbers in the range 1 to 1000
-
-          Example 3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc"
-            This example will output the total size in MB per user+group in the /tmp subtree
-
-
-            See the help or https://github.com/harelba/q/ for more details.
-    
-
 Options:
   -h, --help            show this help message and exit
   -v, --version         Print version
   -V, --verbose         Print debug info in case of problems
   -S SAVE_DB_TO_DISK_FILENAME, --save-db-to-disk=SAVE_DB_TO_DISK_FILENAME
                         Save database to an sqlite database file
-  --save-db-to-disk-method=SAVE_DB_TO_DISK_METHOD
-                        Method to use to save db to disk. 'standard' does not
-                        require any deps, 'fast' currenty requires manually
-                        running `pip install sqlitebck` on your python
-                        installation. Once packing issues are solved, the fast
-                        method will be the default.
+  -C CACHING_MODE, --caching-mode=CACHING_MODE
+                        Choose the autocaching mode (none/read/readwrite).
+                        Autocaches files to disk db so further queries will be
+                        faster. Caching is done to a side-file with the same
+                        name of the table, but with an added extension .qsql
+  --dump-defaults       Dump all default values for parameters and exit. Can
+                        be used in order to make sure .qrc file content is
+                        being read properly.
+  --max-attached-sqlite-databases=MAX_ATTACHED_SQLITE_DATABASES
+                        Set the maximum number of concurrently-attached sqlite
+                        dbs. This is a compile time definition of sqlite. q's
+                        performance will slow down once this limit is reached
+                        for a query, since it will perform table copies in
+                        order to avoid that limit.
+  --overwrite-qsql=OVERWRITE_QSQL
+                        When used, qsql files (both caches and store-to-db)
+                        will be overwritten if they already exist. Use with
+                        care.
 
   Input Data Options:
     -H, --skip-header   Skip header row. This has been changed from earlier
@@ -227,14 +427,32 @@ Options:
                         feedback on this
 ```
 
-## Examples
-The `-H` flag in the examples below signifies that the file has a header row which is used for naming columns.
+### Setting the default values for parameters
+It's possible to set default values for parameters which are used often by configuring them in the file `~/.qrc`.
 
-The `-t` flag is just a shortcut for saying that the file is a tab-separated file (any delimiter is supported - Use the `-d` flag).
+The file format is as follows:
+```bash
+[options]
+<setting>=<default-value>
+```
 
-Queries are given using upper case for clarity, but actual query keywords such as SELECT and WHERE are not really case sensitive.
+It's possible to generate a default `.qrc` file by running `q --dump-defaults` and write the output into the `.qrc` file.
 
-Example List:
+One valuable use-case for this could be setting the caching-mode to `read`. This will make q automatically use generated `.qsql` cache files if they exist. Whenever you want a cache file to be generated, just use `-C readwrite` and a `.qsql` file will be generated if it doesn't exist.
+
+  
+## Getting Started Examples
+This section shows some more basic examples of simple SQL constructs. 
+
+For some more complex use-cases, see the [examples](#examples) at the beginning of the documentation.
+
+NOTES:
+
+* The `-H` flag in the examples below signifies that the file has a header row which is used for naming columns.
+* The `-t` flag is just a shortcut for saying that the file is a tab-separated file (any delimiter is supported - Use the `-d` flag).
+* Queries are given using upper case for clarity, but actual query keywords such as SELECT and WHERE are not really case sensitive.
+
+Basic Example List:
 
 * [Example 1 - COUNT DISTINCT values of specific field (uuid of clicks data)](#example-1)
 * [Example 2 - Filter numeric data, controlling ORDERing and LIMITing output](#example-2)
@@ -345,24 +563,32 @@ You can see that the ppp filename appears twice, each time matched to one of the
 Column name detection is supported for JOIN scenarios as well. Just specify `-H` in the command line and make sure that the source files contain the header rows.
 
 ## Implementation
-The current implementation is written in Python using an in-memory database, in order to prevent the need for external dependencies. The implementation itself supports SELECT statements, including JOINs (Subqueries are supported only in the WHERE clause for now). If you want to do further analysis on the data, you can use the `--save-db-to-disk` option to write the resulting tables to an sqlite database file, and then use `seqlite3` in order to perform queries on the data separately from q itself.
+Behind the scenes q creates a "virtual" sqlite3 database that does not contain data of its own, but attaches to multiple other databases as follows:
 
-Please note that there is currently no checks and bounds on data size - It's up to the user to make sure things don't get too big.
+* When reading delimited files or data from `stdin`, it will analyze the data and construct an in-memory "adhoc database" that contains it. This adhoc database will be attached to the virtual database
+* When a delimited file has a `.qsql` cache, it will attach to that file directly, without having to read it into memory
+* When querying a standard sqlite3 file, it will be attached to the virtual database to it as well, without reading it into memory. sqlite3 files are auto-detected, no need for any special filename extension
+
+The user query will be executed directly on the virtual database, using the attached databases.
+
+sqlite3 itself has a limit on the number of attached databases (usually 10). If that limit is reached, q will automatically attach databases until that limit is reached, and will load additional tables into the adhoc database's in-memory database.
 
 Please make sure to read the [limitations](#limitations) section as well.
 
 ## Development
 
 ### Tests
-The code includes a test suite runnable through `test/test-all`. If you're planning on sending a pull request, I'd appreciate if you could make sure that it doesn't fail. 
+The code includes a test suite runnable through `run-tests.sh`. By default, it uses the python source code for running the tests. However, it is possible to provide a path to an actual executable to the tests using the `Q_EXECUTABLE` env var. This is actually being used during the build and packaging process, in order to test the resulting binary.  
 
 ## Limitations
 Here's the list of known limitations. Please contact me if you have a use case that needs any of those missing capabilities.
 
+* Common Table Expressions (CTE) are not supported for now. Will be implemented soon - See [here](https://github.com/harelba/q/issues/67) and [here](https://github.com/harelba/q/issues/124) for details.
 * `FROM <subquery>` is not supported
-* Common Table Expressions (CTE) are not supported
 * Spaces in file names are not supported. Use stdin for piping the data into q, or rename the file
 * Some rare cases of subqueries are not supported yet.
+* Queries with more than 10 different sqlite3 databases will load some data into memory
+* up to 500 tables are supported in a single query
 
 ## Rationale
 Have you ever stared at a text file on the screen, hoping it would have been a database so you could ask anything you want about it? I had that feeling many times, and I've finally understood that it's not the database that I want. It's the language - SQL.
@@ -381,7 +607,6 @@ This tool has been designed with general Linux/Unix design principles in mind. I
 
 ## Future
 
-* Expose python as a python module - Mostly implemented. Requires some internal API changes with regard to handling stdin before exposing it.
-* Allow to use a distributed backend for scaling the computations
+* Expose python as a python module - Planned as a goal after the new version `3.x` is out
 
 

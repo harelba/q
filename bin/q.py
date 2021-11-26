@@ -35,7 +35,7 @@ from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 from uuid import uuid4
 
-q_version = '3.1.1-beta'
+q_version = '3.1.3'
 
 #__all__ = [ 'QTextAsData' ]
 
@@ -337,7 +337,7 @@ class Sqlite3DB(object):
 
     QCATALOG_TABLE_NAME = '_qcatalog'
     NUMERIC_COLUMN_TYPES =  {int, long, float}
-    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'FLOAT', None: 'TEXT' }
+    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'REAL', None: 'TEXT' }
 
 
     def __str__(self):
@@ -1025,6 +1025,9 @@ class TableColumnInferer(object):
                 # return it
                 return type_list_without_nulls[0]
             else:
+                # If there are only two types, one float an one int, then choose a float type
+                if len(set(type_list_without_nulls)) == 2 and float in type_list_without_nulls and int in type_list_without_nulls:
+                    return float
                 return str
 
     def do_analysis(self):
@@ -1035,8 +1038,8 @@ class TableColumnInferer(object):
         else:
             raise Exception('Unknown parsing mode %s' % self.mode)
 
-        if self.column_count == 1 and self.expected_column_count != 1:
-            print("Warning: column count is one - did you provide the correct delimiter?", file=sys.stderr)
+        if self.column_count == 1 and self.expected_column_count != 1 and self.expected_column_count is not None:
+            print(f"Warning: column count is one (expected column count is {self.expected_column_count} - did you provide the correct delimiter?", file=sys.stderr)
 
         self.infer_column_types()
         self.infer_column_names()

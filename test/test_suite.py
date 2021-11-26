@@ -1243,11 +1243,10 @@ class BasicTests(AbstractQTestCase):
             'seq 1 10 | ' + Q_EXECUTABLE + ' "select sum(c1),avg(c1) from -"')
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 1)
-        self.assertTrue(len(e) == 1)
+        self.assertTrue(len(e) == 0)
 
         s = sum(range(1, 11))
         self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
-        self.assertTrue(one_column_warning(e))
 
     def test_select_one_column(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
@@ -2180,11 +2179,10 @@ class GzippingTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
         self.assertTrue(retcode == 0)
         self.assertTrue(len(o) == 1)
-        self.assertTrue(len(e) == 1)
+        self.assertTrue(len(e) == 0)
 
         s = sum(range(1, 11))
         self.assertTrue(o[0] == six.b('%s %s' % (s, s / 10.0)))
-        self.assertTrue(one_column_warning(e))
 
         self.cleanup(tmpfile)
 
@@ -2199,12 +2197,10 @@ class DelimiterTests(AbstractQTestCase):
 
         self.assertNotEqual(retcode, 0)
         self.assertEqual(len(o), 0)
-        self.assertEqual(len(e), 3)
+        self.assertEqual(len(e), 2)
 
-        self.assertTrue(e[0].startswith(
-            six.b("Warning: column count is one - did you provide the correct delimiter")))
-        self.assertTrue(e[1].startswith(six.b("Bad header row")))
-        self.assertTrue(six.b("Column name cannot contain commas") in e[2])
+        self.assertTrue(e[0].startswith(six.b("Bad header row")))
+        self.assertTrue(six.b("Column name cannot contain commas") in e[1])
 
         self.cleanup(tmpfile)
 
@@ -2402,6 +2398,46 @@ class AnalysisTests(AbstractQTestCase):
         self.assertEqual(o[4], six.b('    `c1` - text'))
         self.assertEqual(o[5], six.b('    `c2` - int'))
         self.assertEqual(o[6], six.b('    `c3` - int'))
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_with_mixed_ints_and_floats(self):
+        tmpfile = self.create_file_with_data(six.b("""planet_id,name,diameter_km,length_of_day_hours\n1000,Earth,12756,24\n2000,Mars,6792,24.7\n3000,Jupiter,142984,9.9"""))
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select * from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Sources:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `planet_id` - int'))
+        self.assertEqual(o[5], six.b('    `name` - text'))
+        self.assertEqual(o[6], six.b('    `diameter_km` - int'))
+        self.assertEqual(o[7], six.b('    `length_of_day_hours` - real'))
+
+        self.cleanup(tmpfile)
+
+    def test_column_analysis_with_mixed_ints_and_floats_and_nulls(self):
+        tmpfile = self.create_file_with_data(six.b("""planet_id,name,diameter_km,length_of_day_hours\n1000,Earth,12756,24\n2000,Mars,6792,24.7\n2500,Venus,,\n3000,Jupiter,142984,9.9"""))
+
+        cmd = Q_EXECUTABLE + ' -d , -H "select * from %s" -A' % tmpfile.name
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o),8)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o[0], six.b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],six.b('  Sources:'))
+        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],six.b('  Fields:'))
+        self.assertEqual(o[4], six.b('    `planet_id` - int'))
+        self.assertEqual(o[5], six.b('    `name` - text'))
+        self.assertEqual(o[6], six.b('    `diameter_km` - int'))
+        self.assertEqual(o[7], six.b('    `length_of_day_hours` - real'))
 
         self.cleanup(tmpfile)
 
@@ -2806,11 +2842,11 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmp_data_file.name))
         self.assertEqual(o[3],six.b('  Fields:'))
         self.assertEqual(o[4],six.b('    `c1` - int'))
-        self.assertEqual(o[5],six.b('    `c2` - float'))
+        self.assertEqual(o[5],six.b('    `c2` - real'))
         self.assertEqual(o[6],six.b('    `c3` - text'))
         self.assertEqual(o[7],six.b('    `c4` - text'))
         self.assertEqual(o[8],six.b('    `c5` - text'))
-        self.assertEqual(o[9],six.b('    `c6` - float'))
+        self.assertEqual(o[9],six.b('    `c6` - real'))
 
         self.cleanup(tmp_data_file)
 
@@ -4618,10 +4654,9 @@ class ParsingModeTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(e), 1)
+        self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(e[0],six.b("Warning: column count is one - did you provide the correct delimiter?"))
         self.assertEqual(o[0],six.b('data without commas 1'))
         self.assertEqual(o[1],six.b('data without commas 2'))
 
@@ -4946,7 +4981,7 @@ class SqlTests(AbstractQTestCase):
         self.assertEqual(o[4], six.b('    `regular_text` - text'))
         self.assertEqual(o[5], six.b('    `text_with_digits1` - int'))
         self.assertEqual(o[6], six.b('    `text_with_digits2` - int'))
-        self.assertEqual(o[7], six.b('    `float_number` - float'))
+        self.assertEqual(o[7], six.b('    `float_number` - real'))
 
         # Check column types detected when actual detection is disabled
         cmd = Q_EXECUTABLE + ' -A -d , -H --as-text "select * from %s"' % (tmpfile.name)
@@ -5439,7 +5474,7 @@ class BasicModuleTests(AbstractQTestCase):
         table_structure = metadata.table_structures['my_data']
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
-        self.assertEqual(table_structure.sqlite_column_types,['text','float','text'])
+        self.assertEqual(table_structure.sqlite_column_types,['text','real','text'])
         self.assertEqual(table_structure.python_column_types,[str,float,str])
         self.assertEqual(table_structure.qtable_name, 'my_data')
         self.assertEqual(table_structure.source_type, 'data-stream')
@@ -5475,7 +5510,7 @@ class BasicModuleTests(AbstractQTestCase):
         table_structure = metadata.table_structures['my_data']
 
         self.assertEqual(table_structure.column_names,['column1','column2','column3'])
-        self.assertEqual(table_structure.sqlite_column_types,['text','float','text'])
+        self.assertEqual(table_structure.sqlite_column_types,['text','real','text'])
         self.assertEqual(table_structure.python_column_types,[str,float,str])
         self.assertEqual(table_structure.qtable_name, 'my_data')
 

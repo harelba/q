@@ -290,6 +290,7 @@ jobs:
   package-mac:
     # create-man is not needed, as it's generated inside the brew formula independently
     needs: [test-mac]
+    if: ${{false}}
     runs-on: macos-11
     steps:
     - name: Checkout
@@ -330,6 +331,7 @@ jobs:
 
   test-mac-packaging:
     needs: package-mac
+    if: ${{false}}
     runs-on: macos-11
     steps:
     - name: Checkout

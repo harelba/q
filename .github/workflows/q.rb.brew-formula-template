@@ -6,7 +6,7 @@ class Q < Formula
   homepage "https://harelba.github.io/q/"
   url "https://github.com/harelba/q/archive/v3.1.4.tar.gz"
 
-  sha256 "RLRL-UNKNOWN-YET"
+  sha256 "0f4656b19087332d5113dd38907b50d70c55a57b3e97f810b8090132412dc9fb"
 
   license "GPL-3.0-or-later"
   revision 1

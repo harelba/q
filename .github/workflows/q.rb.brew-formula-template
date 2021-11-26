@@ -5,8 +5,7 @@ class Q < Formula
   desc "Run SQL directly on CSV or TSV files"
   homepage "https://harelba.github.io/q/"
   # Using branch name for pre-releases, for tagged releases this would be the version tag, and not "version" part will be needed
-  url "https://github.com/harelba/q/archive/{{ .Q_BRANCH_NAME }}.tar.gz"
-  version "{{ .Q_VERSION }}"
+  url "https://github.com/harelba/q/archive/3.1.3.tar.gz"
 
   # Removed for now, until everything is finalized
   # sha256 "0844aed6658d0347a299b84bee978c88724d45093e8cbd7b05506ecc0b93c98c"

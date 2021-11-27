@@ -3,7 +3,6 @@
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
 
-
 ## Overview
 q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data.
 

@@ -9,15 +9,10 @@ function GAizeDownloadLink(a) {
         if (x != -1) {
             url = url.substr(0, x);
         }
-        var url_test = url.match(/^http.*(archive|releases).*/);
+        var url_test = url.match(/^http.*(archive\/|releases\/)(?<path>.*)/);
         if (url_test) {
-            console.log("Converting download link to be GA aware: " + url);
-            if (url_test.length > 1) {
-                var event_action = url_test[1];
-            } else {
-                var event_action = 'unknown_action';
-            }
-            a.event_action = event_action;
+            a.event_action = url_test.groups.path;
+            console.log("Converting download link to be GA aware: " + url + " . download path is " + a.event_action);
             dlCnt = dlCnt + 1;
             a.onclick = function() {
                 console.log("Sending GA event for link" + url);

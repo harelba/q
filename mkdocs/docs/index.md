@@ -4,12 +4,45 @@
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
 
 ## Overview
-q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data.
+q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data, and allowing direct access to multi-file sqlite3 databases.
+
+```bash
+	q <flags> <sql-query>
+```
 
 q allows the following:
 
 * Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file
+
+```bash
+    # Simple query from a file, columns are named c1...cN
+    q "select c1,c5 from myfile.csv"
+
+    # -d '|' sets the input delimiter, -H says there's a header
+    q -d , -H "select my_field from myfile.delimited-file-with-pipes"
+
+    # -C readwrite writes a cache for the csv file
+    q -d , -H "select my_field from myfile.csv" -C readwrite
+
+    # -C read tells q to use the cache
+    q -d , -H "select my_field from myfile.csv" -C read
+
+    # Setting the default caching mode (`-C`) can be done by writing a `~/.qrc` file
+```
+
 * Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory
+
+```bash
+    q "select * from mydatabase.sqlite:::my_table_name"
+
+        or
+
+    q "select * from mydatabase.sqlite"
+
+        if the database file contains only one table
+
+    # sqlite files are autodetected, no need for any special filename extension
+```
 
 The following table shows the impact of using caching:
 
@@ -27,34 +60,9 @@ q treats ordinary files as database tables, and supports all SQL constructs, suc
 
 The new features - autocaching, direct querying of sqlite database and the use of `~/.qrc` file are described in detail in [here](https://github.com/harelba/q/blob/master/QSQL-NOTES.md).
 
-## Basic Usage
-
-```bash
-	q <flags> <query>
-
-Example Execution for a delimited file:
-
-    q "select * from myfile.csv"
-
-Example Execution for an sqlite3 database:
-
-    q "select * from mydatabase.sqlite:::my_table_name"
-
-        or
-
-    q "select * from mydatabase.sqlite"
-
-        if the database file contains only one table
-
-Auto-caching of delimited files can be activated through `-C readwrite` 
-(writes new caches if needed)  or `-C read` (only reads existing cache files)
-
-Setting the default caching mode (`-C`) can be done by 
-writing a `~/.qrc` file. See docs for more info.
-```
-
 Download the tool using the links in the [installation](#installation) below and play with it.
 
+### Encodings
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
 | 完全支持所有的字符编码                 | すべての文字エンコーディングを完全にサポート    |
@@ -266,7 +274,7 @@ Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
     `length_of_day_hours` - real
 ```
 
-### Usage
+## Usage
 Query should be an SQL-like query which contains filenames instead of table names (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes).
 
 All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the [limitations](#limitations) section below for some rarely-used use cases which are not fully supported.
@@ -439,6 +447,11 @@ It's possible to generate a default `.qrc` file by running `q --dump-defaults` a
 
 One valuable use-case for this could be setting the caching-mode to `read`. This will make q automatically use generated `.qsql` cache files if they exist. Whenever you want a cache file to be generated, just use `-C readwrite` and a `.qsql` file will be generated if it doesn't exist.
 
+Here's the content of the `~/.qrc` file for enabling cache reads by default:
+```bash
+[options]
+caching_mode=read
+```
   
 ## Getting Started Examples
 This section shows some more basic examples of simple SQL constructs. 

@@ -1,6 +1,7 @@
 // Monitor all download links in GA
 
 var dlCnt = 0;
+var tocCnt = 0;
 
 function GAizeDownloadLink(a) {
         var url = a.href;
@@ -8,7 +9,7 @@ function GAizeDownloadLink(a) {
         if (x != -1) {
             url = url.substr(0, x);
         }
-        var url_test = url.match(/^https?:\/\/.+(\/rpms\/.*\.rpm|\/deb\/.*\.deb|\/single-binary\/Darwin\/.*\/q|\/archive\/.*\.tar\.gz|\/archive\/.*\.zip|\/windows\/.*\.exe)$/i);
+        var url_test = url.match(/^http.*(archive|releases).*/);
         if (url_test) {
             console.log("Converting download link to be GA aware: " + url);
             if (url_test.length > 1) {
@@ -31,6 +32,7 @@ function GAizeDownloadLink(a) {
 }
 
 function GAizeTOCLink(l) {
+	tocCnt = tocCnt + 1;
            l.onclick = function() {
                url_test = l.href.match(/^https?:\/\/.+(#.*)$/i);
                toc_name = url_test[1];
@@ -55,5 +57,5 @@ window.onload = function() {
     for (i = 0; i < toc_links.length; i++) {
       GAizeTOCLink(toc_links[i]);
     }
-    console.log("Converted " + dlCnt + " links to be GA aware");
+    console.log("Converted " + dlCnt + " download links and " + tocCnt + " TOC links to be GA aware");
 }

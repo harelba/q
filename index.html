@@ -284,12 +284,18 @@ gtag('send','pageview');
     Overview
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
-    Basic Usage
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#encodings" class="md-nav__link">
+    Encodings
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -343,12 +349,18 @@ gtag('send','pageview');
   
 </li>
         
-          <li class="md-nav__item">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#usage" class="md-nav__link">
     Usage
   </a>
   
-</li>
+    <nav class="md-nav">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#setting-the-default-values-for-parameters" class="md-nav__link">
@@ -552,12 +564,18 @@ gtag('send','pageview');
     Overview
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
-    Basic Usage
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#encodings" class="md-nav__link">
+    Encodings
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -611,12 +629,18 @@ gtag('send','pageview');
   
 </li>
         
-          <li class="md-nav__item">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#usage" class="md-nav__link">
     Usage
   </a>
   
-</li>
+    <nav class="md-nav">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#setting-the-default-values-for-parameters" class="md-nav__link">
@@ -781,12 +805,43 @@ gtag('send','pageview');
 <p><a href="https://GitHub.com/harelba/q/stargazers/"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/harelba/q.svg?style=social&amp;label=GitHub Stars&amp;maxAge=600" /></a>
 <a href="https://GitHub.com/harelba/q/network/"><img alt="GitHub forks" src="https://img.shields.io/github/forks/harelba/q.svg?style=social&amp;label=GitHub Forks&amp;maxAge=600" /></a></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data.</p>
+<p>q's purpose is to bring SQL expressive power to the Linux command line by providing easy access to text as actual data, and allowing direct access to multi-file sqlite3 databases.</p>
+<pre><code class="bash">    q &lt;flags&gt; &lt;sql-query&gt;
+</code></pre>
+
 <p>q allows the following:</p>
 <ul>
 <li>Performing SQL-like statements directly on tabular text data, auto-caching the data in order to accelerate additional querying on the same file</li>
+</ul>
+<pre><code class="bash">    # Simple query from a file, columns are named c1...cN
+    q &quot;select c1,c5 from myfile.csv&quot;
+
+    # -d '|' sets the input delimiter, -H says there's a header
+    q -d , -H &quot;select my_field from myfile.delimited-file-with-pipes&quot;
+
+    # -C readwrite writes a cache for the csv file
+    q -d , -H &quot;select my_field from myfile.csv&quot; -C readwrite
+
+    # -C read tells q to use the cache
+    q -d , -H &quot;select my_field from myfile.csv&quot; -C read
+
+    # Setting the default caching mode (`-C`) can be done by writing a `~/.qrc` file
+</code></pre>
+
+<ul>
 <li>Performing SQL statements directly on multi-file sqlite3 databases, without having to merge them or load them into memory</li>
 </ul>
+<pre><code class="bash">    q &quot;select * from mydatabase.sqlite:::my_table_name&quot;
+
+        or
+
+    q &quot;select * from mydatabase.sqlite&quot;
+
+        if the database file contains only one table
+
+    # sqlite files are autodetected, no need for any special filename extension
+</code></pre>
+
 <p>The following table shows the impact of using caching:</p>
 <table>
 <thead>
@@ -845,31 +900,8 @@ gtag('send','pageview');
 <p>Notice that for the current version, caching is <strong>not enabled</strong> by default, since the caches take disk space. Use <code>-C readwrite</code> or <code>-C read</code> to enable it for a query, or add <code>caching_mode</code> to <code>.qrc</code> to set a new default.</p>
 <p>q treats ordinary files as database tables, and supports all SQL constructs, such as <code>WHERE</code>, <code>GROUP BY</code>, <code>JOIN</code>s, etc. It supports automatic column name and type detection, and provides full support for multiple character encodings.</p>
 <p>The new features - autocaching, direct querying of sqlite database and the use of <code>~/.qrc</code> file are described in detail in <a href="https://github.com/harelba/q/blob/master/QSQL-NOTES.md">here</a>.</p>
-<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
-<pre><code class="bash">    q &lt;flags&gt; &lt;query&gt;
-
-Example Execution for a delimited file:
-
-    q &quot;select * from myfile.csv&quot;
-
-Example Execution for an sqlite3 database:
-
-    q &quot;select * from mydatabase.sqlite:::my_table_name&quot;
-
-        or
-
-    q &quot;select * from mydatabase.sqlite&quot;
-
-        if the database file contains only one table
-
-Auto-caching of delimited files can be activated through `-C readwrite` 
-(writes new caches if needed)  or `-C read` (only reads existing cache files)
-
-Setting the default caching mode (`-C`) can be done by 
-writing a `~/.qrc` file. See docs for more info.
-</code></pre>
-
 <p>Download the tool using the links in the <a href="#installation">installation</a> below and play with it.</p>
+<h3 id="encodings">Encodings<a class="headerlink" href="#encodings" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1109,7 +1141,7 @@ Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
     `length_of_day_hours` - real
 </code></pre>
 
-<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>Query should be an SQL-like query which contains filenames instead of table names (or - for stdin). The query itself should be provided as one parameter to the tool (i.e. enclosed in quotes).</p>
 <p>All sqlite3 SQL constructs are supported, including joins across files (use an alias for each table). Take a look at the <a href="#limitations">limitations</a> section below for some rarely-used use cases which are not fully supported.</p>
 <p>q gets a full SQL query as a parameter. Remember to double-quote the query.</p>
@@ -1267,6 +1299,11 @@ Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
 
 <p>It's possible to generate a default <code>.qrc</code> file by running <code>q --dump-defaults</code> and write the output into the <code>.qrc</code> file.</p>
 <p>One valuable use-case for this could be setting the caching-mode to <code>read</code>. This will make q automatically use generated <code>.qsql</code> cache files if they exist. Whenever you want a cache file to be generated, just use <code>-C readwrite</code> and a <code>.qsql</code> file will be generated if it doesn't exist.</p>
+<p>Here's the content of the <code>~/.qrc</code> file for enabling cache reads by default:</p>
+<pre><code class="bash">[options]
+caching_mode=read
+</code></pre>
+
 <h2 id="getting-started-examples">Getting Started Examples<a class="headerlink" href="#getting-started-examples" title="Permanent link">&para;</a></h2>
 <p>This section shows some more basic examples of simple SQL constructs. </p>
 <p>For some more complex use-cases, see the <a href="#examples">examples</a> at the beginning of the documentation.</p>

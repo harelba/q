@@ -76,7 +76,7 @@ Download the tool using the links in the [installation](#installation) below and
 
 | Format | Instructions | Comments |
 :---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/v3.1.6/macos-q)|`brew install` will install the previous `2.0.19` for now, until homebrew approves the new version. In the mean time, you can download the new version executable from the link, `chmod +x` it and then run. You might need to run it the first time from Finder using Right-Click -> Open, and then click the Open button. After the first time, it will run from the command line without any issues. |A man page is available, just run `man q`||
+|OSX|Run `brew install harelba/q/q` in order to install q (moved it to its own tap)|A man page is available, just run `man q`||
 |[RPM Package](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6.x86_64.rpm)| run `rpm -ivh <package-filename>` or `rpm -U <package-filename>` if you already have an older version of q.| A man page is available for this release. Just enter `man q`.|
 |[DEB Package](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6-1.x86_64.deb)| Run `sudo dpkg -i <package-filename>`|A man page is available for this release. Just enter `man q`. Some installations don't install the man page properly for some reason. I'll fix this soon|
 |[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6.msi)|Run the installer executable and hit next next next... q.exe will be added to the PATH so you can access it everywhere.|Windows doesn't update the PATH retroactively for open windows, so you'll need to open a new `cmd`/`bash` window after the installation is done.|

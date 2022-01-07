@@ -43,7 +43,7 @@ import os
 import sys
 import sqlite3
 import glob
-from optparse import OptionParser,OptionGroup
+from argparse import ArgumentParser
 import codecs
 import locale
 import time
@@ -3163,7 +3163,8 @@ def get_option_with_default(p, option_type, option, default):
 QRC_FILENAME_ENVVAR = 'QRC_FILENAME'
 
 def dump_default_values_as_qrc(parser,exclusions):
-    m = parser.get_default_values().__dict__
+    #m = parser.get_default_values().__dict__
+    m = parser.parse_args([]).__dict__
     print("[options]",file=sys.stdout)
     for k in sorted(m.keys()):
         if k not in exclusions:
@@ -3297,106 +3298,107 @@ def initialize_command_line_parser(p, qrc_filename):
         print("Incorrect value '%s' for option %s in .qrc file %s (option type is %s)" % (
         e.actual_value, e.option, qrc_filename, e.option_type))
         sys.exit(199)
-    parser = OptionParser(prog="q",usage=USAGE_TEXT)
-    parser.add_option("-v", "--version", dest="version", default=False, action="store_true",
+    parser = ArgumentParser(prog="q",usage=USAGE_TEXT)
+    parser.add_argument("-v", "--version", dest="version", default=False, action="store_true",
                       help="Print version")
-    parser.add_option("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",
+    parser.add_argument("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",
                       help="Print debug info in case of problems")
-    parser.add_option("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=default_save_db_to_disk,
+    parser.add_argument("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=default_save_db_to_disk,
                       help="Save database to an sqlite database file")
-    parser.add_option("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
+    parser.add_argument("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
-    parser.add_option("", "--dump-defaults", dest="dump_defaults", default=False, action="store_true",
+    parser.add_argument("--dump-defaults", dest="dump_defaults", default=False, action="store_true",
                       help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
-    parser.add_option("", "--max-attached-sqlite-databases", dest="max_attached_sqlite_databases", default=default_max_attached_sqlite_databases,type="int",
+    parser.add_argument("--max-attached-sqlite-databases", dest="max_attached_sqlite_databases", default=default_max_attached_sqlite_databases,type=int,
                       help="Set the maximum number of concurrently-attached sqlite dbs. This is a compile time definition of sqlite. q's performance will slow down once this limit is reached for a query, since it will perform table copies in order to avoid that limit.")
     # -----------------------------------------------
-    input_data_option_group = OptionGroup(parser, "Input Data Options")
-    input_data_option_group.add_option("-H", "--skip-header", dest="skip_header", default=default_skip_header,
+    input_data_option_group = parser.add_argument_group("Input Data Options")
+    input_data_option_group.add_argument("-H", "--skip-header", dest="skip_header", default=default_skip_header,
                                        action="store_true",
                                        help="Skip header row. This has been changed from earlier version - Only one header row is supported, and the header row is used for column naming")
-    input_data_option_group.add_option("-d", "--delimiter", dest="delimiter", default=default_delimiter,
+    input_data_option_group.add_argument("-d", "--delimiter", dest="delimiter", default=default_delimiter,
                                        help="Field delimiter. If none specified, then space is used as the delimiter.")
-    input_data_option_group.add_option("-p", "--pipe-delimited", dest="pipe_delimited", default=default_pipe_delimited,
+    input_data_option_group.add_argument("-p", "--pipe-delimited", dest="pipe_delimited", default=default_pipe_delimited,
                                        action="store_true",
                                        help="Same as -d '|'. Added for convenience and readability")
-    input_data_option_group.add_option("-t", "--tab-delimited", dest="tab_delimited", default=default_tab_delimited,
+    input_data_option_group.add_argument("-t", "--tab-delimited", dest="tab_delimited", default=default_tab_delimited,
                                        action="store_true",
                                        help="Same as -d <tab>. Just a shorthand for handling standard tab delimited file You can use $'\\t' if you want (this is how Linux expects to provide tabs in the command line")
-    input_data_option_group.add_option("-e", "--encoding", dest="encoding", default=default_encoding,
+    input_data_option_group.add_argument("-e", "--encoding", dest="encoding", default=default_encoding,
                                        help="Input file encoding. Defaults to UTF-8. set to none for not setting any encoding - faster, but at your own risk...")
-    input_data_option_group.add_option("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
+    input_data_option_group.add_argument("-z", "--gzipped", dest="gzipped", default=default_gzipped, action="store_true",
                                        help="Data is gzipped. Useful for reading from stdin. For files, .gz means automatic gunzipping")
-    input_data_option_group.add_option("-A", "--analyze-only", dest="analyze_only", default=default_analyze_only,
+    input_data_option_group.add_argument("-A", "--analyze-only", dest="analyze_only", default=default_analyze_only,
                                        action='store_true',
                                        help="Analyze sample input and provide information about data types")
-    input_data_option_group.add_option("-m", "--mode", dest="mode", default=default_mode,
+    input_data_option_group.add_argument("-m", "--mode", dest="mode", default=default_mode,
                                        help="Data parsing mode. fluffy, relaxed and strict. In strict mode, the -c column-count parameter must be supplied as well")
-    input_data_option_group.add_option("-c", "--column-count", dest="column_count", default=default_column_count,
+    input_data_option_group.add_argument("-c", "--column-count", dest="column_count", default=default_column_count,
                                        help="Specific column count when using relaxed or strict mode")
-    input_data_option_group.add_option("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values",
+    input_data_option_group.add_argument("-k", "--keep-leading-whitespace", dest="keep_leading_whitespace_in_values",
                                        default=default_keep_leading_whitespace_in_values, action="store_true",
                                        help="Keep leading whitespace in values. Default behavior strips leading whitespace off values, in order to provide out-of-the-box usability for simple use cases. If you need to preserve whitespace, use this flag.")
-    input_data_option_group.add_option("--disable-double-double-quoting", dest="disable_double_double_quoting",
+    input_data_option_group.add_argument("--disable-double-double-quoting", dest="disable_double_double_quoting",
                                        default=default_disable_double_double_quoting, action="store_false",
                                        help="Disable support for double double-quoting for escaping the double quote character. By default, you can use \"\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting",
+    input_data_option_group.add_argument("--disable-escaped-double-quoting", dest="disable_escaped_double_quoting",
                                        default=default_disable_escaped_double_quoting, action="store_false",
                                        help="Disable support for escaped double-quoting for escaping the double quote character. By default, you can use \\\" inside double quoted fields to escape double quotes. Mainly for backward compatibility.")
-    input_data_option_group.add_option("--as-text", dest="disable_column_type_detection",
+    input_data_option_group.add_argument("--as-text", dest="disable_column_type_detection",
                                        default=default_disable_column_type_detection, action="store_true",
                                        help="Don't detect column types - All columns will be treated as text columns")
-    input_data_option_group.add_option("-w", "--input-quoting-mode", dest="input_quoting_mode",
+    input_data_option_group.add_argument("-w", "--input-quoting-mode", dest="input_quoting_mode",
                                        default=default_input_quoting_mode,
                                        help="Input quoting mode. Possible values are all, minimal and none. Note the slightly misleading parameter name, and see the matching -W parameter for output quoting.")
-    input_data_option_group.add_option("-M", "--max-column-length-limit", dest="max_column_length_limit",
+    input_data_option_group.add_argument("-M", "--max-column-length-limit", dest="max_column_length_limit",
                                        default=default_max_column_length_limit,
                                        help="Sets the maximum column length.")
-    input_data_option_group.add_option("-U", "--with-universal-newlines", dest="with_universal_newlines",
+    input_data_option_group.add_argument("-U", "--with-universal-newlines", dest="with_universal_newlines",
                                        default=default_with_universal_newlines, action="store_true",
                                        help="Expect universal newlines in the data. Limitation: -U works only with regular files for now, stdin or .gz files are not supported yet.")
-    parser.add_option_group(input_data_option_group)
+    parser.add_argument_group(input_data_option_group)
     # -----------------------------------------------
-    output_data_option_group = OptionGroup(parser, "Output Options")
-    output_data_option_group.add_option("-D", "--output-delimiter", dest="output_delimiter",
+    output_data_option_group = parser.add_argument_group("Output Options")
+    output_data_option_group.add_argument("-D", "--output-delimiter", dest="output_delimiter",
                                         default=default_output_delimiter,
                                         help="Field delimiter for output. If none specified, then the -d delimiter is used if present, or space if no delimiter is specified")
-    output_data_option_group.add_option("-P", "--pipe-delimited-output", dest="pipe_delimited_output",
+    output_data_option_group.add_argument("-P", "--pipe-delimited-output", dest="pipe_delimited_output",
                                         default=default_pipe_delimited_output, action="store_true",
                                         help="Same as -D '|'. Added for convenience and readability.")
-    output_data_option_group.add_option("-T", "--tab-delimited-output", dest="tab_delimited_output",
+    output_data_option_group.add_argument("-T", "--tab-delimited-output", dest="tab_delimited_output",
                                         default=default_tab_delimited_output, action="store_true",
                                         help="Same as -D <tab>. Just a shorthand for outputting tab delimited output. You can use -D $'\\t' if you want.")
-    output_data_option_group.add_option("-O", "--output-header", dest="output_header", default=default_output_header,
+    output_data_option_group.add_argument("-O", "--output-header", dest="output_header", default=default_output_header,
                                         action="store_true",
                                         help="Output header line. Output column-names are determined from the query itself. Use column aliases in order to set your column names in the query. For example, 'select name FirstName,value1/value2 MyCalculation from ...'. This can be used even if there was no header in the input.")
-    output_data_option_group.add_option("-b", "--beautify", dest="beautify", default=default_beautify,
+    output_data_option_group.add_argument("-b", "--beautify", dest="beautify", default=default_beautify,
                                         action="store_true",
                                         help="Beautify output according to actual values. Might be slow...")
-    output_data_option_group.add_option("-f", "--formatting", dest="formatting", default=default_formatting,
+    output_data_option_group.add_argument("-f", "--formatting", dest="formatting", default=default_formatting,
                                         help="Output-level formatting, in the format X=fmt,Y=fmt etc, where X,Y are output column numbers (e.g. 1 for first SELECT column etc.")
-    output_data_option_group.add_option("-E", "--output-encoding", dest="output_encoding",
+    output_data_option_group.add_argument("-E", "--output-encoding", dest="output_encoding",
                                         default=default_output_encoding,
                                         help="Output encoding. Defaults to 'none', leading to selecting the system/terminal encoding")
-    output_data_option_group.add_option("-W", "--output-quoting-mode", dest="output_quoting_mode",
+    output_data_option_group.add_argument("-W", "--output-quoting-mode", dest="output_quoting_mode",
                                         default=default_output_quoting_mode,
                                         help="Output quoting mode. Possible values are all, minimal, nonnumeric and none. Note the slightly misleading parameter name, and see the matching -w parameter for input quoting.")
-    output_data_option_group.add_option("-L", "--list-user-functions", dest="list_user_functions",
+    output_data_option_group.add_argument("-L", "--list-user-functions", dest="list_user_functions",
                                         default=default_list_user_functions, action="store_true",
                                         help="List all user functions")
-    parser.add_option("", "--overwrite-qsql", dest="overwrite_qsql", default=default_overwrite_qsql,
+    parser.add_argument("--overwrite-qsql", dest="overwrite_qsql", default=default_overwrite_qsql,
                       help="When used, qsql files (both caches and store-to-db) will be overwritten if they already exist. Use with care.")
-    parser.add_option_group(output_data_option_group)
+    parser.add_argument_group(output_data_option_group)
     # -----------------------------------------------
-    query_option_group = OptionGroup(parser, "Query Related Options")
-    query_option_group.add_option("-q", "--query-filename", dest="query_filename", default=default_query_filename,
+    query_option_group = parser.add_argument_group("Query Related Options")
+    query_option_group.add_argument("-q", "--query-filename", dest="query_filename", default=default_query_filename,
                                   help="Read query from the provided filename instead of the command line, possibly using the provided query encoding (using -Q).")
-    query_option_group.add_option("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
+    query_option_group.add_argument("-Q", "--query-encoding", dest="query_encoding", default=default_query_encoding,
                                   help="query text encoding. Experimental. Please send your feedback on this")
-    parser.add_option_group(query_option_group)
+    parser.add_argument_group(query_option_group)
     # -----------------------------------------------
-    (options, args) = parser.parse_args()
-    return args, options, parser
+    parser.add_argument('leftover', nargs='*')
+    args = parser.parse_args()
+    return args.leftover, args, parser
 
 
 def parse_qrc_file():

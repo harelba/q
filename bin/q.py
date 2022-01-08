@@ -3298,15 +3298,14 @@ def initialize_command_line_parser(p, qrc_filename):
         e.actual_value, e.option, qrc_filename, e.option_type))
         sys.exit(199)
     parser = ArgumentParser(prog="q",usage=USAGE_TEXT)
-    parser.add_argument("-v", "--version", dest="version", default=False, action="store_true",
-                      help="Print version")
+    parser.add_argument("-v", "--version", dest="version", action="store_true", help="Print version")
     parser.add_argument("-V", "--verbose", dest="verbose", default=default_verbose, action="store_true",
                       help="Print debug info in case of problems")
     parser.add_argument("-S", "--save-db-to-disk", dest="save_db_to_disk_filename", default=default_save_db_to_disk,
                       help="Save database to an sqlite database file")
     parser.add_argument("-C", "--caching-mode", dest="caching_mode", default=default_caching_mode,
                       help="Choose the autocaching mode (none/read/readwrite). Autocaches files to disk db so further queries will be faster. Caching is done to a side-file with the same name of the table, but with an added extension .qsql")
-    parser.add_argument("--dump-defaults", dest="dump_defaults", default=False, action="store_true",
+    parser.add_argument("--dump-defaults", dest="dump_defaults", action="store_true",
                       help="Dump all default values for parameters and exit. Can be used in order to make sure .qrc file content is being read properly.")
     parser.add_argument("--max-attached-sqlite-databases", dest="max_attached_sqlite_databases", default=default_max_attached_sqlite_databases,type=int,
                       help="Set the maximum number of concurrently-attached sqlite dbs. This is a compile time definition of sqlite. q's performance will slow down once this limit is reached for a query, since it will perform table copies in order to avoid that limit.")

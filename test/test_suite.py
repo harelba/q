@@ -3095,7 +3095,7 @@ with_universal_newlines=True
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 
         self.assertEqual(retcode, 0)
-        self.assertEqual(len(o), 35)
+        self.assertEqual(len(o), 34)
         self.assertEqual(len(e), 0)
 
         self.assertEqual(o[0],six.b('[options]'))

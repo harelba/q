@@ -3164,6 +3164,7 @@ QRC_FILENAME_ENVVAR = 'QRC_FILENAME'
 
 def dump_default_values_as_qrc(parser,exclusions):
     m = parser.parse_args([]).__dict__
+    m.pop('leftover')
     print("[options]",file=sys.stdout)
     for k in sorted(m.keys()):
         if k not in exclusions:

@@ -3163,7 +3163,6 @@ def get_option_with_default(p, option_type, option, default):
 QRC_FILENAME_ENVVAR = 'QRC_FILENAME'
 
 def dump_default_values_as_qrc(parser,exclusions):
-    #m = parser.get_default_values().__dict__
     m = parser.parse_args([]).__dict__
     print("[options]",file=sys.stdout)
     for k in sorted(m.keys()):

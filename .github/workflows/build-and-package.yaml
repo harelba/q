@@ -30,12 +30,13 @@ jobs:
 
     outputs:
       Q_VERSION: ${{ steps.vars.q_version }}
+
   check_version_info:
     runs-on: ubuntu-18.04
     needs: version_info
     steps:
       - name: test q_version
-      - run: |
+        run: |
           set -e -x
 
           echo Q_VERSION is ${{ needs.version_info.outputs.Q_VERSION }}

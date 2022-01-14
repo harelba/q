@@ -29,7 +29,7 @@ jobs:
           echo ::set-ouptut name=q_version::0.0.0
 
     outputs:
-      Q_VERSION: ${{ steps.vars.q_version }}
+      q_version: ${{ steps.vars.q_version }}
 
   check_version_info:
     runs-on: ubuntu-18.04
@@ -39,7 +39,7 @@ jobs:
         run: |
           set -e -x
 
-          echo Q_VERSION is ${{ needs.version_info.outputs.Q_VERSION }}
+          echo q_version is ${{ needs.version_info.outputs.q_version }}
 
   create-man:
     runs-on: ubuntu-18.04
@@ -162,16 +162,16 @@ jobs:
 
         chmod 755 ./linux-q
 
-        export Q_VERSION=${{ needs.version_info.outputs.Q_VERSION }}
+        export q_version=${{ needs.version_info.outputs.q_version }}
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-${Q_VERSION}-1.x86_64.deb --version ${Q_VERSION} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-${q_version}-1.x86_64.deb --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}-1.x86_64.deb
-        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
@@ -182,7 +182,7 @@ jobs:
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -194,7 +194,7 @@ jobs:
 
         pip3 install -r test-requirements.txt
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   package-linux-rpm:
     needs: [test-linux, create-man, version_info]
@@ -223,16 +223,16 @@ jobs:
 
         chmod 755 ./linux-q
 
-        export Q_VERSION=${{ needs.version_info.outputs.Q_VERSION }}
+        export q_version=${{ needs.version_info.outputs.q_version }}
 
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-${Q_VERSION}.x86_64.rpm --version ${Q_VERSION} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-${q_version}.x86_64.rpm --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.x86_64.rpm
-        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
@@ -243,9 +243,9 @@ jobs:
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -364,7 +364,7 @@ jobs:
       run: |
         set -e -x
 
-        pyoxidizer build --release --var Q_VERSION ${{ needs.version_info.outputs.Q_VERSION }}
+        pyoxidizer build --release --var Q_VERSION ${{ needs.version_info.outputs.q_version }}
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -433,19 +433,19 @@ jobs:
       run: |
         set -e -x
 
-        pyoxidizer build --release msi_installer --var Q_VERSION=${{ needs.version_info.outputs.Q_VERSION }}
+        pyoxidizer build --release msi_installer --var q_version=${{ needs.version_info.outputs.q_version }}
 
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi
+        cp $Q_MSI packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi
-        path: packages/windows/q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
+        path: packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
   test-windows-packaging:
     needs: [package-windows, version_info]
@@ -456,12 +456,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -470,7 +470,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-${{ needs.version_info.outputs.Q_VERSION }}.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 

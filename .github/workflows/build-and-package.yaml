@@ -433,7 +433,7 @@ jobs:
       run: |
         set -e -x
 
-        pyoxidizer build --release msi_installer --var q_version=${{ needs.version_info.outputs.q_version }}
+        pyoxidizer build --release msi_installer --var q_version ${{ needs.version_info.outputs.q_version }}
 
         export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
         chmod 755 $Q_MSI

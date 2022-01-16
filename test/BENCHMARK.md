@@ -15,13 +15,16 @@ The following table shows the impact of using caching in q:
 |  100,000  |   100   |    99MB   |         5.2 seconds        |      0.141 seconds      |        x36        |
 |  100,000  |    50   |    48MB   |         2.7 seconds        |      0.105 seconds      |        x25        |
 
-Effectively, `.qsql` files are just standard sqlite3 files, with an additional metadata table that is used for detecting changes in the original delimited file. This means that any tool that can read sqlite3 files can use these files directly.
 
-As a side-effect from this addition, q knows how to directly query multi-file sqlite3 databases, which means that the user can query any sqlite3 database, or the `.qsql` file, even when the original file doesn't exist anymore. For example:
+Effectively, `.qsql` files are just standard sqlite3 files, with an additional metadata table that is used for detecting changes in the original delimited file. This means that any tool that can read sqlite3 files can use these files directly. The tradeoff is of course the additional disk usage that the cache files take.
+
+A good side-effect to this addition, is that q now knows how to directly query multi-file sqlite3 databases. This means that the user can query any sqlite3 database file, or the `.qsql` file itself, even when the original file doesn't exist anymore. For example:
 
 ```bash
 q "select a.*,b.* from my_file.csv.qsql a left join some-sqlite3-database:::some_table_name b on (a.id = b.id)"
 ```
+
+NOTE: In the current version, caching is not enabled by default - Use `-C readwrite` to enable reading+writing cache files, or `-C read` to just read any existing cache files. A `~/.qrc` file can be added in order to make these options the default if you want.
 
 The benchmark results below reflect the peformance without the caching, e.g. directly reading the delimited files, parsing them and performing the query.
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+BENCHMARK_PYTHON_VERSIONS=(3.8.5)

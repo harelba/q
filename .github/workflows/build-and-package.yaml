@@ -1,0 +1,488 @@
+name: BuildAndPackage
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches: master
+    paths-ignore:
+      - "*.md"
+      - "*.markdown"
+      - "mkdocs/**/*"
+
+jobs:
+  create-man:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
+    - name: Create man page
+      run: |
+        set -x -e
+        gem install ronn
+
+        ronn doc/USAGE.markdown
+        # Must be gzipped, otherwise debian does not install it
+        gzip doc/USAGE
+    - name: Upload man page
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: q-man-page
+        path: doc/USAGE.gz
+
+  build-linux:
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Cache pyox
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/pyoxidizer
+        key: ${{ runner.os }}-pyox
+    - name: Install pyoxidizer
+      run: |
+        set -e -x
+
+        sudo apt-get update
+        sudo apt-get install -y zip sqlite3 rpm
+
+        curl -o pyoxidizer.zip -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-linux_x86_64.zip"
+        unzip pyoxidizer.zip
+        chmod +x ./pyoxidizer
+    - name: Create Q Executable - Linux
+      run: |
+        set -e -x
+
+        ./pyoxidizer build --release
+
+        export Q_EXECUTABLE=./build/x86_64-unknown-linux-gnu/release/install/q
+        chmod 755 $Q_EXECUTABLE
+
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+
+        mkdir -p packages/linux/
+        cp $Q_EXECUTABLE packages/linux/linux-q
+    - name: Upload Linux Executable
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: linux-q
+        path: packages/linux/linux-q
+
+  test-linux:
+    needs: build-linux
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e -x
+
+        pip3 install -r test-requirements.txt
+    - name: Download Linux Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: linux-q
+    - name: Run Tests on Linux Executable
+      run: |
+        set -x -e
+
+        find ./ -ls
+
+        chmod 755 ./linux-q
+
+        Q_EXECUTABLE=`pwd`/linux-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
+
+  package-linux-deb:
+    needs: [test-linux, create-man]
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
+    - name: Downoad man page
+      uses: actions/download-artifact@v2
+      with:
+        name: q-man-page
+    - name: Download Linux Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: linux-q
+    - name: Build DEB Package
+      run: |
+        set -e -x
+
+        mkdir -p packages/linux/
+
+        find ./ -ls
+
+        chmod 755 ./linux-q
+
+        gem install fpm
+        cp dist/fpm-config ~/.fpm
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.6-1.x86_64.deb --version 3.1.6 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+    - name: Upload DEB Package
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: q-text-as-data-3.1.6-1.x86_64.deb
+        path: packages/linux/q-text-as-data-3.1.6-1.x86_64.deb
+
+  test-deb-packaging:
+    runs-on: ubuntu-18.04
+    needs: package-linux-deb
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download DEB
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-3.1.6-1.x86_64.deb
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e -x
+
+        pip3 install -r test-requirements.txt
+    - name: Test DEB Package Installation
+      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.6-1.x86_64.deb
+
+  package-linux-rpm:
+    needs: [test-linux, create-man]
+    runs-on: ubuntu-18.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.6'
+    - name: Download man page
+      uses: actions/download-artifact@v2
+      with:
+        name: q-man-page
+    - name: Download Linux Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: linux-q
+    - name: Build RPM Package
+      run: |
+        set -e -x
+
+        mkdir -p packages/linux
+
+        find ./ -ls
+
+        chmod 755 ./linux-q
+
+        gem install fpm
+        cp dist/fpm-config ~/.fpm
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.6.x86_64.rpm --version 3.1.6 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+    - name: Upload RPM Package
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: q-text-as-data-3.1.6.x86_64.rpm
+        path: packages/linux/q-text-as-data-3.1.6.x86_64.rpm
+
+  test-rpm-packaging:
+    runs-on: ubuntu-18.04
+    needs: package-linux-rpm
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download RPM
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-3.1.6.x86_64.rpm
+    - name: Retest using RPM
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.6.x86_64.rpm
+
+  build-mac:
+    runs-on: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Cache pyox
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/pyoxidizer
+        key: ${{ runner.os }}-pyox
+    - name: Install pyoxidizer
+      run: |
+        set -e -x
+
+        curl -o  pyoxidizer.zip -L "https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.17/pyoxidizer-0.17.0-macos-universal.zip"
+        unzip pyoxidizer.zip
+        mv macos-universal/pyoxidizer ./pyoxidizer
+
+        chmod +x ./pyoxidizer
+    - name: Create Q Executable - Mac
+      run: |
+        set -e -x
+
+        ./pyoxidizer build --release
+
+        export Q_EXECUTABLE=./build/x86_64-apple-darwin/release/install/q
+        chmod 755 $Q_EXECUTABLE
+
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+
+        mkdir -p packages/macos/
+        cp $Q_EXECUTABLE packages/macos/macos-q
+    - name: Upload MacOS Executable
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: macos-q
+        path: packages/macos/macos-q
+
+  test-mac:
+    needs: build-mac
+    runs-on: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.12'
+        architecture: 'x64'
+    - name: Prepare Testing
+      run: |
+        set -e -x
+
+        pip3 install wheel
+
+        pip3 install -r test-requirements.txt
+    - name: Download MacOS Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: macos-q
+    - name: Run Tests on MacOS Executable
+      run: |
+        set -e -x
+
+        chmod 755 ./macos-q
+
+        Q_EXECUTABLE=`pwd`/macos-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
+
+  not-package-mac:
+    # create-man is not needed, as it's generated inside the brew formula independently
+    needs: [test-mac]
+    runs-on: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Not Packaging Mac
+      run: |
+        echo "homebrew mac cannot be packaged from the source code itself, due to the package build process of homebrew. See https://github.com/harelba/homebrew-q"
+
+  not-test-mac-packaging:
+    needs: not-package-mac
+    runs-on: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Not Testing Mac Packaging
+      run: |
+        echo "homebrew mac packaging cannot be tested here, due to the package build process of homebrew. See https://github.com/harelba/homebrew-q"
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install MSVC build tools
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Install Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.10'
+        architecture: 'x64'
+    - name: Install pyoxidizer
+      shell: bash
+      run: |
+        set -x -e
+
+        python3 -V
+        pip3 -V
+
+        pip3 install pyoxidizer
+    - name: Create Q Executable - Windows
+      shell: bash
+      run: |
+        set -e -x
+
+        pyoxidizer build --release
+
+        export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
+        chmod 755 $Q_EXECUTABLE
+
+        seq 1 100 | $Q_EXECUTABLE -c 1 "select sum(c1),count(*) from -" -S test.sqlite
+
+        mkdir -p packages/windows/
+        cp $Q_EXECUTABLE packages/windows/win-q.exe
+
+        find ./ -ls
+    - name: Upload Linux Executable
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: win-q.exe
+        path: packages/windows/win-q.exe
+
+  not-really-test-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Download Windows Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: win-q.exe
+    - name: Not-Really-Test Windows
+      shell: bash
+      continue-on-error: true
+      run: |
+        echo "Tests are not compatible with Windows (path separators, tmp folder names etc.). Only a sanity wil be tested"
+
+        chmod +x ./win-q.exe
+
+        seq 1 10000 | ./win-q.exe -c 1 "select sum(c1),count(*) from -" -S some-db.sqlite
+
+  package-windows:
+    needs: [create-man, not-really-test-windows]
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install MSVC build tools
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Install Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8.10'
+        architecture: 'x64'
+    - name: Install pyoxidizer
+      shell: bash
+      run: |
+        set -x -e
+
+        python3 -V
+        pip3 -V
+
+        pip3 install pyoxidizer
+    - name: Create Q MSI - Windows
+      shell: bash
+      run: |
+        set -e -x
+
+        pyoxidizer build --release msi_installer
+
+        find ./ -ls
+
+        # TODO Windows versions do not support the -beta postfix
+
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.6.msi
+        chmod 755 $Q_MSI
+
+        mkdir -p packages/windows/
+        cp $Q_MSI packages/windows/q-text-as-data-3.1.6.msi
+
+    - name: Upload Windows MSI
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: q-text-as-data-3.1.6.msi
+        path: packages/windows/q-text-as-data-3.1.6.msi
+
+  test-windows-packaging:
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Download Windows Package
+      uses: actions/download-artifact@v2
+      with:
+        name: q-text-as-data-3.1.6.msi
+    - name: Test Install of MSI
+      continue-on-error: true
+      shell: powershell
+      run: |
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.6.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process.ExitCode
+        gc msi-install.log
+
+        exit $process.ExitCode
+    - name: Test Uninstall of MSI
+      continue-on-error: true
+      shell: powershell
+      run: |
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.6.msi /norestart /quiet" -PassThru -Wait
+        $process.ExitCode
+        exit $process.ExitCode
+
+  perform-prerelease:
+    # We'd like artifacts to be uploaded regardless of tests succeeded or not,
+    # this is why the dependency here is not on test-X-packaging jobs
+    needs: [package-linux-deb, package-linux-rpm, not-package-mac, package-windows]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    steps:
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts/
+    - name: Timestamp pre-release
+      run: |
+        set -e -x
+
+        echo "Workflow finished at $(date)" >> artifacts/workflow-finish-time.txt
+    - name: Create pre-release
+      uses: "marvinpinto/action-automatic-releases@v1.2.1"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Next Release Development Build"
+        files: |
+          artifacts/**/*
+
+  perform-release:
+    needs: [not-test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    steps:
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts/
+    - uses: "marvinpinto/action-automatic-releases@v1.2.1"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          artifacts/**/*

@@ -1,4 +1,0 @@
-@echo off
-
-echo TBD
-

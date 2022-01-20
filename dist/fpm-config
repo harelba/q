@@ -1,0 +1,7 @@
+-s dir
+--name q-text-as-data
+--license GPLv3
+--architecture x86_64
+--description "q allows to perform SQL-like statements on tabular text data."
+--url https://github.com/harelba/q
+--maintainer "Harel Ben-Attia <harelba@gmail.com>"

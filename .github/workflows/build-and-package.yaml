@@ -484,12 +484,20 @@ jobs:
         $process.ExitCode
         exit $process.ExitCode
 
+  test_is_release:
+    needs: version_info
+    runs-on: ubuntu-latest
+    steps:
+    - name: test1
+      run: |
+        echo ${{ toJson(needs.version_info) }}
+
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
     needs: [package-linux-deb, package-linux-rpm, not-package-mac, package-windows, version_info]
     runs-on: ubuntu-latest
-    if: ${{ needs.version_info.outputs.is_release == 'false' }}
+    if: needs.version_info.outputs.is_release == 'false'
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
@@ -513,7 +521,7 @@ jobs:
   perform-release:
     needs: [not-test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging, version_info]
     runs-on: ubuntu-latest
-    if: ${{ needs.version_info.outputs.is_release == 'true' }}
+    if: needs.version_info.outputs.is_release == 'true'
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

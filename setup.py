@@ -3,7 +3,7 @@
 from setuptools import setup
 import setuptools
 
-q_version = '3.1.0-beta'
+q_version = '3.1.6'
 
 with open("README.markdown", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -19,8 +19,7 @@ setup(
     long_description_content_type="text/markdown",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.11.0',
-        'sqlitebck'
+        'six==1.11.0'
     ],
     package_dir={"": "bin"},
     packages=setuptools.find_packages(where="bin"),

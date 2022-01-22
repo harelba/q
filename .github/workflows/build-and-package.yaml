@@ -2,20 +2,56 @@ name: BuildAndPackage
 
 on:
   push:
+    tags:
+      - "v*"
     branches: master
-    paths-ignore:
-      - "*.md"
-      - "*.markdown"
-      - "mkdocs/**/*"
-  # Remove comment in order to pre-release on a PR, to validate packaging flow
   pull_request:
     branches: master
     paths-ignore:
       - "*.md"
       - "*.markdown"
       - "mkdocs/**/*"
+    tags-ignore:
+      - "*"
 
 jobs:
+  version_info:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - id: vars
+        run: |
+          set -e -x
+
+          echo "github event ref is ${{ github.ref }}"
+
+          if [ "x${{ startsWith(github.ref, 'refs/tags/v') }}" == "xtrue" ]
+          then
+            echo "Trigger was a version tag - ${{ github.ref }}"
+            echo ::set-output name=q_version::${GITHUB_REF#refs/tags/v}
+            echo ::set-output name=is_release::true
+          else
+            # For testing version propagation inside the PR
+            echo "Either branch of a non-version tag - setting version to 0.0.0"
+            echo ::set-output name=q_version::0.0.0
+            echo ::set-output name=is_release::false
+          fi
+
+    outputs:
+      q_version: ${{ steps.vars.outputs.q_version }}
+      is_release: ${{ steps.vars.outputs.is_release }}
+
+  check_version_info:
+    runs-on: ubuntu-18.04
+    needs: version_info
+    steps:
+      - name: test q_version
+        run: |
+          set -e -x
+
+          echo "outputs: ${{ toJson(needs.version_info) }}"
+
   create-man:
     runs-on: ubuntu-18.04
     steps:
@@ -110,7 +146,7 @@ jobs:
         Q_EXECUTABLE=`pwd`/linux-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
   package-linux-deb:
-    needs: [test-linux, create-man]
+    needs: [test-linux, create-man, version_info]
     runs-on: ubuntu-18.04
     steps:
     - name: Checkout
@@ -137,25 +173,27 @@ jobs:
 
         chmod 755 ./linux-q
 
+        export q_version=${{ needs.version_info.outputs.q_version }}
+
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-beta-1.x86_64.deb --version 3.1.0-beta ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-${q_version}-1.x86_64.deb --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-beta-1.x86_64.deb
-        path: packages/linux/q-text-as-data-3.1.0-beta-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
-    needs: package-linux-deb
+    needs: [package-linux-deb, version_info]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-beta-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -167,10 +205,10 @@ jobs:
 
         pip3 install -r test-requirements.txt
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.0-beta-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   package-linux-rpm:
-    needs: [test-linux, create-man]
+    needs: [test-linux, create-man, version_info]
     runs-on: ubuntu-18.04
     steps:
     - name: Checkout
@@ -193,31 +231,32 @@ jobs:
 
         mkdir -p packages/linux
 
-        find ./ -ls
 
         chmod 755 ./linux-q
 
+        export q_version=${{ needs.version_info.outputs.q_version }}
+
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.0-beta.x86_64.rpm --version 3.1.0-beta ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-${q_version}.x86_64.rpm --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-beta.x86_64.rpm
-        path: packages/linux/q-text-as-data-3.1.0-beta.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
-    needs: package-linux-rpm
+    needs: [package-linux-rpm, version_info]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-beta.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.0-beta.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -284,78 +323,34 @@ jobs:
       run: |
         set -e -x
 
-        find ./ -ls
-
         chmod 755 ./macos-q
 
         Q_EXECUTABLE=`pwd`/macos-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
-  package-mac:
+  not-package-mac:
     # create-man is not needed, as it's generated inside the brew formula independently
     needs: [test-mac]
     runs-on: macos-11
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Create homebrew formula and install it
+    - name: Not Packaging Mac
       run: |
-        set -x -e
-        set -o pipefail
+        echo "homebrew mac cannot be packaged from the source code itself, due to the package build process of homebrew. See https://github.com/harelba/homebrew-q"
 
-        mkdir brew
-
-        # TODO temp, since template rendering action doesn't work in mac
-        cat .github/workflows/q.rb.brew-formula-template | sed 's/{{ .Q_VERSION }}/3.1.0-beta/g' > ./brew/q.rb
-
-        brew install --display-times --formula --build-bottle --verbose ./brew/q.rb
-        brew test ./brew/q.rb
-
-    - name: Create q bottle
-      run: |
-        brew bottle --force-core-tap --no-rebuild ./brew/q.rb
-    - name: Upload  Executable
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: q--3.1.0-beta_1.big_sur.bottle.tar.gz
-        path: ./q--3.1.0-beta_1.big_sur.bottle.tar.gz
-
-# TODO auto-create PR to main homebrew-core
-#        git clone https://github.com/harelba/homebrew-core.git
-#        cd homebrew-core
-#
-#        git checkout -b new-q-version
-
-  test-mac-packaging:
-    needs: package-mac
+  not-test-mac-packaging:
+    needs: not-package-mac
     runs-on: macos-11
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Download q bottle
-      uses: actions/download-artifact@v2
-      with:
-        name: q--3.1.0-beta_1.big_sur.bottle.tar.gz
-    - name: Test the created bottle
+    - name: Not Testing Mac Packaging
       run: |
-        set -x -e
-        set -o pipefail
+        echo "homebrew mac packaging cannot be tested here, due to the package build process of homebrew. See https://github.com/harelba/homebrew-q"
 
-        WD=$(pwd)
-
-        pushd /usr/local/Cellar
-        tar xvfz ${WD}/q--3.1.0-beta_1.big_sur.bottle.tar.gz
-        popd
-
-        brew link q
-
-        seq 1 100 | q -c 1 "select sum(c1),count(*) from -" -S test.sqlite
-
-        echo "select sum(c1),count(*) from data_stream_stdin" | sqlite3 test.sqlite
-
-  # TODO Windows build/test/package flow is running, but q executable is still not running well, due to pyox+sqlite3 issue
   build-windows:
     runs-on: windows-latest
-    if: ${{ false }}
+    needs: version_info
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -380,10 +375,7 @@ jobs:
       run: |
         set -e -x
 
-        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
-        cp requirements-win-x86_64.txt requirements.txt
-
-        pyoxidizer build --release
+        pyoxidizer build --release --var Q_VERSION ${{ needs.version_info.outputs.q_version }}
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -397,23 +389,36 @@ jobs:
     - name: Upload Linux Executable
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: win-q
+        name: win-q.exe
         path: packages/windows/win-q.exe
 
-  test-windows:
+  not-really-test-windows:
     needs: build-windows
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Fail deliberately - No tests on Windows
+    - name: Install Python for Testing
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Download Windows Executable
+      uses: actions/download-artifact@v2
+      with:
+        name: win-q.exe
+    - name: Not-Really-Test Windows
+      shell: bash
       continue-on-error: true
       run: |
-        echo "Tests are not actually running on the Windows Executable itself. Only the packaging is later tested"
-        exit 1
+        echo "Tests are not compatible with Windows (path separators, tmp folder names etc.). Only a sanity wil be tested"
+
+        chmod +x ./win-q.exe
+
+        seq 1 10000 | ./win-q.exe -c 1 "select sum(c1),count(*) from -" -S some-db.sqlite
 
   package-windows:
-    needs: [create-man, test-windows]
+    needs: [create-man, not-really-test-windows, version_info]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -439,27 +444,22 @@ jobs:
       run: |
         set -e -x
 
-        # Hack to overcome the fact that apsw doesn't have a registered wheel for Windows
-        cp requirements-win-x86_64.txt requirements.txt
+        pyoxidizer build --release msi_installer --var Q_VERSION ${{ needs.version_info.outputs.q_version }}
 
-        pyoxidizer build --release msi_installer
-
-        find ./ -ls
-
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.0-beta.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-3.1.0-beta.msi
+        cp $Q_MSI packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.0-beta.msi
-        path: packages/windows/q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
+        path: packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
   test-windows-packaging:
-    needs: package-windows
+    needs: [package-windows, version_info]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -467,12 +467,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.0-beta.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.0-beta.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -481,17 +481,16 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.0-beta.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
-    needs: [package-linux-deb, package-linux-rpm, package-mac]
+    needs: [package-linux-deb, package-linux-rpm, not-package-mac, package-windows, version_info]
     runs-on: ubuntu-latest
-    # Disabled on purpose for now, until beta is over
-    if: ${{ false }}
+    if: needs.version_info.outputs.is_release == 'false'
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
@@ -513,28 +512,14 @@ jobs:
           artifacts/**/*
 
   perform-release:
-    # TODO Windows is not here so users won't be confused by seeing an MSI (it's still not production-grade, you need to have sqlite3 dll in the path)
-    needs: [test-mac-packaging, test-deb-packaging, test-rpm-packaging]
+    needs: [not-test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging, version_info]
     runs-on: ubuntu-latest
-    # Disabled on purpose for now - Changing the beta release to a real one will be done manually until everything stabilizes
-    # and then this will be reinstated
-    # if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-    if: ${{ false }}
+    if: needs.version_info.outputs.is_release == 'true'
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
       with:
         path: artifacts/
-    - name: Delete Windows Artifacts so they're not part of the release for now
-      run: |
-        set -x -e
-
-        echo "Deleting windows artifacts so they're not part of the release - windows is not fully ready"
-
-        set +e
-        rm -vf artifacts/*.msi
-        rm -vf artifacts/win-q.exe
-        set -e
     - uses: "marvinpinto/action-automatic-releases@v1.2.1"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"

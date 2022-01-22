@@ -3,17 +3,20 @@
 # https://pyoxidizer.readthedocs.io/en/stable/ for details of this
 # configuration file format.
 
+PYTHON_VERSION = VARS.get("PYTHON_VERSION","3.8")
+Q_VERSION = VARS.get("Q_VERSION","0.0.1")
+
 # Configuration files consist of functions which define build "targets."
 # This function creates a Python executable and installs it in a destination
 # directory.
 def make_exe():
-    dist = default_python_distribution(python_version="3.8")
+    dist = default_python_distribution(python_version=PYTHON_VERSION)
 
     policy = dist.make_python_packaging_policy()
     policy.set_resource_handling_mode("classify")
     policy.resources_location = "in-memory"
     policy.resources_location_fallback = "filesystem-relative:Lib"
-    policy.allow_in_memory_shared_library_loading = True
+    policy.allow_in_memory_shared_library_loading = False
 
     python_config = dist.make_python_interpreter_config()
 
@@ -61,7 +64,7 @@ def make_msi(exe):
         # The name of your application.
         "q-text-as-data",
         # The version of your application.
-        "2.1.0",
+        Q_VERSION,
         # The author/manufacturer of your application.
         "Harel Ben-Attia"
     )

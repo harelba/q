@@ -57,7 +57,7 @@ Any standard SQL expression, condition (both WHERE and HAVING), GROUP BY, ORDER 
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.
 
-The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
+The SQL syntax itself is sqlite's syntax. For details look at https://www.sqlite.org/lang.html or search the net for examples.
 
 **NOTE:** Full type detection is implemented, so there is no need for any casting or anything.
 

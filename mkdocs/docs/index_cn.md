@@ -82,7 +82,7 @@ q 的每一个参数都是由双引号包裹的一条完整的SQL语句。所有
 
 在WHERE条件查询中，支持JOIN操作和子查询，但在FROM子句中并不支持。JOIN操作时，可以为文件起别名。
 
-SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
+SQL语法同sqlite的语法，详情见 https://www.sqlite.org/lang.html 或上网找一些示例。
 
 **注意**：
 

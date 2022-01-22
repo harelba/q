@@ -49,7 +49,7 @@ jobs:
         run: |
           set -e -x
 
-          echo q_version is ${{ needs.version_info.outputs.q_version }}
+          echo "outputs: ${{ needs.version_info }}"
 
   create-man:
     runs-on: ubuntu-18.04
@@ -483,14 +483,6 @@ jobs:
         $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
-
-  test_is_release:
-    needs: version_info
-    runs-on: ubuntu-latest
-    steps:
-    - name: test1
-      run: |
-        echo ${{ toJson(needs.version_info) }}
 
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,

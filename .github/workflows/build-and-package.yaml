@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+    branches: master
   pull_request:
     branches: master
     paths-ignore:
@@ -29,10 +30,12 @@ jobs:
           then
             echo "Trigger was a version tag - ${{ github.ref }}"
             echo ::set-output name=q_version::${GITHUB_REF#refs/tags/v}
+            echo ::set-output name=is_release::true
           else
             # For testing version propagation inside the PR
             echo "Either branch of a non-version tag - setting version to 0.0.0"
             echo ::set-output name=q_version::0.0.0
+            echo ::set-output name=is_release::false
           fi
 
     outputs:
@@ -484,9 +487,9 @@ jobs:
   perform-prerelease:
     # We'd like artifacts to be uploaded regardless of tests succeeded or not,
     # this is why the dependency here is not on test-X-packaging jobs
-    needs: [package-linux-deb, package-linux-rpm, not-package-mac, package-windows]
+    needs: [package-linux-deb, package-linux-rpm, not-package-mac, package-windows, version_info]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ needs.version_info.outputs.is_release == 'false' }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2
@@ -508,9 +511,9 @@ jobs:
           artifacts/**/*
 
   perform-release:
-    needs: [not-test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging]
+    needs: [not-test-mac-packaging, test-deb-packaging, test-rpm-packaging, test-windows-packaging, version_info]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    if: ${{ needs.version_info.outputs.is_release == 'true' }}
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v2

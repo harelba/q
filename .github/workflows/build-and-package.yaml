@@ -40,6 +40,7 @@ jobs:
 
     outputs:
       q_version: ${{ steps.vars.outputs.q_version }}
+      is_release: ${{ steps.vars.outputs.is_release }}
 
   check_version_info:
     runs-on: ubuntu-18.04

@@ -49,7 +49,7 @@ jobs:
         run: |
           set -e -x
 
-          echo "outputs: ${{ needs.version_info }}"
+          echo "outputs: ${{ toJson(needs.version_info) }}"
 
   create-man:
     runs-on: ubuntu-18.04

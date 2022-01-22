@@ -10,8 +10,44 @@ on:
       - "*.md"
       - "*.markdown"
       - "mkdocs/**/*"
+    tags-ignore:
+      - "*"
 
 jobs:
+  version_info:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - id: vars
+        run: |
+          set -e -x
+
+          echo "github event ref is ${{ github.ref }}"
+
+          if [ "x${{ startsWith(github.ref, 'refs/tags/v') }}" == "xtrue" ]
+          then
+            echo "Trigger was a version tag - ${{ github.ref }}"
+            echo ::set-output name=q_version::${GITHUB_REF#refs/tags/v}
+          else
+            # For testing version propagation inside the PR
+            echo "Either branch of a non-version tag - setting version to 0.0.0"
+            echo ::set-output name=q_version::0.0.0
+          fi
+
+    outputs:
+      q_version: ${{ steps.vars.outputs.q_version }}
+
+  check_version_info:
+    runs-on: ubuntu-18.04
+    needs: version_info
+    steps:
+      - name: test q_version
+        run: |
+          set -e -x
+
+          echo q_version is ${{ needs.version_info.outputs.q_version }}
+
   create-man:
     runs-on: ubuntu-18.04
     steps:
@@ -106,7 +142,7 @@ jobs:
         Q_EXECUTABLE=`pwd`/linux-q Q_SKIP_EXECUTABLE_VALIDATION=true ./run-tests.sh -v
 
   package-linux-deb:
-    needs: [test-linux, create-man]
+    needs: [test-linux, create-man, version_info]
     runs-on: ubuntu-18.04
     steps:
     - name: Checkout
@@ -133,25 +169,27 @@ jobs:
 
         chmod 755 ./linux-q
 
+        export q_version=${{ needs.version_info.outputs.q_version }}
+
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-3.1.6-1.x86_64.deb --version 3.1.6 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t deb --deb-use-file-permissions -p packages/linux/q-text-as-data-${q_version}-1.x86_64.deb --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload DEB Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.6-1.x86_64.deb
-        path: packages/linux/q-text-as-data-3.1.6-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   test-deb-packaging:
     runs-on: ubuntu-18.04
-    needs: package-linux-deb
+    needs: [package-linux-deb, version_info]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Download DEB
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.6-1.x86_64.deb
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
     - name: Install Python for Testing
       uses: actions/setup-python@v2
       with:
@@ -163,10 +201,10 @@ jobs:
 
         pip3 install -r test-requirements.txt
     - name: Test DEB Package Installation
-      run: ./dist/test-using-deb.sh ./q-text-as-data-3.1.6-1.x86_64.deb
+      run: ./dist/test-using-deb.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}-1.x86_64.deb
 
   package-linux-rpm:
-    needs: [test-linux, create-man]
+    needs: [test-linux, create-man, version_info]
     runs-on: ubuntu-18.04
     steps:
     - name: Checkout
@@ -189,31 +227,32 @@ jobs:
 
         mkdir -p packages/linux
 
-        find ./ -ls
 
         chmod 755 ./linux-q
 
+        export q_version=${{ needs.version_info.outputs.q_version }}
+
         gem install fpm
         cp dist/fpm-config ~/.fpm
-        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-3.1.6.x86_64.rpm --version 3.1.6 ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
+        fpm -s dir -t rpm --rpm-use-file-permissions -p packages/linux/q-text-as-data-${q_version}.x86_64.rpm --version ${q_version} ./linux-q=/usr/bin/q USAGE.gz=/usr/share/man/man1/q.1.gz
     - name: Upload RPM Package
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.6.x86_64.rpm
-        path: packages/linux/q-text-as-data-3.1.6.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
+        path: packages/linux/q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   test-rpm-packaging:
     runs-on: ubuntu-18.04
-    needs: package-linux-rpm
+    needs: [package-linux-rpm, version_info]
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Download RPM
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.6.x86_64.rpm
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
     - name: Retest using RPM
-      run: ./dist/test-using-rpm.sh ./q-text-as-data-3.1.6.x86_64.rpm
+      run: ./dist/test-using-rpm.sh ./q-text-as-data-${{ needs.version_info.outputs.q_version }}.x86_64.rpm
 
   build-mac:
     runs-on: macos-11
@@ -307,6 +346,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    needs: version_info
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -331,7 +371,7 @@ jobs:
       run: |
         set -e -x
 
-        pyoxidizer build --release
+        pyoxidizer build --release --var Q_VERSION ${{ needs.version_info.outputs.q_version }}
 
         export Q_EXECUTABLE=./build/x86_64-pc-windows-msvc/release/install/q
         chmod 755 $Q_EXECUTABLE
@@ -374,7 +414,7 @@ jobs:
         seq 1 10000 | ./win-q.exe -c 1 "select sum(c1),count(*) from -" -S some-db.sqlite
 
   package-windows:
-    needs: [create-man, not-really-test-windows]
+    needs: [create-man, not-really-test-windows, version_info]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -400,26 +440,22 @@ jobs:
       run: |
         set -e -x
 
-        pyoxidizer build --release msi_installer
+        pyoxidizer build --release msi_installer --var Q_VERSION ${{ needs.version_info.outputs.q_version }}
 
-        find ./ -ls
-
-        # TODO Windows versions do not support the -beta postfix
-
-        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-3.1.6.msi
+        export Q_MSI=./build/x86_64-pc-windows-msvc/release/msi_installer/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
         chmod 755 $Q_MSI
 
         mkdir -p packages/windows/
-        cp $Q_MSI packages/windows/q-text-as-data-3.1.6.msi
+        cp $Q_MSI packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
     - name: Upload Windows MSI
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: q-text-as-data-3.1.6.msi
-        path: packages/windows/q-text-as-data-3.1.6.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
+        path: packages/windows/q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
 
   test-windows-packaging:
-    needs: package-windows
+    needs: [package-windows, version_info]
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -427,12 +463,12 @@ jobs:
     - name: Download Windows Package
       uses: actions/download-artifact@v2
       with:
-        name: q-text-as-data-3.1.6.msi
+        name: q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi
     - name: Test Install of MSI
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-3.1.6.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/i q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi -l* msi-install.log /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         gc msi-install.log
 
@@ -441,7 +477,7 @@ jobs:
       continue-on-error: true
       shell: powershell
       run: |
-        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-3.1.6.msi /norestart /quiet" -PassThru -Wait
+        $process = Start-Process msiexec.exe -ArgumentList "/u q-text-as-data-${{ needs.version_info.outputs.q_version }}.msi /norestart /quiet" -PassThru -Wait
         $process.ExitCode
         exit $process.ExitCode
 

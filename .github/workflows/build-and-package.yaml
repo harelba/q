@@ -23,10 +23,12 @@ jobs:
         run: |
           set -e -x
 
+          echo "github event ref is ${{ github.event.ref }}"
+
           if [ "x${{ startsWith(github.event.ref, 'refs/tags/v') }}" == "xtrue" ]
           then
             echo "Trigger was a version tag - ${{ github.event.ref }}"
-            echo ::set-output name=q_version::${GITHUB_REF#refs/*/v}
+            echo ::set-output name=q_version::${GITHUB_REF#refs/tags/v}
           else
             # For testing version propagation inside the PR
             echo "Either branch of a non-version tag - setting version to 0.0.0"

@@ -20,7 +20,7 @@ The following table shows the impact of using caching:
 
 Notice that for the current version, caching is **not enabled** by default, since the caches take disk space. Use `-C readwrite` or `-C read` to enable it for a query, or add `caching_mode` to `.qrc` to set a new default.
  
-q's web site is [http://harelba.github.io/q/](http://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
+q's web site is [https://harelba.github.io/q/](https://harelba.github.io/q/) or [https://q.textasdata.wiki](https://q.textasdata.wiki) It contains everything you need to download and use q immediately.
 
 
 ## Usage Examples
@@ -36,12 +36,12 @@ $ ps -ef | q -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC 
 $ q "select count(*) from some_db.sqlite3:::albums a left join another_db.sqlite3:::tracks t on (a.album_id = t.album_id)"
 ```
 
-Detailed examples are in [here](http://harelba.github.io/q/#examples)
+Detailed examples are in [here](https://harelba.github.io/q/#examples)
 
 ## Installation.
 **New Major Version `3.1.6` is out with a lot of significant additions.**
 
-Instructions for all OSs are [here](http://harelba.github.io/q/#installation).
+Instructions for all OSs are [here](https://harelba.github.io/q/#installation).
 
 The previous version `2.0.19` Can still be downloaded from [here](https://github.com/harelba/q/releases/tag/2.0.19)  
 

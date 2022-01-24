@@ -303,7 +303,7 @@ Query/Input/Output encodings are fully supported (and q tries to provide out-of-
 
 JOINs are supported and Subqueries are supported in the WHERE clause, but unfortunately not in the FROM clause for now. Use table aliases when performing JOINs.
 
-The SQL syntax itself is sqlite's syntax. For details look at http://www.sqlite.org/lang.html or search the net for examples.
+The SQL syntax itself is sqlite's syntax. For details look at https://www.sqlite.org/lang.html or search the net for examples.
 
 NOTE: When using the `-O` output header option, use column name aliases if you want to control the output column names. For example, `q -O -H "select count(*) cnt,sum(*) as mysum from -"` would output `cnt` and `mysum` as the output header column names.
 

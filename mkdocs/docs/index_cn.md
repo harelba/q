@@ -1,4 +1,4 @@
-[toc]
+
 q - 直接在CSV或TSV文件上运行SQL
 
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)

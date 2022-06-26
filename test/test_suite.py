@@ -4332,6 +4332,31 @@ class UserFunctionTests(AbstractQTestCase):
         self.assertEqual(o[3],six.b('32.0'))
         self.assertEqual(o[4],six.b('55.9016994375'))
 
+    def test_file_functions(self):
+        filenames = [
+            "file1",
+            "file2.csv",
+            "/var/tmp/file3",
+            "/var/tmp/file4.gz",
+            ""
+        ]
+        data = "\n".join(filenames)
+
+        cmd = 'echo "%s" | %s -c 1 -d , "select file_folder(c1),file_ext(c1),file_basename(c1),file_basename_no_ext(c1) from -"' % (data,Q_EXECUTABLE)
+        retcode, o, e = run_command(cmd)
+
+        self.assertEqual(retcode,0)
+        self.assertEqual(len(o),5)
+        self.assertEqual(len(e),0)
+        self.assertEqual(o,[
+            b',,file1,file1',
+            b',.csv,file2.csv,file2',
+            b'/var/tmp,,file3,file3',
+            b'/var/tmp,.gz,file4.gz,file4',
+            b',,,'
+        ])
+
+
     def test_sha1_function(self):
         cmd = 'seq 1 4 | %s -c 1 -d , "select c1,sha1(c1) from -"' % Q_EXECUTABLE
         retcode, o, e = run_command(cmd)

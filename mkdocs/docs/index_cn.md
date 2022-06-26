@@ -313,7 +313,7 @@ Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
 
 在WHERE条件查询中，支持JOIN操作和子查询，但在FROM子句中并不支持。JOIN操作时，可以为文件起别名。
 
-SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
+SQL语法同sqlite的语法，详情见 https://www.sqlite.org/lang.html 或上网找一些示例。
 
 提示: 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。
 

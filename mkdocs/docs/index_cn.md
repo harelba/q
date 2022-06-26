@@ -1,23 +1,67 @@
-# q - 直接在CSV或TSV文件上运行SQL
+[toc]
+q - 直接在CSV或TSV文件上运行SQL
 
 [![GitHub Stars](https://img.shields.io/github/stars/harelba/q.svg?style=social&label=GitHub Stars&maxAge=600)](https://GitHub.com/harelba/q/stargazers/)
 [![GitHub forks](https://img.shields.io/github/forks/harelba/q.svg?style=social&label=GitHub Forks&maxAge=600)](https://GitHub.com/harelba/q/network/)
 
-
 ## 概述
-q 是一个可以运行在 CSV / TSV 文件(或其他表格式的文本文件)上运行类SQL命令的命令行工具。
 
-q 将普通文本（如上述）作为数据库表，且支持所有的SQL语法如：WHERE、GROUP BY、各种JOIN等。此外，还拥有自动识别列名和列类型及广泛支持多种编码的特性。
+**q** 旨在通过将文本当作结构化数据(且支持直接访问多文件sqlite3数据库)，赋能于Linux命令行，使其具备sql的表达能力。
 
-``` bash
-q "SELECT COUNT(*) FROM ./clicks_file.csv WHERE c3 > 32.3"
+``` base
+    q <flags> <sql-query>
 ```
 
+**q** 支持如下:
+
+* 支持在表格式的文本上执行类SQL命令, 自动缓存数据以便于在相同文件上执行其他查询。
+
 ``` bash
-ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+    # 文件内容简单查询,列将被命名为c1...cN
+    q "select c1,c5 from myfile.csv"
+
+    # -d '|' 指定输入分隔符，-H 表示包含列名
+    q -d , -H "select my_field from myfile.delimited-file-with-pipes"
+
+    # -C readwrite 为csv文件文件创建缓存
+    q -d , -H "select my_field from myfile.csv" -C readwrite
+
+    # -C read 指定由缓存中读取csv文件
+    q -d , -H "select my_field from myfile.csv" -C read
+
+    # 可以在`~/.qrc`文件中设置默认启用缓存模式(`-C`)
 ```
 
-查看[示例](#示例)或[安装](#安装)体验.
+* 支持在多文件 sqlite3 数据库上执行 SQL 语句，无需合并或加载到内存中
+
+``` bash
+    q "select * from mydatabase.sqlite:::my_table_name"
+        或
+    q "select * from mydatabase.sqlite"
+        (如果库文件中仅含有一张表)
+
+    # sqlite文件被自动识别，无需指定扩展名
+
+```
+
+缓存性能表现见下表:
+
+|    行数   | 列数| 文件大小 | 无缓存查询时长 | 有缓存查询时长 | 速度提升 |
+|:---------:|:-------:|:---------:|:--------------------------:|:-----------------------:|:-----------------:|
+| 5,000,000 |   100   |   4.8GB   |    4 分47 秒 |       1.92 秒|        x149       |
+| 1,000,000 |   100   |   983MB   |        50.9 秒|      0.461 秒|        x110       |
+| 1,000,000 |    50   |   477MB   |        27.1 秒|      0.272 秒|        x99        |
+|  100,000  |   100   |    99MB   |         5.2 秒|      0.141 秒|        x36        |
+|  100,000  |    50   |    48MB   |         2.7 秒|      0.105 秒|        x25        |
+
+
+**提示：** 因缓存占用磁盘空间，当前版本默认**不启用**缓存。查询时指定`-C readwrite` 或 `-C read`指令启用缓存, 或者在`.qrc` 文件中设置`caching_mode`以启用缓存模式。
+
+**q** 将普通文件看作数据库表并支持所有SQL语法结构，比如`WHERE`,`GROUP BY`, 各种`JOIN`等。此外，**q** 也支持列名、类型自动识别及多种字符编码。
+
+**新特性** - 自动缓存、直接查询sqlite数据库及支持`~/.qrc`配置文件，详情参照[这儿](https://github.com/harelba/q/blob/master/QSQL-NOTES.md) 下载[安装](#安装)体验.
+
+### 字符集
 
 |                                        |                                                 |
 |:--------------------------------------:|:-----------------------------------------------:|
@@ -28,29 +72,252 @@ ps -ef | q -H "SELECT UID,COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIM
 **非英语用户:** q 完全支持所有类型的字符编码。 使用 `-e data-encoding` 设置输入编码; 使用 `-Q query-encoding` 设置查询编码; 使用 `-E output-encoding` 设置输出编码;
 如上三个参数均设有合理的默认值。<br/>
 
-> 如果遇到问题请与我联系，期待与你交流。
+> 如果遇到问题请与我联系,会积极协助的～
 
 **含有BOM的文件:** python的csv模块并不能很好的支持含有[Byte Order Mark](https://en.wikipedia.org/wiki/Byte_order_mark) 的文件。针对该种情况，使用 `-e utf-8-sig` 命令参数可读取包含BOM的UTF8编码文件。
 
-> 我们计划将BOM相关处理与编码'解耦', 这样就可以支持所有编码的BOM文件了。
+> 后期计划将BOM相关处理与编码'解耦', 这样就可以支持所有编码的BOM文件了。
 
 ## 安装
 
-| 格式 | 说明 | 备注 |
-|:---|:---|:---|
-|[OSX](https://github.com/harelba/q/releases/download/2.0.19/q-x86_64-Darwin)|运行 `brew install q`| 该方式暂不支持MAN手册, 可以使用 `q --help` 查看帮助||
-|[RPM Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data-2.0.19-1.x86_64.rpm)| 运行 `rpm -ivh <package-filename>` 如果安装过旧版则运行 `rpm -U <package-filename>` | 该方式支持MAN手册，可运行`man q`查看|
-|[DEB Package](https://github.com/harelba/q/releases/download/2.0.19/q-text-as-data_2.0.19-2_amd64.deb)| 运行 `sudo dpkg -i <package-filename>`|该方式支持MAN手册，可运行`man q`查看|
-|[Windows Installer](https://github.com/harelba/q/releases/download/2.0.19/q-AMD64-Windows-installer.exe)|运行安装可执行文件，一直点击下一步、下一步... q.exe 将被添加至PATH，以便于随处运行|PATH更新后并不会即时生效，重新打开cmd命令窗口便可|
-|[tar.gz](https://github.com/harelba/q/archive/2.0.19.tar.gz)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
-|[zip](https://github.com/harelba/q/archive/2.0.19.zip)|最新稳定版的所有源码文件。提示，q.py 文件不能直接使用，因为它需要python依赖||
 
-**旧版本可以在这儿[下载](https://github.com/harelba/packages-for-q) 。按理说不会有人愿意用旧版本，要是你计划使用旧版，希望能与你交流。**
+| 格式| 说明| 备注|
+:---|:---|:---|
+|[OSX](https://github.com/harelba/q/releases/download/v3.1.6/macos-q)|执行 `brew install harelba/q/q`或点击左侧链接下载执行文件|执行`man q`查看帮助手册|
+|[RPM Package](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6.x86_64.rpm)| 若曾安装过旧版，执行`rpm -ivh <package-filename>` 或 `rpm -U <package-filename>` | 执行 `man q`查看帮助手册|
+|[DEB Package](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6-1.x86_64.deb)|执行 `sudo dpkg -i <package-filename>`|执行 `man q`查看帮助手册(由于某些原因，手册可能安装失败，近期将其修复)|
+|[Windows Installer](https://github.com/harelba/q/releases/download/v3.1.6/q-text-as-data-3.1.6.msi)|双击安装文件，点击下一步、下一步... q.exe 将自动添加至环境变量|windows在已打开的命令行窗口中不会更新`PATH`, 所以安装完后需要重新打开`cmd`/`bash`|
+|[Source tar.gz](https://github.com/harelba/q/archive/refs/tags/v3.1.6.tar.gz)|最新稳定版源码文件包.提示`q.py` 不能直接执行，它还需要一些依赖||
+|[Source zip](https://github.com/harelba/q/archive/refs/tags/v3.1.6.zip)|最新稳定版源码文件包.提示`q.py` 不能直接执行，它还需要一些依赖||
+
+如果需要一个其他Linux发行版安装包，及时联系我就好（打包并不麻烦)。
+
+若新版不能满足您的需求，您习惯使用旧版的话。早期版本`2.0.19`可以点击[这儿](https://github.com/harelba/q/releases/tag/2.0.19)下载。
 
 ## 须知
-从`2.0.9`版本开始，不需要任何外部依赖。Python(3.7)和其他所需的库包含在了安装文件中且与系统隔离。
 
-## 使用
+**q** 被打包成了独立可执行文件，无需依赖python。这得益于[pyoxidizer](https://github.com/indygreg/PyOxidizer) (一个超酷的项目)。
+
+## 示例
+
+本小节中展示了一些新特性示例，更多基础示例，可以在[这儿](#示例)查看。
+
+### 基础示例
+
+```bash
+# 准备一些数据
+$ seq 1 1000000 > myfile.csv
+
+# 查询
+$ q "select sum(c1),count(*) from myfile.csv where c1 % 3 = 0"
+166666833333 333333
+
+# 对标准输出进行查询
+$ ps -ef | q -b -H "SELECT UID, COUNT(*) cnt FROM - GROUP BY UID ORDER BY cnt DESC LIMIT 3"
+501 288
+0   115
+270 17
+```
+
+### 自动缓存示例
+
+```bash
+# (为了简洁起见，将耗时简易显示)
+
+# 准备一些数据
+$ seq 1 1000000 > myfile.csv
+
+# 由文件中读取数据
+$ time q "select sum(c1),count(*) from myfile.csv"
+500000500000 1000000
+total_time=4.108 seconds
+
+# 执行`-C readwrite`自动创建缓存文件（若文件不存在，则自动创建一个名为myfile.csv.qsql的文件)
+$ time q "select sum(c1),count(*) from myfile.csv" -C readwrite
+500000500000 1000000
+total_time=4.057 seconds
+
+# 执行`-C read`, 该查询将自动由缓存中进行读取。文件越大时，效果越明显。
+$ time q "select sum(c1),count(*) from myfile.csv" -C read
+500000500000 1000000
+total_time=0.229 seconds
+
+# 我们再来试下另一个查询（注意耗时上的差异). 缓存可用于针对该文件的任何查询，也可用于包含该文件的多文件查询。
+$ time q "select avg(c1) from myfile.csv" -C read
+500000.5
+total_time=0.217 seconds
+
+# 你也可以直接查询qsql文件, 它就是一个标准的sqlite3数据库文件（下一章节中对此处进行了描述）
+$ time q "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+total_time=0.226 seconds
+
+# 现在我们删除源csv文件(删除源文件需谨慎)
+$ rm -vf myfile.csv
+
+# 在qsql文件上执行下查询仍然奏效
+$ time q "select sum(c1),count(*) from myfile.csv.qsql"
+500000500000 1000000
+total_time=0.226 seconds
+
+# 如何设置默认`-C(--caching-mode)`覆盖默认值`none` ,可以参照下方`.qrc`小节
+```
+
+### sqlite查询示例
+
+```bash
+# 由 https://www.sqlitetutorial.net/sqlite-sample-database/下载并解压sqlite3数据库，解压后将看到一chinook.db文件。
+$ curl -L https://www.sqlitetutorial.net/wp-content/uploads/2018/03/chinook.zip | tar -xvf -
+
+# 现在我们可以直接由数据库中进行查询（尤其注意表名 <db_name>:::<table_name>）
+$ q "select count(*) from chinook.db:::albums"
+347
+
+# 我们查询专辑ID为34的前5首最长的曲目。-b 指令为了美化输出，-O 指令表示将列名作为表头
+$ q "select * from chinook.db:::tracks where albumid = '34' order by milliseconds desc limit 5" -b -O
+TrackId Name                       AlbumId MediaTypeId GenreId Composer Milliseconds Bytes    UnitPrice
+407     "Só Tinha De Ser Com Você" 34      1           7       Vários   389642       13085596 0.99
+398     "Only A Dream In Rio"      34      1           7       Vários   371356       12192989 0.99
+393     "Tarde Em Itapoã"          34      1           7       Vários   313704       10344491 0.99
+401     "Momentos Que Marcam"      34      1           7       Vários   280137       9313740  0.99
+391     "Garota De Ipanema"        34      1           7       Vários   279536       9141343  0.99
+
+# 我们复制一份chinook数据库文件，将其作为另一个不同的数据库。 
+$ cp chinook.db another_db.db
+
+# 现在我们可以在两个不同数据库(使用chinook副本仅仅为了方便演示)之间执行join查询了
+# 我们使用第一个数据库中的专辑和第二个数据库中的曲目来获取前5首最长的专辑。跟踪时间转换为秒，并四舍五入到小数点后两位数。
+$ q -b -O "select a.title,round(sum(t.milliseconds)/1000.0/60,2) total_album_time_seconds from chinook.db:::albums a left join another_database.db:::tracks t on (a.albumid = t.albumid) group by a.albumid order by total_album_time_seconds desc limit 5"
+Title                                      total_album_time_seconds
+"Lost, Season 3"                           1177.76
+"Battlestar Galactica (Classic), Season 1" 1170.23
+"Lost, Season 1"                           1080.92
+"Lost, Season 2"                           1054.83
+"Heroes, Season 1"                         996.34
+```
+
+### 分析示例
+
+```bash
+# 我们创建一个没有表头的简单CSV文件，文件内容仅包含3行文本
+$ cat > some-data-without-header.csv
+harel,1,2
+ben,3,4
+attia,5,6
+<Ctrl-D>
+
+# 我们使用`-d ,`指定分隔符，使用`-A`查看文件结构
+$ q -d , "select * from some-data-without-header.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Sources:
+    source_type: file source: /Users/harelben-attia/dev/harelba/q/some-data-without-header.csv
+  Fields:
+    `c1` - text
+    `c2` - int
+    `c3` - int
+
+# 现在我们再创建一个包含表头的简单CSV文件
+$ cat > some-data.csv
+planet_id,name,diameter_km,length_of_day_hours
+1000,Earth,12756,24
+2000,Mars,6792,24.7
+3000,Jupiter,142984,9.9
+<Ctrl-D>
+
+# 运行`-A`查看分析结果（`-H`指令表明文件中包含表头）
+$ q -b -O -H -d , "select * from some-data.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: file source: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# 我们执行`-C readwrite` 创建缓存
+$ q -b -O -H -d , "select * from some-data.csv" -C readwrite
+planet_id,name   ,diameter_km,length_of_day_hours
+1000     ,Earth  ,12756      ,24.0
+2000     ,Mars   ,6792       ,24.7
+3000     ,Jupiter,142984     ,9.9
+
+# Running another query that uses some-data.csv with -A will now show that a qsql exists for that file. The source-type 
+# 在somte-date.csv上执行查询，现在将显示为该源文件生成了一个类型为"file-with-unused-qsql"的qsql文件。
+# 为兼容历史版本，q 默认不启用缓存，所以qsql缓存文件没有被使用。
+$ q -b -O -H -d , "select * from some-data.csv" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: file-with-unused-qsql source: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# 现在我们使用`-C read`指令读取缓存，资源类型将变为"qsql-file-with-original"类型。
+# 查询时，缓存将被使用了。
+$ q -b -O -H -d , "select * from some-data.csv" -A -C read
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv
+  Sources:
+    source_type: qsql-file-with-original source: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+
+# 我们直接读取qsql文件（注意查询语句中的表名）. 
+# 语句中并没有使用`-C read`指令，资源类型为"qsql-file"
+$ q -b -O -H -d , "select * from some-data.csv.qsql" -A
+Table: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Sources:
+    source_type: qsql-file source: /Users/harelben-attia/dev/harelba/q/some-data.csv.qsql
+  Fields:
+    `planet_id` - int
+    `name` - text
+    `diameter_km` - int
+    `length_of_day_hours` - real
+```
+
+
+
+## 使用说明
+
+**q**查询是将文件（或由标准输入输出流中读取数据）名看作表名的类SQL查询。
+
+支持包含文件之间join查询(可以使用别名)在内的所有sqlite3 SQL语法结构。在下面的[局限](#局限)小节中可以看到一些少有使用的、欠支持的说明。
+
+**q**将由引号括起来的语句做为其中一个参数。
+
+**q**支持一次同时执行多条查询语句且每个文件也仅会被加载一次。因**q**支持缓存功能（启用缓存时，**q**将自动为每个文件创建缓存，在执行查询操作时，自动使用缓存加速，对于大文件查询效果尤其明显），所以该用法并非最佳实践。
+
+支持如下文件类型：
+
+* **CSV类文件** - 支持绝对或相对路径，如: `./my_folder/my_file.csv` 或 `/var/tmp/my_file.csv`
+* **sqlite3 数据库文件**
+    * **包含多表** - 指定`:::<table_name>`以此方式来指定访问特定表, 如：`mydatabase.sqlite3:::users_table`
+    * **仅有单表** - 仅需要指定数据库名，无需指定表名，如: `my_single_table_database.sqlite`
+* **`.qsql`缓存文件** - **q**可以自动缓存CSV类文件，并将其作为表去查询（因为它本质上就是仅包含了一张表的sqlite数据库）
+
+使用 `-H` 表示输入内容中包含表头。若没有指定该参数，列名会被自动识别，列名将会被以`cX`命名，`X`从1开始（比如: `q "SELECT c3,c8 from ..."`) 。
+
+
+使用 `-d` 声明输入的分隔符。
+
+列类型可由工具自动识别，无需强制转换。 提示，使用`--as-text` 可以强制将所有列类型转换为文本类型。
+
+依据sqlite规范，如果列名中含有空格，需要使用反引号 (即：`) 引起来。
+
+完全支持查询/输入/输出的编码设置（**q**力争提供一种开箱即用的方法), 可以分别使用`-Q`,`-e` 和 `-E`来指定编码设置类型。
+
+在WHERE条件查询中，支持JOIN操作和子查询，但在FROM子句中并不支持。JOIN操作时，可以为文件起别名。
+
+SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
+
+提示: 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。
+
+
 
 ``` bash
 q <flags> "<query>"
@@ -74,63 +341,26 @@ q 支持在表格式的文本上执行类SQL命令。它的初衷是为Linux命�
 
 支持所有的sqlite3 SQL方法，包括文件之间的 JOIN（可以为文件设置别名）操作。在下面的[限制](#限制)小节可以看到一些少有使用的、欠支持的说明。
 
-### 查询
-
-q 的每一个参数都是由双引号包裹的一条完整的SQL语句。所有的查询语句会依次执行，最终结果以标准输出流形式输出。 提示，在同一命令行中执行多条查询语句时，仅在执行第一条查询语句时需要耗时载入数据，其他查询语句即时执行。
-
-支持所有标准SQL语法，条件（WHERE 和 HAVING）、GROUP BY、ORDER BY等。
-
-在WHERE条件查询中，支持JOIN操作和子查询，但在FROM子句中并不支持。JOIN操作时，可以为文件起别名。
-
-SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上网找一些示例。
-
-**注意**：
-
-* 支持所有类型的自动识别，无需强制转换或其他操作。
-  
-* 如果重命名输出列，则需要为列指定别名并使用 `-O` 声明。如: `q -O -H "select count(*) cnt,sum(*) as mysum from -"` 便会将`cnt`和`mysum`作为列名输出。
-
-### 指令
-
-``` bash
-使用:
-        q 支持在表格式的文本数据上执行类SQL查询。
-
-        它的初衷是为Linux命令行附加SQL的表达力且实现对文本数据的轻松访问。
-
-        基本操作是 q "SQL查询语句" 表名便是文件名（使用 - 从标注输入中读取数据）。若输入内容包含表头时，可以使用 -H 指定列名。若无表头，则列将会自动命名为 c1...cN。
-
-        列类型可被自动识别。可以使用 -A 命令查看每列的名称及其类型。
-
-        可以使用 -d (或 -t) 指定分隔符，使用 -D 指定输出分割符。
-
-        支持所有的sqlite3 SQL方法。
-
-        示例:
-            
-          例子1: ls -ltrd * | q "select c1,count(1) from - group by c1" 
-          上例将会输出当前目录下，所有文件的权限表达式分组及每组数量。
-
-          例子2: seq 1 1000 | q "select avg(c1),sum(c1) from -" 
-          上例将会输出1到1000的平均数与和数。
-          
-          例子3: sudo find /tmp -ls | q "select c5,c6,sum(c7)/1024.0/1024 as total from - group by c5,c6 order by total desc" 
-          上例将会输出在/tmp目录下，相同'用户+组'的文件所占用的MB磁盘空间。
-
-          更多详情见 https://github.com/harelba/q/ 或查看帮助
-    
+```bash
 选项：
   -h, --help            显示此帮助信息并退出 
   -v, --version         显示版本号
   -V, --verbose         出现问题时显示调试信息
   -S SAVE_DB_TO_DISK_FILENAME, --save-db-to-disk=SAVE_DB_TO_DISK_FILENAME
                         将数据库保存为一个 sqlite 数据库文件
-  --save-db-to-disk-method=SAVE_DB_TO_DISK_METHOD
-                        保存数据库到磁盘的方法
-                        'standard' 不需要任何设置
-                        'fast'需要手动在python的安装目录下执行`pip install sqlitebck`
-                        打包的问题解决后，'fast'即被作为默认方式
-  数据相关的选项:
+  -C CACHING_MODE, --caching-mode=CACHING_MODE
+                        缓存模式可选值(none/read/readwrite)
+                        自动缓存文件至磁盘，以便加速后续的查询。
+                        缓存文件扩展名为.qsql,名称与查询表或文件名一致
+  --dump-defaults       转存默认配置参数
+                        以便于确认.qrc配置中的属性是否生效
+  --max-attached-sqlite-databases=MAX_ATTACHED_SQLITE_DATABASES
+                        设置sqlite数据库的最大并发数，该值在sqlite编译期间被定义。
+                        即将达到该值时，q将执行表格复制操作，因此q的查询性能会降低。
+  --overwrite-qsql=OVERWRITE_QSQL
+                        指定该参数时，相同命名的qsql文件将被覆盖（无论是缓存文件或是持久化的db文件）
+
+  输入相关的选项:
   
     -H, --skip-header   忽略表头，在早期的版本中已修改为：仅支持用于标明列名的一行表头
     -d DELIMITER, --delimiter=DELIMITER
@@ -144,7 +374,7 @@ SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上�
     -z, --gzipped       压缩数据，对于从输入流读取文件非常高效 .gz 是自动压缩后文件扩展名
     -A, --analyze-only  简单分析：各列的数据类型
     -m MODE, --mode=MODE
-                        数据解析模式: 松散, 宽松和严格。在严格模式下必须指定 -c 
+                        数据解析模式: fluffy, relaxed和strict。在strict模式下必须指定 -c 
                         --column-count 参数。
     -c COLUMN_COUNT, --column-count=COLUMN_COUNT
                         当使用宽松或严格模式时，用于指定列的数量
@@ -202,14 +432,35 @@ SQL语法同sqlite的语法，详情见 http://www.sqlite.org/lang.html 或上�
                         实验性参数，对该参数的意见可反馈
 ```
 
-## 示例
-下述 `-H` 参数的例子，表示文件中含有表头时使用该参数。
+### 默认值设定
 
-`-t` 参数是指定文件以 tab 作为分隔符的缩写（可以使用 `-d` 参数指定任意分隔符）。
+在`~/.qrc`文件中定义默认值，文件格式如下:
 
-为了清楚起见，查询关键字均使用大写，实际上关键字(如 SELECT、WHERE等)对大小写并不敏感。
+```bash
+[options]
+<setting>=<default-value>
+```
+可以通过指定`--dump-defaults`参数生成`.qrc`文件
 
-示例目录:
+实用示例: 设置 caching-mode 为 `read`，该指定下，若存在`.qsql`缓存文件，q便会自动使用缓存。若缓存不存在时，可以指定`-C readwrite` 来生成`.qsql`缓存文件。如下为在`.qrc`文件中指定默认缓存模式。
+
+```bash
+[options]
+caching_mode=read
+```
+
+## 新手入门
+
+本小节提供了一些基础示例，更多进阶示例可以参照[示例](#示例)小节。
+
+提示: 
+
+
+* 下述 `-H` 参数的例子，表示文件中含有表头时使用该参数。
+* `-t` 参数是指定文件以 tab 作为分隔符的缩写（可以使用 `-d` 参数指定任意分隔符）。
+* 为了清楚起见，查询关键字均使用大写，实际上关键字(如 SELECT、WHERE等)对大小写并不敏感。
+
+基础示例目录:
 
 * [例1 - 统计指定列唯一值的数量](#1)
 * [例2 - 数值条件过滤、排序并限制输出数](#2)
@@ -320,28 +571,36 @@ ppp dip.2@otherdomain.com
 JOIN 的应用场景中也支持列名识别，在查询包含表头的文件时，只需指定 `-H` 参数即可。
 
 ## 声明
-为了避免引用外部依赖，当前是使用由Python编写的内存数据库实现的。当前是支持 SELECT 语句及 各种JOIN （ 目前仅在 WHERE 语句中支持子查询)。
-若想对数据进一步分析，可以使用 `--save-db-to-disk` 参数，以将结果输出为 sqlite 数据库文件，然后使用 `sqlite3` 语句来执行查询操作。
 
-需要提示的是，当前并没有对数据量的大小进行检测和限制 - 也就是说，需要用户自己掌控文件大小。
+q在后台创建了一个"虚拟"sqlite3数据库，该库中不包含任何数据，数据依赖于如下几个数据库：
 
-请务必阅读[限制](#限制)小节。
+* 当从类CSV文件或`stdin`中读取数据时，它将分析数据并在内存中构建"临时数据库", 此时临时数据库附加在虚拟数据库上。
+* 当类CSV文件使用`.qsql`缓存时，此时直接将该文件附加在虚拟数据库上，无需将其读入内存处理。
+* 当查询一个sqlite3文件时，此时也会直接将该文件附加在虚拟数据库上，也无需将其读入内存处理。sqlite3文件可以被自动识别，无需特别声明。
+
+依赖于如上数据库，用户的查询可直接在虚拟数据库上执行。
+
+sqlite3 对附加的数据库数量有限制（通常为10个），如果接近上限，q会在到达上限后，自动将库附加到临时数据库内存中。
+
+请仔细阅读[局限](#局限)小节。
 
 ## 开发
 
 ### 测试
-源码中包含了测试用例，可以通过 `test/test-all` 来执行。若想要提交 PR的话，一定先确保其均执行成功。
+源码中包含了测试用例，可以通过 `test/test-all` 来执行。默认情况下使用python源码来执行测试，但可以使用`Q_EXECUTABLE`环境变量指定实际可执行文件的路径, 以便于在构建和打包过程中对二进制文件进行检测。
 
-## 限制
-如下罗列了一些已知的限制，若你的使用场景中需要用到以下标明的限制，请联系我。
+## 局限
+如下罗列了一些已知的限制，若你的使用场景中需要用到以下标明的限制，请与我联系。
 
+* 不支持公用表操作（CTE），即将支持 - 查看[这儿](https://github.com/harelba/q/issues/67)和[这儿](https://github.com/harelba/q/issues/124)获取更多细节
 * 不支持 `FROM <subquery>` 
-* 不支持公用表表达式(CTE)
 * 不支持文件名中包含空格 (可以将文件以标准输入流的方式输入 q 或重命名文件)
 * 不支持较少用到的子查询
+* 超过 10 个不同 sqlite3 数据库的查询时，会将一些数据加载到内存中
+* 单个查询最多支持500个表
 
-## 原理
-你是否曾经盯着屏幕上的文本文件发呆，希望它要是数据库就好了，这样就可以找出自己想要的内容？我曾有过很多次，最终顿悟。我想要的不是数据库，而是 SQL。
+## 缘起
+我曾有很多次，盯着屏幕上的文本文件发呆，希望它要是能像数据库查询一样方便就好了？最终我顿悟了: 我想要的不是数据库，而是 SQL。
 
 SQL 是一种面向数据声明的语言，它允许自定义数据内容而无需关心其执行过程。这也正是SQL强大之处，因为它对于数据'所见即所得'，而不是将数据看作字节码。
 
@@ -356,12 +615,11 @@ SQL 是一种面向数据声明的语言，它允许自定义数据内容而无�
 ### 理念
 
 本工具的设计遵从了 Linux/Unix 的传统设计原则。若你对这些设计原则感兴趣，可以阅读 [这本书](http://catb.org/~esr/writings/taoup/) ，尤其是书中 [这部分](http://catb.org/~esr/writings/taoup/html/ch01s06.html)
-若你认为本工具工作方式与之背道而驰，愿洗耳恭听你的建议。
+若你认为本工具工作方式与之背道而驰，愿洗耳恭听您的意见。
 
 ## 展望
 
-* 主要方向：将其作为python的模块公开。 在公开之前，需要对处理标准输入流做一些内部API的完善。
-* 支持分布式以提高算力。
+* 计划在新版本 3.x 发布后，将其能成为python的公开模块作为目标。
 
 
 

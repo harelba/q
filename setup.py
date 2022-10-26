@@ -21,11 +21,11 @@ setup(
     install_requires=[
         'six==1.11.0'
     ],
-    package_dir={"": "bin"},
-    packages=setuptools.find_packages(where="bin"),
+    package_dir={"q": "bin"},
+    packages=["q"],
     entry_points={
         'console_scripts': [
-            'q = bin.q:run_standalone'
+            'q = q.q:run_standalone'
         ]
     }
 )

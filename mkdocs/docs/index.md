@@ -19,7 +19,7 @@ q allows the following:
     q "select c1,c5 from myfile.csv"
 
     # -d '|' sets the input delimiter, -H says there's a header
-    q -d , -H "select my_field from myfile.delimited-file-with-pipes"
+    q -d '|' -H "select my_field from myfile.delimited-file-with-pipes"
 
     # -C readwrite writes a cache for the csv file
     q -d , -H "select my_field from myfile.csv" -C readwrite

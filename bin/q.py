@@ -874,11 +874,19 @@ class Sql(object):
 
         self.query_column_names = None
 
+        aliases_to_skip = []
+
         # Go over all sql parts
         idx = 0
         while idx < len(self.sql_parts):
             # Get the part string
             part = self.sql_parts[idx]
+
+            if part.upper() == 'WITH':
+                aliases_to_skip.append(self.sql_parts[idx + 1])
+                idx += 2
+                continue
+ 
             # If it's a FROM or a JOIN
             if part.upper() in ['FROM', 'JOIN']:
                 # and there is nothing after it,
@@ -888,6 +896,11 @@ class Sql(object):
                         'FROM/JOIN is missing a table name after it')
 
                 qtable_name = self.sql_parts[idx + 1]
+
+                if qtable_name in aliases_to_skip:
+                    idx += 1
+                    continue
+
                 # Otherwise, the next part contains the qtable name. In most cases the next part will be only the qtable name.
                 # We handle one special case here, where this is a subquery as a column: "SELECT (SELECT ... FROM qtable),100 FROM ...".
                 # In that case, there will be an ending paranthesis as part of the name, and we want to handle this case gracefully.

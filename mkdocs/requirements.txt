@@ -24,5 +24,5 @@ pymdown-extensions==6.2.1
 requests==2.22.0
 six==1.14.0
 tornado==6.0.3
-urllib3==1.25.8
+urllib3==1.26.5
 wrapt==1.11.2

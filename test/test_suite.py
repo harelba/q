@@ -2,7 +2,7 @@
 
 #
 # test suite for q.
-# 
+#
 # Prefer end-to-end tests, running the actual q command and testing stdout/stderr, and the return code.
 # Some utilities are provided for making that easy, see other tests for examples.
 #
@@ -13,37 +13,30 @@
 
 from __future__ import print_function
 
+import codecs
 import collections
-import functools
-import tempfile
-import unittest
-import random
-import json
-import uuid
-from collections import OrderedDict
-from json import JSONEncoder
-from subprocess import PIPE, Popen, STDOUT
-import sys
-import os
-import time
-from tempfile import NamedTemporaryFile
+import itertools
 import locale
-import pprint
+import os
+import random
+import re
+import sys
+import time
+import unittest
+import uuid
+from gzip import GzipFile
+from subprocess import PIPE, Popen
+from tempfile import NamedTemporaryFile
+
+import pytest
+import sqlite3
 import six
 from six.moves import range
-import codecs
-import itertools
-from gzip import GzipFile
-import pytest
-import uuid
-import sqlite3
-import re
-import collections
 
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream, Sqlite3DB
 
-# q uses this encoding as the default output encoding. Some of the tests use it in order to 
+# q uses this encoding as the default output encoding. Some of the tests use it in order to
 # make sure that the output is correctly encoded
 SYSTEM_ENCODING = locale.getpreferredencoding()
 
@@ -92,11 +85,11 @@ def run_command(cmd_to_run,env_to_inject=None):
     o = o.rstrip()
     e = e.strip()
     # split rows
-    if o != six.b(''):
+    if o != b'':
         o = o.split(six.b(os.linesep))
     else:
         o = []
-    if e != six.b(''):
+    if e != b'':
         e = e.split(six.b(os.linesep))
     else:
         e = []
@@ -107,7 +100,7 @@ def run_command(cmd_to_run,env_to_inject=None):
     return res
 
 
-uneven_ls_output = six.b("""drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
+uneven_ls_output = b"""drwxr-xr-x   2 root     root      4096 Jun 11  2012 /selinux
 drwxr-xr-x   2 root     root      4096 Apr 19  2013 /mnt
 drwxr-xr-x   2 root     root      4096 Apr 24  2013 /srv
 drwx------   2 root     root     16384 Jun 21  2013 /lost+found
@@ -116,10 +109,10 @@ drwxr-xr-x   2 root     root      4096 Jun 21  2013 /cdrom
 drwxr-xr-x   3 root     root      4096 Jun 21  2013 /home
 lrwxrwxrwx   1 root     root        29 Jun 21  2013 /vmlinuz -> boot/vmlinuz-3.8.0-19-generic
 lrwxrwxrwx   1 root     root        32 Jun 21  2013 /initrd.img -> boot/initrd.img-3.8.0-19-generic
-""")
+"""
 
 
-find_output = six.b("""8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 11:00 /tmp
+find_output = b"""8257537   32 drwxrwxrwt 218 root     root        28672 Mar  1 11:00 /tmp
 8299123    4 drwxrwxr-x   2 harel    harel        4096 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576
 8263229  964 -rw-rw-r--   1 mapred   mapred      984569 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormcode.ser
 8263230    4 -rw-rw-r--   1 harel    harel        1223 Feb 27 10:06 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/stormdist/testTopology3fad644a-54c0-4def-b19e-77ca97941595-1-1393513576/stormconf.ser
@@ -129,57 +122,57 @@ find_output = six.b("""8257537   32 drwxrwxrwt 218 root     root        28672 Ma
 8263607    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514169735.version
 8263533    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514172733.version
 8263604    0 -rw-rw-r--   1 harel    harel           0 Feb 27 10:16 /tmp/1628a3fd-b9fe-4dd1-bcdc-7eb869fe7461/supervisor/localstate/1393514175754.version
-""")
+"""
 
 
-header_row = six.b('name,value1,value2')
-sample_data_rows = [six.b('a,1,0'), six.b('b,2,0'), six.b('c,,0')]
-sample_data_rows_with_empty_string = [six.b('a,aaa,0'), six.b('b,bbb,0'), six.b('c,,0')]
-sample_data_no_header = six.b("\n").join(sample_data_rows) + six.b("\n")
-sample_data_with_empty_string_no_header = six.b("\n").join(
-    sample_data_rows_with_empty_string) + six.b("\n")
-sample_data_with_header = header_row + six.b("\n") + sample_data_no_header
-sample_data_with_missing_header_names = six.b("name,value1\n") + sample_data_no_header
+header_row = b'name,value1,value2'
+sample_data_rows = [b'a,1,0', b'b,2,0', b'c,,0']
+sample_data_rows_with_empty_string = [b'a,aaa,0', b'b,bbb,0', b'c,,0']
+sample_data_no_header = b"\n".join(sample_data_rows) + b"\n"
+sample_data_with_empty_string_no_header = b"\n".join(
+    sample_data_rows_with_empty_string) + b"\n"
+sample_data_with_header = header_row + b"\n" + sample_data_no_header
+sample_data_with_missing_header_names = b"name,value1\n" + sample_data_no_header
 
 def generate_sample_data_with_header(header):
-    return header + six.b("\n") + sample_data_no_header
+    return header + b"\n" + sample_data_no_header
 
-sample_quoted_data = six.b('''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
+sample_quoted_data = b'''non_quoted regular_double_quoted double_double_quoted escaped_double_quoted multiline_double_double_quoted multiline_escaped_double_quoted
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
 non-quoted-value "this is a quoted value" "this is a ""double double"" quoted value" "this is an escaped \\"quoted value\\"" "this is a double double quoted ""multiline
   value""." "this is an escaped \\"multiline
   value\\"."
 control-value-1 "control-value-2" control-value-3 "control-value-4" control-value-5 "control-value-6"
-''')
+'''
 
-double_double_quoted_data = six.b('''regular_double_quoted double_double_quoted
+double_double_quoted_data = b'''regular_double_quoted double_double_quoted
 "this is a quoted value" "this is a quoted value with ""double double quotes"""
-''')
+'''
 
-escaped_double_quoted_data = six.b('''regular_double_quoted escaped_double_quoted
+escaped_double_quoted_data = b'''regular_double_quoted escaped_double_quoted
 "this is a quoted value" "this is a quoted value with \\"escaped double quotes\\""
-''')
+'''
 
-combined_quoted_data = six.b('''regular_double_quoted double_double_quoted escaped_double_quoted
+combined_quoted_data = b'''regular_double_quoted double_double_quoted escaped_double_quoted
 "this is a quoted value" "this is a quoted value with ""double double quotes""" "this is a quoted value with \\"escaped double quotes\\""
-''')
+'''
 
-sample_quoted_data2 = six.b('"quoted data" 23\nunquoted-data 54')
+sample_quoted_data2 = b'"quoted data" 23\nunquoted-data 54'
 
-sample_quoted_data2_with_newline = six.b('"quoted data with\na new line inside it":23\nunquoted-data:54')
+sample_quoted_data2_with_newline = b'"quoted data with\na new line inside it":23\nunquoted-data:54'
 
-one_column_data = six.b('''data without commas 1
+one_column_data = b'''data without commas 1
 data without commas 2
-''')
+'''
 
 # Values with leading whitespace
-sample_data_rows_with_spaces = [six.b('a,1,0'), six.b('   b,   2,0'), six.b('c,,0')]
-sample_data_with_spaces_no_header = six.b("\n").join(
-    sample_data_rows_with_spaces) + six.b("\n")
+sample_data_rows_with_spaces = [b'a,1,0', b'   b,   2,0', b'c,,0']
+sample_data_with_spaces_no_header = b"\n".join(
+    sample_data_rows_with_spaces) + b"\n"
 
-header_row_with_spaces = six.b('name,value 1,value2')
+header_row_with_spaces = b'name,value 1,value2'
 sample_data_with_spaces_with_header = header_row_with_spaces + \
-    six.b("\n") + sample_data_with_spaces_no_header
+    b"\n" + sample_data_with_spaces_no_header
 
 long_value1 = "23683289372328372328373"
 int_value = "2328372328373"
@@ -187,7 +180,7 @@ sample_data_with_long_values = "%s\n%s\n%s" % (long_value1,int_value,int_value)
 
 
 def one_column_warning(e):
-    return e[0].startswith(six.b('Warning: column count is one'))
+    return e[0].startswith(b'Warning: column count is one')
 
 def sqlite_dict_factory(cursor, row):
     d = {}
@@ -214,10 +207,10 @@ class AbstractQTestCase(unittest.TestCase):
 
     def arrays_to_csv_file_content(self,delimiter,header_row_list,cell_list):
         all_rows = [delimiter.join(row) for row in [header_row_list] + cell_list]
-        return six.b("\n").join(all_rows)
+        return b"\n".join(all_rows)
 
     def create_qsql_file_with_content_and_return_filename(self, header_row,cell_list):
-        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        csv_content = self.arrays_to_csv_file_content(b',',header_row,cell_list)
         tmpfile = self.create_file_with_data(csv_content)
 
         cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
@@ -230,7 +223,7 @@ class AbstractQTestCase(unittest.TestCase):
         return created_qsql_filename
 
     def arrays_to_qsql_file_content(self, header_row,cell_list):
-        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        csv_content = self.arrays_to_csv_file_content(b',',header_row,cell_list)
         tmpfile = self.create_file_with_data(csv_content)
 
         cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
@@ -624,20 +617,20 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(retcode,89)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),2)
-        self.assertTrue(e[0].startswith(six.b('Going to save data into')))
-        self.assertTrue(e[1].startswith(six.b('There are too many attached databases. Use a proper --max-attached-sqlite-databases parameter which is below the maximum')))
+        self.assertTrue(e[0].startswith(b'Going to save data into'))
+        self.assertTrue(e[1].startswith(b'There are too many attached databases. Use a proper --max-attached-sqlite-databases parameter which is below the maximum'))
 
         self.cleanup_folder(tmpfolder)
 
     def test_qtable_name_normalization__starting_with_a_digit(self):
         numbers = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 101)]
 
-        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+        header = [b'aa', b'bb', b'cc']
 
         base_filename_with_digits = '010'
 
         new_tmp_folder = self.create_folder_with_files({
-            base_filename_with_digits : self.arrays_to_csv_file_content(six.b(','),header,numbers)
+            base_filename_with_digits : self.arrays_to_csv_file_content(b',',header,numbers)
         },prefix='xx',suffix='digits')
 
         effective_filename = '%s/010' % new_tmp_folder
@@ -659,7 +652,7 @@ class SaveToSqliteTests(AbstractQTestCase):
 
     def test_qtable_name_normalization(self):
         x = [six.b(a) for a in map(str, range(1, 101))]
-        large_file_data = six.b("val\n") + six.b("\n").join(x)
+        large_file_data = b"val\n" + b"\n".join(x)
         tmpfile = self.create_file_with_data(large_file_data)
 
         tmpfile_folder = os.path.dirname(tmpfile.name)
@@ -672,7 +665,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(len(o), 51)
 
         evens = list(filter(lambda x: x%2 == 0,range(1,101)))
-        expected_result_rows = [six.b('val,val')] + [six.b('%d,%d' % (x,x / 2)) for x in evens]
+        expected_result_rows = [b'val,val'] + [six.b('%d,%d' % (x,x / 2)) for x in evens]
         self.assertEqual(o,expected_result_rows)
 
     def test_qtable_name_normalization2(self):
@@ -681,7 +674,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 118)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0],six.b('FROM/JOIN is missing a table name after it'))
+        self.assertEqual(e[0], b'FROM/JOIN is missing a table name after it')
 
     def test_qtable_name_normalization3(self):
         # with a space after the from
@@ -690,7 +683,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         retcode, o, e = run_command(cmd)
         self.assertEqual(retcode, 118)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0],six.b('FROM/JOIN is missing a table name after it'))
+        self.assertEqual(e[0], b'FROM/JOIN is missing a table name after it')
 
     def test_save_multiple_files_to_sqlite_while_caching_them(self):
         BATCH_SIZE = 50
@@ -738,10 +731,10 @@ class SaveToSqliteTests(AbstractQTestCase):
             self.assertEqual(len(o), 5)
             self.assertEqual(o,[
                 six.b('Table: %s/file-%s' % (tmpfolder,i)),
-                six.b('  Sources:'),
+                b'  Sources:',
                 six.b('    source_type: file-with-unused-qsql source: %s/file-%s' % (tmpfolder,i)),
-                six.b('  Fields:'),
-                six.b('    `a` - int')
+                b'  Fields:',
+                b'    `a` - int'
             ])
 
             cmd = '%s -c 1 -H "select a from %s/%s" -A -C read' % (Q_EXECUTABLE,tmpfolder,filename)
@@ -751,10 +744,10 @@ class SaveToSqliteTests(AbstractQTestCase):
             self.assertEqual(len(o), 5)
             self.assertEqual(o,[
                 six.b('Table: %s/file-%s' % (tmpfolder,i)),
-                six.b('  Sources:'),
+                b'  Sources:',
                 six.b('    source_type: qsql-file-with-original source: %s/file-%s.qsql' % (tmpfolder,i)),
-                six.b('  Fields:'),
-                six.b('    `a` - int')
+                b'  Fields:',
+                b'    `a` - int'
             ])
 
             # check qsql file is readable directly through q
@@ -774,10 +767,10 @@ class SaveToSqliteTests(AbstractQTestCase):
             self.assertEqual(len(o), 5)
             self.assertEqual(o,[
                 six.b('Table: %s/file-%s.qsql' % (tmpfolder,i)),
-                six.b('  Sources:'),
+                b'  Sources:',
                 six.b('    source_type: qsql-file source: %s/file-%s.qsql' % (tmpfolder,i)),
-                six.b('  Fields:'),
-                six.b('    `a` - int')
+                b'  Fields:',
+                b'    `a` - int'
             ])
         c.close()
 
@@ -806,7 +799,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(pow(BATCH_SIZE,FILE_COUNT))))
+        self.assertEqual(o[0], six.b(str(pow(BATCH_SIZE,FILE_COUNT))))
 
         cmd = '%s -H "select a from %s/*" -c 1 -C read' % (Q_EXECUTABLE,tmpfolder)
         retcode, o, e = run_command(cmd)
@@ -852,10 +845,10 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(retcode, 30)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0],six.b("Could not find file /non-existent-folder/non-existent.qsql"))
+        self.assertEqual(e[0], b"Could not find file /non-existent-folder/non-existent.qsql")
 
     def test_error_on_providing_a_non_qsql_file_when_specifying_an_explicit_table(self):
-        data = six.b("\x1f\x8b\x08\x00\tZ\x0ea\x00\x03\xed\x93\xdd\n\xc20\x0cF\xf3(}\x01ij\x93\xf6y:\xd9P\x10)\xb3\xbe\xbf\x9d\x1d\xbbQ\xc6\x06F\x10rn\xbe\x9b\xd0\xfc\x1c\x9a-\x88\x83\x88\x91\xd9\xbc2\xb4\xc4#\xb5\x9c1\x8e\x1czb\x8a\xd1\x19t\xdeS\x00\xc3\xf2\xa3\x01<\xee%\x8du\x94s\x1a\xfbk\xd7\xdf\x0e\xa9\x94Kz\xaf\xabe\xc3\xb0\xf2\xce\xbc\xc7\x92\x7fB\xb6\x1fv\xfd2\xf5\x1e\x81h\xa3\xff\x10'\xff\x8c\x04\x06\xc5'\x03\xf5oO\xe2=v\xf9o\xff\x9f\xd1\xa9\xff_\x90m'\xdec\x9f\x7f\x9c\xfc\xd7T\xff\x8a\xa2(\x92<\x01WY\x0c\x06\x00\x0c\x00\x00")
+        data = b"\x1f\x8b\x08\x00\tZ\x0ea\x00\x03\xed\x93\xdd\n\xc20\x0cF\xf3(}\x01ij\x93\xf6y:\xd9P\x10)\xb3\xbe\xbf\x9d\x1d\xbbQ\xc6\x06F\x10rn\xbe\x9b\xd0\xfc\x1c\x9a-\x88\x83\x88\x91\xd9\xbc2\xb4\xc4#\xb5\x9c1\x8e\x1czb\x8a\xd1\x19t\xdeS\x00\xc3\xf2\xa3\x01<\xee%\x8du\x94s\x1a\xfbk\xd7\xdf\x0e\xa9\x94Kz\xaf\xabe\xc3\xb0\xf2\xce\xbc\xc7\x92\x7fB\xb6\x1fv\xfd2\xf5\x1e\x81h\xa3\xff\x10'\xff\x8c\x04\x06\xc5'\x03\xf5oO\xe2=v\xf9o\xff\x9f\xd1\xa9\xff_\x90m'\xdec\x9f\x7f\x9c\xfc\xd7T\xff\x8a\xa2(\x92<\x01WY\x0c\x06\x00\x0c\x00\x00"
         tmpfilename = self.random_tmp_filename('xx','yy')
         f = open(tmpfilename,'wb')
         f.write(data)
@@ -870,7 +863,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(e[0],six.b("Cannot detect the type of table %s:::mytable1" % tmpfilename))
 
     def test_error_on_providing_a_non_qsql_file_when_not_specifying_an_explicit_table(self):
-        data = six.b("\x1f\x8b\x08\x00\tZ\x0ea\x00\x03\xed\x93\xdd\n\xc20\x0cF\xf3(}\x01ij\x93\xf6y:\xd9P\x10)\xb3\xbe\xbf\x9d\x1d\xbbQ\xc6\x06F\x10rn\xbe\x9b\xd0\xfc\x1c\x9a-\x88\x83\x88\x91\xd9\xbc2\xb4\xc4#\xb5\x9c1\x8e\x1czb\x8a\xd1\x19t\xdeS\x00\xc3\xf2\xa3\x01<\xee%\x8du\x94s\x1a\xfbk\xd7\xdf\x0e\xa9\x94Kz\xaf\xabe\xc3\xb0\xf2\xce\xbc\xc7\x92\x7fB\xb6\x1fv\xfd2\xf5\x1e\x81h\xa3\xff\x10'\xff\x8c\x04\x06\xc5'\x03\xf5oO\xe2=v\xf9o\xff\x9f\xd1\xa9\xff_\x90m'\xdec\x9f\x7f\x9c\xfc\xd7T\xff\x8a\xa2(\x92<\x01WY\x0c\x06\x00\x0c\x00\x00")
+        data = b"\x1f\x8b\x08\x00\tZ\x0ea\x00\x03\xed\x93\xdd\n\xc20\x0cF\xf3(}\x01ij\x93\xf6y:\xd9P\x10)\xb3\xbe\xbf\x9d\x1d\xbbQ\xc6\x06F\x10rn\xbe\x9b\xd0\xfc\x1c\x9a-\x88\x83\x88\x91\xd9\xbc2\xb4\xc4#\xb5\x9c1\x8e\x1czb\x8a\xd1\x19t\xdeS\x00\xc3\xf2\xa3\x01<\xee%\x8du\x94s\x1a\xfbk\xd7\xdf\x0e\xa9\x94Kz\xaf\xabe\xc3\xb0\xf2\xce\xbc\xc7\x92\x7fB\xb6\x1fv\xfd2\xf5\x1e\x81h\xa3\xff\x10'\xff\x8c\x04\x06\xc5'\x03\xf5oO\xe2=v\xf9o\xff\x9f\xd1\xa9\xff_\x90m'\xdec\x9f\x7f\x9c\xfc\xd7T\xff\x8a\xa2(\x92<\x01WY\x0c\x06\x00\x0c\x00\x00"
         tmpfilename = self.random_tmp_filename('xx','yy')
         f = open(tmpfilename,'wb')
         f.write(data)
@@ -882,7 +875,7 @@ class SaveToSqliteTests(AbstractQTestCase):
         self.assertEqual(retcode, 59)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertTrue(e[0].startswith(six.b("Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error:")))
+        self.assertTrue(e[0].startswith(b"Could not parse the input. Please make sure to set the proper -w input-wrapping parameter for your input, and that you use the proper input encoding (-e). Error:"))
 
 class OldSaveDbToDiskTests(AbstractQTestCase):
 
@@ -955,10 +948,10 @@ class OldSaveDbToDiskTests(AbstractQTestCase):
               (effective_filename1,effective_filename2)
         retcode, o, e = run_command(cmd)
 
-        self.assertEqual(retcode,0)
-        self.assertEqual(len(o),1)
-        self.assertEqual(len(e),0)
-        self.assertEqual(o[0],six.b('50005000,55'))
+        self.assertEqual(retcode, 0)
+        self.assertEqual(len(o), 1)
+        self.assertEqual(len(e), 0)
+        self.assertEqual(o[0], b'50005000,55')
 
     # TODO RLRL Check if needed anymore
 
@@ -1061,8 +1054,8 @@ class OldSaveDbToDiskTests(AbstractQTestCase):
         qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
 
         new_tmp_folder = self.create_folder_with_files({
-            'filename1': self.arrays_to_csv_file_content(six.b(','),header,numbers1),
-            'otherfolder/filename1' : self.arrays_to_csv_file_content(six.b(','),header,numbers2)
+            'filename1': self.arrays_to_csv_file_content(b',',header,numbers1),
+            'otherfolder/filename1' : self.arrays_to_csv_file_content(b',',header,numbers2)
         },prefix='xx',suffix='yy')
 
         effective_filename1 = '%s/filename1' % new_tmp_folder
@@ -1122,8 +1115,8 @@ class OldSaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('100,200'))
-        self.assertEqual(o[1],six.b('300,400'))
+        self.assertEqual(o[0], b'100,200')
+        self.assertEqual(o[1], b'300,400')
 
         # Check again, this time with a different output delimiter and with explicit column names
         cmd = '%s -t "select x,y from %s:::my_table_1"' % (Q_EXECUTABLE,sqlite_with_multiple_tables)
@@ -1132,15 +1125,15 @@ class OldSaveDbToDiskTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('100\t200'))
-        self.assertEqual(o[1],six.b('300\t400'))
+        self.assertEqual(o[0], b'100\t200')
+        self.assertEqual(o[1], b'300\t400')
 
 
     def test_error_when_specifying_nonexistent_table_name_in_multi_table_qsql(self):
         numbers1 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 10001)]
         numbers2 = [[six.b(str(i)), six.b(str(i)), six.b(str(i))] for i in range(1, 11)]
 
-        header = [six.b('aa'), six.b('bb'), six.b('cc')]
+        header = [b'aa', b'bb', b'cc']
 
         qsql_with_multiple_tables = self.generate_tmpfile_name(suffix='.qsql')
 

@@ -26,5 +26,10 @@ setup(
         'console_scripts': [
             'q = bin.q:run_standalone'
         ]
+    },
+    package_data={
+        'bin': [
+            'tests/data/*'
+        ]
     }
 )

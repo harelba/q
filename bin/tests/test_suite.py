@@ -47,7 +47,7 @@ from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream
 # make sure that the output is correctly encoded
 SYSTEM_ENCODING = locale.getpreferredencoding()
 
-EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
+EXAMPLES = os.path.join(os.path.dirname(__file__), 'data')
 
 Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py'))
 Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')

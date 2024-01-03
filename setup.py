@@ -21,7 +21,7 @@ setup(
     install_requires=[
         'six==1.11.0'
     ],
-    packages=setuptools.find_packages(exclude=["test", "test/*"]),
+    packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': [
             'q = bin.q:run_standalone'

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-
-from setuptools import setup
-import setuptools
+from setuptools import setup, find_packages
 
 q_version = '3.1.6'
 
@@ -18,17 +16,19 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author_email='harelba@gmail.com',
-    install_requires=['six==1.11.0'],
+    install_requires=['six'],
+    python_requires="<3.11",
     tests_require=['pytest'],
-    packages=setuptools.find_packages(),
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     entry_points={
         'console_scripts': [
-            'q = bin.q:run_standalone'
+            'q = q.q:run_standalone'
         ]
     },
     package_data={
-        'bin': [
-            'tests/data/*'
+        "q.tests": [
+            'data/*'
         ]
     }
 )

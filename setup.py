@@ -25,10 +25,5 @@ setup(
         'console_scripts': [
             'q = q.q:run_standalone'
         ]
-    },
-    package_data={
-        "q.tests": [
-            'data/*'
-        ]
     }
 )

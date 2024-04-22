@@ -1663,7 +1663,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
 
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC)
 
         database_info.sqlite_db.add_to_qcatalog_table(target_sqlite_table_name,
                                           self.content_signature,

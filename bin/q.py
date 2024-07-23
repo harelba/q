@@ -70,10 +70,10 @@ SQL_DEBUG = False
 
 if DEBUG:
     def xprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
+        print(datetime.datetime.now(tz=datetime.timezone.utc).isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
 
     def iprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
+        print(datetime.datetime.now(tz=datetime.timezone.utc).isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
 
     def sqlprint(*args,**kwargs):
         pass
@@ -84,7 +84,7 @@ else:
 
 if SQL_DEBUG:
     def sqlprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
+        print(datetime.datetime.now(tz=datetime.timezone.utc).isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
 
 
 def get_stdout_encoding(encoding_override=None):
@@ -1663,7 +1663,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
 
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
 
         database_info.sqlite_db.add_to_qcatalog_table(target_sqlite_table_name,
                                           self.content_signature,

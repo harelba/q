@@ -26,7 +26,7 @@ q "select a.*,b.* from my_file.csv.qsql a left join some-sqlite3-database:::some
 
 NOTE: In the current version, caching is not enabled by default - Use `-C readwrite` to enable reading+writing cache files, or `-C read` to just read any existing cache files. A `~/.qrc` file can be added in order to make these options the default if you want.
 
-The benchmark results below reflect the peformance without the caching, e.g. directly reading the delimited files, parsing them and performing the query.
+The benchmark results below reflect the performance without the caching, e.g. directly reading the delimited files, parsing them and performing the query.
 
 I'll update benchmark results later on to provide cached results as well.
 

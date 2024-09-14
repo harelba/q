@@ -130,7 +130,7 @@ $ time q "select sum(c1),count(*) from myfile.csv" -C readwrite
 500000500000 1000000
 total_time=4.057 seconds
 
-# Now run with `-C read`. The query will run from the cache file and not the original. As the file gets bigger, the difference will be much more noticable
+# Now run with `-C read`. The query will run from the cache file and not the original. As the file gets bigger, the difference will be much more noticeable
 $ time q "select sum(c1),count(*) from myfile.csv" -C read
 500000500000 1000000
 total_time=0.229 seconds
@@ -289,7 +289,7 @@ The following filename types are supported:
 * **sqlite3 database filenames**
     * **With Multiple Tables** - Add an additional `:::<table_name>` for accessing a specific table. For example `mydatabase.sqlite3:::users_table`.
     * **With One Table Only** - Just specify the database filename, no need for a table name postfix. For example `my_single_table_database.sqlite`.
-* **`.qsql` cache files** - q can auto-generate cache files for delimited files, and they can be queried directly as a table, since they contain only one table, as they are essentially standard sqlite datbases
+* **`.qsql` cache files** - q can auto-generate cache files for delimited files, and they can be queried directly as a table, since they contain only one table, as they are essentially standard sqlite databases
 
 Use `-H` to signify that the input contains a header line. Column names will be detected automatically in that case, and can be used in the query. If this option is not provided, columns will be named cX, starting with 1 (e.g. `q "SELECT c3,c8 from ..."`).
 
@@ -610,7 +610,7 @@ SQL is a declarative language for data, and as such it allows me to define what 
 The goal of this tool is to provide a bridge between the world of text files and of SQL.
 
 ### Why aren't other Linux tools enough?
-The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without loosing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.
+The standard Linux tools are amazing and I use them all the time, but the whole idea of Linux is mixing-and-matching the best tools for each part of job. This tool adds the declarative power of SQL to the Linux toolset, without losing any of the other tools' benefits. In fact, I often use q together with other Linux tools, the same way I pipe awk/sed and grep together all the time.
 
 One additional thing to note is that many Linux tools treat text as text and not as data. In that sense, you can look at q as a meta-tool which provides access to all the data-related tools that SQL provides (e.g. expressions, ordering, grouping, aggregation etc.).
 

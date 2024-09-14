@@ -93,7 +93,7 @@ fi
 echo "==== testing octosql ==="
 if [[ -f $Q_BENCHMARK_RESULTS_FOLDER/octosql.benchmark-results ]]
 then
-	echo "Results files for octosql aready exist. Skipping benchmark for octosql"
+	echo "Results files for octosql already exist. Skipping benchmark for octosql"
 else
 	pytest -m benchmark -k test_octosql_matrix -v -s $PYTEST_OPTIONS
 	RESULT_FILE="octosql*.benchmark-results"

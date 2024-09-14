@@ -2189,7 +2189,7 @@ class GzippingTests(AbstractQTestCase):
 
 class DelimiterTests(AbstractQTestCase):
 
-    def test_delimition_mistake_with_header(self):
+    def test_delimitation_mistake_with_header(self):
         tmpfile = self.create_file_with_data(sample_data_no_header)
 
         cmd = Q_EXECUTABLE + ' -d " " "select * from %s" -H' % tmpfile.name
@@ -2204,7 +2204,7 @@ class DelimiterTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_tab_delimition_parameter(self):
+    def test_tab_delimitation_parameter(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("\t")))
         cmd = Q_EXECUTABLE + ' -t "select c1,c2,c3 from %s"' % tmpfile.name
@@ -2219,7 +2219,7 @@ class DelimiterTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_pipe_delimition_parameter(self):
+    def test_pipe_delimitation_parameter(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("|")))
         cmd = Q_EXECUTABLE + ' -p "select c1,c2,c3 from %s"' % tmpfile.name
@@ -2234,7 +2234,7 @@ class DelimiterTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_tab_delimition_parameter__with_manual_override_attempt(self):
+    def test_tab_delimitation_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("\t")))
         cmd = Q_EXECUTABLE + ' -t -d , "select c1,c2,c3 from %s"' % tmpfile.name
@@ -2250,7 +2250,7 @@ class DelimiterTests(AbstractQTestCase):
 
         self.cleanup(tmpfile)
 
-    def test_pipe_delimition_parameter__with_manual_override_attempt(self):
+    def test_pipe_delimitation_parameter__with_manual_override_attempt(self):
         tmpfile = self.create_file_with_data(
             sample_data_no_header.replace(six.b(","), six.b("|")))
         cmd = Q_EXECUTABLE + ' -p -d , "select c1,c2,c3 from %s"' % tmpfile.name
@@ -2887,7 +2887,7 @@ class QuotingTests(AbstractQTestCase):
         self.cleanup(tmp_data_file)
 
     def test_disable_double_double_quoted_data_flag__values(self):
-        # This test (and flag) is meant to verify backward comptibility only. It is possible that
+        # This test (and flag) is meant to verify backward compatibility only. It is possible that
         # this flag will be removed completely in the future
 
         tmp_data_file = self.create_file_with_data(double_double_quoted_data)
@@ -2925,7 +2925,7 @@ class QuotingTests(AbstractQTestCase):
         self.cleanup(tmp_data_file)
 
     def test_disable_escaped_double_quoted_data_flag__values(self):
-        # This test (and flag) is meant to verify backward comptibility only. It is possible that
+        # This test (and flag) is meant to verify backward compatibility only. It is possible that
         # this flag will be removed completely in the future
 
         tmp_data_file = self.create_file_with_data(escaped_double_quoted_data)
@@ -2963,7 +2963,7 @@ class QuotingTests(AbstractQTestCase):
         self.cleanup(tmp_data_file)
 
     def test_combined_quoted_data_flags__number_of_columns_detected(self):
-        # This test (and flags) is meant to verify backward comptibility only. It is possible that
+        # This test (and flags) is meant to verify backward compatibility only. It is possible that
         # these flags will be removed completely in the future
         tmp_data_file = self.create_file_with_data(combined_quoted_data)
 
@@ -4827,7 +4827,7 @@ class FormattingTests(AbstractQTestCase):
         self.assertEqual(o[0], six.b('mysum myavg'))
         self.assertEqual(o[1], six.b('55.000 5.500'))
 
-    def py3_test_successfuly_parse_universal_newlines_without_explicit_flag(self):
+    def py3_test_successfully_parse_universal_newlines_without_explicit_flag(self):
         def list_as_byte_list(l):
             return list(map(lambda x:six.b(x),l))
 
@@ -4854,7 +4854,7 @@ class FormattingTests(AbstractQTestCase):
 
         self.cleanup(tmp_data_file)
 
-    test_parsing_universal_newlines_without_explicit_flag = py3_test_successfuly_parse_universal_newlines_without_explicit_flag
+    test_parsing_universal_newlines_without_explicit_flag = py3_test_successfully_parse_universal_newlines_without_explicit_flag
 
     def test_universal_newlines_parsing_flag(self):
         def list_as_byte_list(l):
@@ -5609,7 +5609,7 @@ class BenchmarkTests(AbstractQTestCase):
         self.assertEqual(r, 0)
         # Create file cache as part of preparation
         r, o, e = run_command(Q_EXECUTABLE + ' -C readwrite -d , "select count(*) from %s"' % filename)
-        self.asserEqual(r, 0)
+        self.assertEqual(r, 0)
         return filename
 
     def _decide_result(self,attempt_results):

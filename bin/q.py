@@ -70,10 +70,10 @@ SQL_DEBUG = False
 
 if DEBUG:
     def xprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
+        print(datetime.datetime.now(datetime.timezone.utc).isoformat()," DEBUG ",*args,file=sys.stderr,**kwargs)
 
     def iprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
+        print(datetime.datetime.now(datetime.timezone.utc).isoformat()," INFO ",*args,file=sys.stderr,**kwargs)
 
     def sqlprint(*args,**kwargs):
         pass
@@ -84,7 +84,7 @@ else:
 
 if SQL_DEBUG:
     def sqlprint(*args,**kwargs):
-        print(datetime.datetime.utcnow().isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
+        print(datetime.datetime.now(datetime.timezone.utc).isoformat(), " SQL ", *args, file=sys.stderr, **kwargs)
 
 
 def get_stdout_encoding(encoding_override=None):
@@ -1446,15 +1446,15 @@ class DelimitedFileReader(object):
             else:
                 if six.PY3:
                     if self.input_params.with_universal_newlines:
-                        f = io.open(filename, 'rU', newline=None, encoding=self.input_params.input_encoding)
+                        f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
                     else:
                         f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
                 else:
                     if self.input_params.with_universal_newlines:
-                        file_opening_mode = 'rbU'
+                        file_opening_mode = 'rb'
                     else:
                         file_opening_mode = 'rb'
-                    f = open(filename, file_opening_mode)
+                    f = open(filename, file_opening_mode,newline=None)
 
             if self.input_params.input_encoding == 'utf-8-sig' and not self.skipped_bom:
                 skip_BOM(f)
@@ -1663,7 +1663,7 @@ class MaterializedDelimitedFileState(MaterializedState):
         xprint("after perform_analyze")
         self.content_signature = table_creator._generate_content_signature()
 
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
         database_info.sqlite_db.add_to_qcatalog_table(target_sqlite_table_name,
                                           self.content_signature,

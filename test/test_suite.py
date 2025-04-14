@@ -3163,7 +3163,8 @@ with_universal_newlines=True
         tmp_qrc_file = self.create_file_with_data(six.b('''[options]
 caching_mode=readwrite
 '''))
-        env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name}
+        env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name }
+        print(sys.version_info)
         cmd = Q_EXECUTABLE + ' -d , "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd, env_to_inject=env_to_inject)
 

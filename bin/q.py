@@ -31,39 +31,31 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+import sys
+import sqlite3
+import glob
+import codecs
+import locale
+import time
+import re
+import traceback
+import csv
+import uuid
+import math
+import io
+import json
+import datetime
+import hashlib
+import gzip
+import fileinput
+from argparse import ArgumentParser
+from configparser import ConfigParser
 from collections import OrderedDict
 from sqlite3.dbapi2 import OperationalError
 from uuid import uuid4
 
 q_version = '3.1.6'
-
-#__all__ = [ 'QTextAsData' ]
-
-import os
-import sys
-import sqlite3
-import glob
-from argparse import ArgumentParser
-import codecs
-import locale
-import time
-import re
-from six.moves import configparser, range, filter
-import traceback
-import csv
-import uuid
-import math
-import six
-import io
-import json
-import datetime
-import hashlib
-
-if six.PY2:
-    assert False, 'Python 2 is not longer supported by q'
-
-long = int
-unicode = six.text_type
 
 DEBUG = bool(os.environ.get('Q_DEBUG', None)) or '-V' in sys.argv
 SQL_DEBUG = False
@@ -109,18 +101,18 @@ sha_algorithms = {
 def sha(data,algorithm,encoding):
     try:
         f = sha_algorithms[algorithm]
-        return f(six.text_type(data).encode(encoding)).hexdigest()
+        return f(str(data).encode(encoding)).hexdigest()
     except Exception as e:
         print(e)
 
 # For backward compatibility only (doesn't handle encoding well enough)
 def sha1(data):
-    return hashlib.sha1(six.text_type(data).encode('utf-8')).hexdigest()
+    return hashlib.sha1(str(data).encode('utf-8')).hexdigest()
 
 # TODO Add caching of compiled regexps - Will be added after benchmarking capability is baked in
 def regexp(regular_expression, data):
     if data is not None:
-        if not isinstance(data, str) and not isinstance(data, unicode):
+        if not isinstance(data, str):
             data = str(data)
         return re.search(regular_expression, data) is not None
     else:
@@ -128,7 +120,7 @@ def regexp(regular_expression, data):
 
 def regexp_extract(regular_expression, data,group_number):
     if data is not None:
-        if not isinstance(data, str) and not isinstance(data, unicode):
+        if not isinstance(data, str):
             data = str(data)
         m = re.search(regular_expression, data)
         if m is not None:
@@ -138,7 +130,7 @@ def regexp_extract(regular_expression, data,group_number):
 
 def md5(data,encoding):
     m = hashlib.md5()
-    m.update(six.text_type(data).encode(encoding))
+    m.update(str(data).encode(encoding))
     return m.hexdigest()
 
 def sqrt(data):
@@ -365,8 +357,8 @@ def get_sqlite_type_affinity(sqlite_type):
 
 def sqlite_type_to_python_type(sqlite_type):
     SQLITE_AFFINITY_TO_PYTHON_TYPE_NAMES = {
-        'INTEGER': long,
-        'TEXT': unicode,
+        'INTEGER': int,
+        'TEXT': str,
         'BLOB': bytes,
         'REAL': float,
         'NUMERIC': float
@@ -378,8 +370,8 @@ class Sqlite3DB(object):
     # TODO Add metadata table with qsql file version
 
     QCATALOG_TABLE_NAME = '_qcatalog'
-    NUMERIC_COLUMN_TYPES =  {int, long, float}
-    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', long : 'INT' , float: 'REAL', None: 'TEXT' }
+    NUMERIC_COLUMN_TYPES =  {int, float}
+    PYTHON_TO_SQLITE_TYPE_NAMES = { str: 'TEXT', int: 'INT', float: 'REAL', None: 'TEXT' }
 
 
     def __str__(self):
@@ -453,8 +445,8 @@ class Sqlite3DB(object):
     def calculate_content_signature_key(self,content_signature):
         assert type(content_signature) == OrderedDict
         pp = json.dumps(content_signature,sort_keys=True)
-        xprint("Calculating content signature for:",pp,six.b(pp))
-        return hashlib.sha1(six.b(pp)).hexdigest()
+        xprint("Calculating content signature for:",pp)
+        return hashlib.sha1(pp.encode('utf-8')).hexdigest()
 
     def add_to_qcatalog_table(self, temp_table_name, content_signature, creation_time,source_type, source):
         assert source is not None
@@ -600,7 +592,7 @@ class Sqlite3DB(object):
     def generate_create_table(self, table_name, column_names, column_dict):
         # Convert dict from python types to db types
         column_name_to_db_type = dict(
-            (n, Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t]) for n, t in six.iteritems(column_dict))
+            (n, Sqlite3DB.PYTHON_TO_SQLITE_TYPE_NAMES[t]) for n, t in column_dict.items())
         column_defs = ','.join(['"%s" %s' % (
             n.replace('"', '""'), column_name_to_db_type[n]) for n in column_names])
         return 'CREATE TABLE %s (%s)' % (table_name, column_defs)
@@ -944,7 +936,7 @@ class Sql(object):
         effective_sql = [x for x in self.sql_parts]
 
         xprint("Effective table names",self.qtable_name_effective_table_names)
-        for qtable_name, positions in six.iteritems(self.qtable_name_positions):
+        for qtable_name, positions in self.qtable_name_positions.items():
             xprint("Positions for qtable name %s are %s" % (qtable_name,positions))
             for pos in positions:
                 if table_name_mapping is not None:
@@ -954,6 +946,7 @@ class Sql(object):
                     effective_sql[pos] = self.qtable_name_effective_table_names[qtable_name]
 
         return " ".join(effective_sql)
+
 
     def get_qtable_name_effective_table_names(self):
         return self.qtable_name_effective_table_names
@@ -1037,8 +1030,8 @@ class TableColumnInferer(object):
 
         try:
             i = int(value)
-            if type(i) == long:
-                return long
+            if type(i) == int:
+                return int
             else:
                 return int
         except:
@@ -1182,7 +1175,7 @@ class TableColumnInferer(object):
         counts = {}
         for column_count in column_count_list:
             counts[column_count] = counts.get(column_count, 0) + 1
-        return six.u(", ").join([six.u("{} rows with {} columns".format(v, k)) for k, v in six.iteritems(counts)])
+        return ", ".join(["{} rows with {} columns".format(v, k) for k, v in counts.items()])
 
     def _do_strict_analysis(self):
         column_count_list = [len(col_vals) for col_vals in self.rows]
@@ -1290,15 +1283,17 @@ class TableSourceType(object):
     DATA_STREAM = 'data-stream'
 
 def skip_BOM(f):
+    # BOM is a byte order mark that some editors add as the first
+    # three bytes in a file to mark it as a UTF8 file.
+    pos = f.tell()
+    # Not all file objects support peek([size]) and thus since we dont really know
+    # if peek is available, we'll handle it in a try/except clause and seek back the original position if things fail
     try:
-        BOM = f.buffer.read(3)
-
-        if BOM != six.b('\xef\xbb\xbf'):
-            # TODO Add test for this (propagates to try:except)
-            raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
-    except Exception as e:
-        # TODO Add a test for this
-        raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
+        BOM = f.peek(3)
+        if BOM.startswith(b'\xef\xbb\xbf'):
+            f.read(3)
+    except:
+        f.seek(pos)
 
 def detect_qtable_name_source_info(qtable_name,data_streams,read_caching_enabled):
     data_stream = data_streams.get_for_filename(qtable_name)
@@ -1338,13 +1333,13 @@ def detect_qtable_name_source_info(qtable_name,data_streams,read_caching_enabled
 
 
 def is_sqlite_file(filename):
-    if not os.path.exists(filename):
+    # SQLite database file header is 100 bytes
+    if os.path.isfile(filename) and os.access(filename, os.R_OK):
+        with open(filename, 'rb') as fd:
+            header = fd.read(100)
+            return header[:16] == b"SQLite format 3\x00"
+    else:
         return False
-
-    f = open(filename,'rb')
-    magic = f.read(16)
-    f.close()
-    return magic == six.b("SQLite format 3\x00")
 
 def sqlite_table_exists(cursor,table_name):
     results = cursor.execute("select count(*) from sqlite_master where type='table' and tbl_name == '%s'" % table_name).fetchall()
@@ -1421,14 +1416,14 @@ class DelimitedFileReader(object):
             return ",".join(map(str,[os.stat(atomic_fn).st_size for atomic_fn in self.atomic_fns]))
 
     def get_last_modification_time_hash(self):
-        if self.atomic_fns is None or len(self.atomic_fns) == 0:
-            return "data stream-lmt"
-        else:
-            x = ",".join(map(lambda x: ':%s:' % x,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
-            res = hashlib.sha1(six.b(x)).hexdigest() + '///' + x
-            xprint("Hash of last modification time is %s" % res)
-            return res
-
+       if self.atomic_fns is None or len(self.atomic_fns) == 0:
+           return "data stream-lmt"
+       else:
+           x = ",".join(map(lambda x: ':%s:' % x,[os.stat(x).st_mtime_ns for x in self.atomic_fns]))
+           res = hashlib.sha1(x.encode('utf-8')).hexdigest() + '///' + x
+           xprint("Hash of last modification time is %s" % res)
+           return res
+       
     def open_file(self):
         if self.external_f:
             xprint("External f has been provided. No need to open the file")
@@ -1444,24 +1439,17 @@ class DelimitedFileReader(object):
                 import gzip
                 f = gzip.open(filename,mode='rt',encoding=self.input_params.input_encoding)
             else:
-                if six.PY3:
-                    if self.input_params.with_universal_newlines:
-                        f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
-                    else:
-                        f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
+                if self.input_params.with_universal_newlines:
+                    f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
                 else:
-                    if self.input_params.with_universal_newlines:
-                        file_opening_mode = 'rb'
-                    else:
-                        file_opening_mode = 'rb'
-                    f = open(filename, file_opening_mode,newline=None)
+                    f = io.open(filename, 'r', newline=None, encoding=self.input_params.input_encoding)
 
             if self.input_params.input_encoding == 'utf-8-sig' and not self.skipped_bom:
                 skip_BOM(f)
 
             return f
 
-        f = fileinput.input(self.atomic_fns,mode='rb',openhook=q_openhook)
+        f = fileinput.input(self.atomic_fns,mode='r',openhook=q_openhook)
 
         self.f = f
         self.is_open = True
@@ -1866,7 +1854,7 @@ class MaterializedSqliteState(MaterializedState):
         return MaterializedStateType.SQLITE_FILE
 
     def _generate_qsql_only_db_name__temp(self, filenames_str):
-        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
+        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(filenames_str.encode('utf-8')).hexdigest())
 
     def choose_db_to_use(self,forced_db_to_use=None,stop_after_analysis=False):
         self.source = self.sqlite_filename
@@ -1988,7 +1976,7 @@ class MaterializedQsqlState(MaterializedState):
         return MaterializedStateType.QSQL_FILE
 
     def _generate_qsql_only_db_name__temp(self, filenames_str):
-        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(six.b(filenames_str)).hexdigest())
+        return 'e_%s_fn_%s' % (self.engine_id,hashlib.sha1(filenames_str.encode('utf-8')).hexdigest())
 
     def choose_db_to_use(self,forced_db_to_use=None,stop_after_analysis=False):
         self.source = self.qsql_filename
@@ -2856,7 +2844,7 @@ class QTextAsData(object):
 
         effective_input_params = self.default_input_params.merged_with(input_params)
 
-        if type(query_str) != unicode:
+        if type(query_str) != str:
             try:
                 # Heuristic attempt to auto convert the query to unicode before failing
                 query_str = query_str.decode('utf-8')
@@ -2995,12 +2983,8 @@ class QTextAsData(object):
 
     def unload(self):
         # TODO This would fail, since table structures are just value objects now. Will be fixed as part of making q a full python module
-        for qtable_name,table_creator in six.iteritems(self.loaded_table_structures_dict):
-            try:
-                table_creator.drop_table()
-            except:
-                # Support no-table select queries
-                pass
+        for qtable_name,table_creator in self.loaded_table_structures_dict.items():
+            table_creator.close_file()
         self.loaded_table_structures_dict = OrderedDict()
 
     def analyze(self,query_str,input_params=None,data_streams=None):
@@ -3009,7 +2993,7 @@ class QTextAsData(object):
         return q_output
 
 def escape_double_quotes_if_needed(v):
-    x = v.replace(six.u('"'), six.u('""'))
+    x = v.replace('"', '""')
     return x
 
 def quote_none_func(output_delimiter,v):
@@ -3018,23 +3002,22 @@ def quote_none_func(output_delimiter,v):
 def quote_minimal_func(output_delimiter,v):
     if v is None:
         return v
-    t = type(v)
-    if (t == str or t == unicode) and ((output_delimiter in v) or ('\n' in v) or ('"' in v)):
-        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
+    if isinstance(v, str) and (output_delimiter in v or '\n' in v or '\r' in v):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
     return v
 
 def quote_nonnumeric_func(output_delimiter,v):
     if v is None:
         return v
-    if type(v) == str or type(v) == unicode:
-        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
+    if isinstance(v, str):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
     return v
 
 def quote_all_func(output_delimiter,v):
-    if type(v) == str or type(v) == unicode:
-        return six.u('"{}"').format(escape_double_quotes_if_needed(v))
+    if isinstance(v, str):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
     else:
-        return six.u('"{}"').format(v)
+        return str('"{}"').format(v)
 
 class QOutputParams(object):
     def __init__(self,
@@ -3147,9 +3130,9 @@ class QOutputPrinter(object):
                         fmt_str = formatting_dict[str(i + 1)]
                     else:
                         if self.output_params.beautify:
-                            fmt_str = six.u("{{0:<{}}}").format(max_lengths[i])
+                            fmt_str = str("{{0:<{}}}").format(max_lengths[i])
                         else:
-                            fmt_str = six.u("{}")
+                            fmt_str = str("{}")
 
                     if col is not None:
                         xx = self.output_field_quoting_func(self.output_params.delimiter,col)
@@ -3158,7 +3141,7 @@ class QOutputPrinter(object):
                         row_str.append(fmt_str.format(""))
 
 
-                xxxx = six.u(self.output_params.delimiter).join(row_str) + six.u("\n")
+                xxxx = str(self.output_params.delimiter).join(row_str) + str("\n")
                 f_out.write(xxxx)
         except (UnicodeEncodeError, UnicodeError) as e:
             print("Cannot encode data. Error:%s" % e, file=sys.stderr)
@@ -3440,7 +3423,7 @@ def initialize_command_line_parser(p, qrc_filename):
 
 
 def parse_qrc_file():
-    p = configparser.ConfigParser()
+    p = ConfigParser()
     if QRC_FILENAME_ENVVAR in os.environ:
         qrc_filename = os.environ[QRC_FILENAME_ENVVAR]
         if qrc_filename != 'None':
@@ -3509,10 +3492,7 @@ def parse_options(args, options):
         sys.exit(13)
     output_encoding = get_stdout_encoding(options.output_encoding)
     try:
-        if six.PY3:
-            STDOUT = codecs.getwriter(output_encoding)(sys.stdout.buffer)
-        else:
-            STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
+        STDOUT = codecs.getwriter(output_encoding)(sys.stdout.buffer)
     except:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
@@ -3638,3 +3618,4 @@ def parse_options(args, options):
 
 if __name__ == '__main__':
     run_standalone()
+

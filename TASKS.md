@@ -179,10 +179,9 @@ To ensure a safe, traceable refactoring process, we'll follow this granular comm
    - For each component to move, follow this exact sequence:
      1. Create the new file
      2. Move the code EXACTLY as it appears in the original
-     3. Add imports to q.py
-     4. Remove original code from q.py
-     5. Test THOROUGHLY before each commit, verifying COMPLETE migration
-     6. Commit ONLY after all tests pass successfully
+     3. Atomically update q.py: add imports from package AND remove original code
+     4. Test THOROUGHLY before each commit, verifying COMPLETE migration
+     5. Commit ONLY after all tests pass successfully
 
 4. **Test-First Methodology**
    - **NEVER** commit code that has not passed the full test suite
@@ -224,25 +223,15 @@ git commit -m "[Task 2.1] Utilities: Create utilities.py file"
 git add qtextasdata/utilities.py
 git commit -m "[Task 2.1] Utilities: Add hash functions to utilities.py"
 
-# 3. Update imports in q.py
-# Edit q.py to import from package
+# 3. Atomically update q.py: add imports and remove original code
+# Edit q.py to import from package AND remove original function implementations
 
 # Run tests to verify functionality is preserved
 ./run-tests.sh
 
 # Only commit after tests pass
 git add bin/q.py
-git commit -m "[Task 2.1] q.py: Import hash functions from qtextasdata.utilities"
-
-# 4. Remove original code from q.py
-# Remove the original functions
-
-# Run tests to verify functionality is preserved
-./run-tests.sh
-
-# Only commit after tests pass
-git add bin/q.py
-git commit -m "[Task 2.1] q.py: Remove original hash function implementations"
+git commit -m "[Task 2.1] q.py: Replace original hash functions with imports from qtextasdata.utilities"
 ```
 
 ### Error Recovery

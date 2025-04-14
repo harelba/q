@@ -50,7 +50,7 @@ The goal is to gradually simplify q.py by having it use the refactored code dire
 
 ### Phase 1: Setup Package Structure
 
-- [ ] **Task 1.1**: Create the basic `qtextasdata` package directory structure
+- [x] **Task 1.1**: Create the basic `qtextasdata` package directory structure
   - Create qtextasdata/ directory
   - Create empty __init__.py file
   - Keep the original q.py functioning as is
@@ -58,7 +58,7 @@ The goal is to gradually simplify q.py by having it use the refactored code dire
 
 ### Phase 2: Refactor Utility Functions
 
-- [ ] **Task 2.1**: Move basic utility functions to utilities.py
+- [x] **Task 2.1**: Move basic utility functions to utilities.py
   - Move ALL utility functions like hash functions, file utilities, etc. COMPLETELY and EXACTLY as they appear
   - Update q.py to import these functions from the package
   - Remove the original function definitions from q.py

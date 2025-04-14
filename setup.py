@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
-import setuptools
+from setuptools import setup, find_packages
 
 q_version = '3.1.6'
 
@@ -21,8 +20,8 @@ setup(
     install_requires=[
         'six==1.11.0'
     ],
-    package_dir={"": "bin"},
-    packages=setuptools.find_packages(where="bin"),
+    packages=['qtextasdata'],
+    py_modules=['bin.q'],
     entry_points={
         'console_scripts': [
             'q = bin.q:run_standalone'

@@ -154,6 +154,11 @@ After each task:
 - If you're convinced there must be some issue in the environment, DO NOT try to fix/change it
 - Instead, stop immediately and provide detailed information about the issue so it can be properly investigated
 
+**Test Failure Analysis**
+- Whenever tests fail, you can further analyze the problems by selecting an example test (or two), and running them with `./run-tests.sh -v -k <test-name>`
+- This will run the specific test only, emitting additional information to stdout, which will help to understand the issue
+- Whenever multiple tests fail, you can assume that the refactoring process is to blame, so different tests are failing because of the same issues
+
 ## Implementation Strategy: Granular Commit Approach
 
 To ensure a safe, traceable refactoring process, we'll follow this granular commit strategy:

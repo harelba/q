@@ -124,6 +124,81 @@ After each task:
 2. Verify that command-line functionality works as expected through the original q.py
 3. If tests fail, revert changes and troubleshoot before proceeding
 
+## Implementation Strategy: Granular Commit Approach
+
+To ensure a safe, traceable refactoring process, we'll follow this granular commit strategy:
+
+### Core Principles
+
+1. **Atomic Commits**
+   - Each commit should represent ONE logical change
+   - Each commit should leave the codebase in a working state with passing tests
+
+2. **Descriptive Commit Messages**
+   - Format: `[Task X.Y] Component: Specific change description`
+   - Example: `[Task 2.1] Utilities: Move hash functions to utilities.py`
+
+3. **Sequential Implementation**
+   - For each component to move, follow this exact sequence:
+     1. Create the new file
+     2. Move the code
+     3. Add imports to q.py
+     4. Remove original code from q.py
+     5. Test and commit after EACH step
+
+### Practical Workflow
+
+For each task in this document:
+
+```bash
+# 1. Create the necessary file(s)
+mkdir -p qtextasdata  # If not already created
+touch qtextasdata/utilities.py  # Example for Task 2.1
+git add qtextasdata/utilities.py
+git commit -m "[Task 2.1] Utilities: Create utilities.py file"
+./run-tests.sh
+
+# 2. Move code to new file
+# Copy function(s) to utilities.py
+git add qtextasdata/utilities.py
+git commit -m "[Task 2.1] Utilities: Add hash functions to utilities.py"
+./run-tests.sh
+
+# 3. Update imports in q.py
+# Edit q.py to import from package
+git add bin/q.py
+git commit -m "[Task 2.1] q.py: Import hash functions from qtextasdata.utilities"
+./run-tests.sh
+
+# 4. Remove original code from q.py
+# Remove the original functions
+git add bin/q.py
+git commit -m "[Task 2.1] q.py: Remove original hash function implementations"
+./run-tests.sh
+```
+
+### Error Recovery
+
+If tests fail after a commit:
+
+```bash
+# Revert to last working state
+git reset --hard HEAD~1
+
+# Try again with a smaller change
+# For example, move one function instead of several
+```
+
+### Task Tracking
+
+Mark tasks as complete in this file:
+
+```bash
+# Update TASKS.md to mark task as complete
+git add TASKS.md
+git commit -m "[Task 2.1] Update TASKS.md: Mark utilities task as complete"
+```
+
 ## Package Structure Target
 
 Final structure should look like:

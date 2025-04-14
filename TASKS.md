@@ -147,6 +147,13 @@ After each task:
 3. If tests fail, revert changes and troubleshoot before proceeding
 4. VERIFY that ALL functionality related to the component has been migrated COMPLETELY
 
+**CRITICAL: Test Failure Handling**
+- If tests fail for any reason, the underlying assumption MUST ALWAYS be that the issue is in the refactoring process
+- NEVER assume the issue is in the test itself or the Python environment
+- ALWAYS assume that the Python environment is fully correct
+- If you're convinced there must be some issue in the environment, DO NOT try to fix/change it
+- Instead, stop immediately and provide detailed information about the issue so it can be properly investigated
+
 ## Implementation Strategy: Granular Commit Approach
 
 To ensure a safe, traceable refactoring process, we'll follow this granular commit strategy:

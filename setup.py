@@ -18,7 +18,7 @@ setup(
     long_description_content_type="text/markdown",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.11.0'
+        'six==1.17.0'
     ],
     packages=['qtextasdata'],
     py_modules=['bin.q'],

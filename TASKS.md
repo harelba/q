@@ -72,31 +72,31 @@ The goal is to gradually simplify q.py by having it use the refactored code dire
 
 ### Phase 3: Refactor Core Components
 
-- [ ] **Task 3.1**: Move SQL-related functionality to sql.py
+- [x] **Task 3.1**: Move SQL-related functionality to sql.py
   - Extract Sql class and ALL related methods COMPLETELY and EXACTLY as they appear
   - Update q.py to import from the package
   - Remove the original SQL-related code from q.py
   - Test for EXACT behavioral equivalence
 
-- [ ] **Task 3.2**: Move database handling code to db.py
+- [x] **Task 3.2**: Move database handling code to db.py
   - Extract Sqlite3DB and ALL related classes COMPLETELY and EXACTLY as they appear
   - Update q.py to import from the package
   - Remove the original database handling code from q.py
   - Test for EXACT behavioral equivalence
 
-- [ ] **Task 3.3**: Move table parsing/creation to parsers.py
+- [x] **Task 3.3**: Move table parsing/creation to parsers.py
   - Extract TableColumnInferer, TableCreator, etc. COMPLETELY and EXACTLY as they appear
   - Update q.py to import from the package
   - Remove the original parsing/creation code from q.py
   - Test for EXACT behavioral equivalence
 
-- [ ] **Task 3.4**: Move data stream handling to streams.py
+- [x] **Task 3.4**: Move data stream handling to streams.py
   - Extract ALL DataStream classes and related functionality COMPLETELY and EXACTLY as they appear
   - Update q.py to import from the package
   - Remove the original stream handling code from q.py
   - Test for EXACT behavioral equivalence
 
-- [ ] **Task 3.5**: Move materialized state handling to state.py
+- [x] **Task 3.5**: Move materialized state handling to state.py
   - Extract ALL MaterializedState classes COMPLETELY and EXACTLY as they appear
   - Update q.py to import from the package
   - Remove the original materialized state code from q.py

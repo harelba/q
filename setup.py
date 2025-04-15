@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-
-q_version = '3.1.6'
+from qtextasdata import q_version
 
 with open("README.markdown", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -18,13 +17,12 @@ setup(
     long_description_content_type="text/markdown",
     author_email='harelba@gmail.com',
     install_requires=[
-        'six==1.17.0'
+        'six>=1.17.0'
     ],
     packages=['qtextasdata'],
-    py_modules=['bin.q'],
     entry_points={
         'console_scripts': [
-            'q = bin.q:run_standalone'
+            'q = qtextasdata.cli:run_standalone'
         ]
     }
 )

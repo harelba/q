@@ -64,7 +64,7 @@ The goal is to gradually simplify q.py by having it use the refactored code dire
   - Remove the original function definitions from q.py
   - Run tests to verify EXACT behavioral equivalence
 
-- [ ] **Task 2.2**: Move error/exception classes to exceptions.py
+- [x] **Task 2.2**: Move error/exception classes to exceptions.py
   - Extract ALL exception classes COMPLETELY and EXACTLY as they appear
   - Update q.py to import these classes from the package
   - Remove the original exception class definitions from q.py

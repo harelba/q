@@ -40,8 +40,10 @@ import sqlite3
 import re
 import collections
 
+from qtextasdata.core import DataStream, QInputParams, QOutput, QTextAsData
+
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
-from bin.q import QTextAsData, QOutput, QOutputPrinter, QInputParams, DataStream, Sqlite3DB
+from qtextasdata.core import QOutputPrinter, Sqlite3DB
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
 # make sure that the output is correctly encoded

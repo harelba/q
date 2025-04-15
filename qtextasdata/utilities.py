@@ -279,3 +279,35 @@ def sqlite_type_to_python_type(sqlite_type):
         'NUMERIC': float
     }
     return SQLITE_AFFINITY_TO_PYTHON_TYPE_NAMES[get_sqlite_type_affinity(sqlite_type)] 
+
+
+def escape_double_quotes_if_needed(v):
+    x = v.replace('"', '""')
+    return x
+
+
+def quote_none_func(output_delimiter,v):
+    return v
+
+
+def quote_minimal_func(output_delimiter,v):
+    if v is None:
+        return v
+    if isinstance(v, str) and (output_delimiter in v or '\n' in v or '\r' in v):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
+    return v
+
+
+def quote_nonnumeric_func(output_delimiter,v):
+    if v is None:
+        return v
+    if isinstance(v, str):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
+    return v
+
+
+def quote_all_func(output_delimiter,v):
+    if isinstance(v, str):
+        return '"{}"'.format(escape_double_quotes_if_needed(v))
+    else:
+        return str('"{}"').format(v)

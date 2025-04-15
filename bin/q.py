@@ -36,18 +36,12 @@ import sys
 import sqlite3
 import codecs
 import locale
-import re
-import time
 import traceback
 import csv
 import uuid
-import math
-import datetime
 from argparse import ArgumentParser
 from configparser import ConfigParser
 from collections import OrderedDict
-from sqlite3.dbapi2 import OperationalError
-from uuid import uuid4
 
 from qtextasdata import q_version
 from qtextasdata.sql import MaterializedStateType
@@ -57,30 +51,33 @@ from qtextasdata.sql import MaterialiedDataStreamState
 from qtextasdata.sql import MaterializedSqliteState
 from qtextasdata.sql import MaterializedQsqlState
 from qtextasdata.utilities import (
-    get_stdout_encoding, sha_algorithms, sha, sha1, regexp, regexp_extract, md5, sqrt, power,
-    file_ext, file_folder, file_basename, file_basename_no_ext, percentile, StrictPercentile,
-    StdevPopulation, StdevSample, FunctionType, UserFunctionDef, user_functions, print_user_functions,
-    get_sqlite_type_affinity
+    get_stdout_encoding, print_user_functions
 )
-from qtextasdata.logging import xprint,DEBUG,iprint,sqlprint
-from qtextasdata.sql import Sqlite3DBResults, Sqlite3DB,DatabaseInfo
+from qtextasdata.logging import xprint,DEBUG,iprint
+from qtextasdata.sql import Sqlite3DB,DatabaseInfo
 
 from qtextasdata.exceptions import (
-    CouldNotConvertStringToNumericValueException,
     SqliteOperationalErrorException,
     IncorrectDefaultValueException,
-    ColumnMaxLengthLimitExceededException,
-    CouldNotParseInputException,
+    BadHeaderException,
+    TooManyAttachedDatabasesException,
     MissingHeaderException,
     FileNotFoundException,
-    BadHeaderException,
-    EncodedQueryException,
+    CouldNotConvertStringToNumericValueException,
+    ColumnMaxLengthLimitExceededException,
+    CouldNotParseInputException,
     UniversalNewlinesExistException,
     EmptyDataException,
     InvalidQueryException,
-    TooManyAttachedDatabasesException,
-    ContentSignatureNotFoundException,
-    InvalidQSqliteFileException,
+    TooManyTablesInQsqlException,
+    TooManyTablesInSqliteException,
+    UnknownFileTypeException,
+    NonExistentTableNameInQsql,
+    NonExistentTableNameInSqlite,
+    StrictModeColumnCountMismatchException,
+    TooManyTablesInQsqlException,
+    TooManyTablesInSqliteException,
+    UnknownFileTypeException,
     ColumnCountMismatchException,
     FluffyModeColumnCountMismatchException,
     MaximumSourceFilesExceededException,
@@ -88,17 +85,37 @@ from qtextasdata.exceptions import (
     NoTablesInSqliteException,
     NonExistentTableNameInQsql,
     NonExistentTableNameInSqlite,
-    CannotUnzipDataStreamException,
-    ContentSignatureDiffersException,
-    ContentSignatureDataDiffersException,
     StrictModeColumnCountMismatchException,
     TooManyTablesInQsqlException,
     TooManyTablesInSqliteException,
-    UnknownFileTypeException
+    UnknownFileTypeException,
+    CannotUnzipDataStreamException,
+    ContentSignatureDiffersException,
+    ContentSignatureDataDiffersException,
+    SqliteOperationalErrorException,
+    BadHeaderException,
+    CouldNotParseInputException,
+    ColumnMaxLengthLimitExceededException,
+    UniversalNewlinesExistException,
+    EmptyDataException,
+    InvalidQueryException,
+    TooManyTablesInQsqlException,
+    TooManyTablesInSqliteException,
+    UnknownFileTypeException,
+    ColumnCountMismatchException,
+    FluffyModeColumnCountMismatchException,
+    MaximumSourceFilesExceededException,
+    NoTableInQsqlExcption,
+    NoTablesInSqliteException,
+    NonExistentTableNameInQsql,
+    NonExistentTableNameInSqlite,
+    ContentSignatureNotFoundException,
+    InvalidQSqliteFileException,
+    EncodedQueryException,    
 )
 
-from qtextasdata.sql import ( Sqlite3DBResults, Sqlite3DB, Sql, TableCreator, MaterializedState, MaterializedStateTableStructure, TableCreatorState, MaterializedStateType, MaterializedDelimitedFileState, MaterialiedDataStreamState, MaterializedSqliteState, MaterializedQsqlState )
-
+from qtextasdata.sql import ( Sqlite3DB, MaterializedStateType, MaterializedDelimitedFileState, MaterialiedDataStreamState, MaterializedSqliteState, MaterializedQsqlState, Sql )
+import time
 
 def determine_max_col_lengths(m,output_field_quoting_func,output_delimiter):
     if len(m) == 0:

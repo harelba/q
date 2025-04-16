@@ -9,7 +9,7 @@ with open("README.markdown", "r", encoding="utf-8") as fh:
 setup(
     name='qtextasdata',
     url='https://github.com/harelba/q',
-    license='LICENSE',
+    license='Apache License 2.0',
     version=q_version,
     author='Harel Ben-Attia',
     description="Run SQL directly on CSV or TSV files",
@@ -18,10 +18,37 @@ setup(
     author_email='harelba@gmail.com',
     install_requires=[
     ],
-    packages=['qtextasdata'],
+    packages=find_packages(exclude=['tests', 'tests.*']),
     entry_points={
         'console_scripts': [
             'q = qtextasdata.cli:run_standalone'
         ]
-    }
+    },
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: SQL',
+        'Topic :: Database',
+        'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering :: Information Analysis',
+        'Topic :: Text Processing :: General',
+        'Topic :: Utilities',
+    ],
+    keywords='csv tsv sql data analysis query',
+    project_urls={
+        'Bug Reports': 'https://github.com/harelba/q/issues',
+        'Source': 'https://github.com/harelba/q',
+        'Documentation': 'https://github.com/harelba/q/blob/master/README.markdown',
+    },
 )

@@ -41,8 +41,6 @@ import re
 import collections
 
 from qtextasdata.core import DataStream, QInputParams, QOutput, QTextAsData
-
-sys.path.append(os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])),'..','bin'))
 from qtextasdata.core import QOutputPrinter, Sqlite3DB
 
 # q uses this encoding as the default output encoding. Some of the tests use it in order to 
@@ -51,17 +49,7 @@ SYSTEM_ENCODING = locale.getpreferredencoding()
 
 EXAMPLES = os.path.abspath(os.path.join(os.getcwd(), 'examples'))
 
-Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', os.path.abspath('./bin/q.py'))
-Q_SKIP_EXECUTABLE_VALIDATION = os.getenv('Q_SKIP_EXECUTABLE_VALIDATION','false')
-
-if not Q_SKIP_EXECUTABLE_VALIDATION == 'true':
-    Q_EXECUTABLE = os.path.abspath(Q_EXECUTABLE)
-    if not os.path.exists(Q_EXECUTABLE):
-        raise Exception("q executable must reside in {}".format(Q_EXECUTABLE))
-else:
-    Q_EXECUTABLE = os.getenv('Q_EXECUTABLE')
-    # Skip checking of executable (useful for testing that q is in the path)
-    pass
+Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', 'q')
 
 DEBUG = '-v' in sys.argv
 if os.environ.get('Q_DEBUG'):
@@ -84,9 +72,10 @@ def run_command(cmd_to_run,env_to_inject=None):
         print("CMD: {}".format(cmd_to_run))
 
     if env_to_inject is None:
-        env_to_inject = os.environ
-
-    env = env_to_inject
+        env = os.environ.copy()
+    else:
+        env = os.environ.copy()
+        env.update(env_to_inject)
 
     p = Popen(cmd_to_run, stdout=PIPE, stderr=PIPE, shell=True,env=env)
     o, e = p.communicate()

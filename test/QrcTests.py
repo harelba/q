@@ -3,8 +3,7 @@ from test.utils import Q_EXECUTABLE, run_command
 from test.test_data import sample_data_no_header, sample_data_rows
 from test.base import AbstractQTestCase
 
-import six
-from test.utils import DEBUG
+from test.utils import DEBUG,b
 
 import os
 import sys
@@ -22,10 +21,10 @@ class QrcTests(AbstractQTestCase):
         self.assertEqual(retcode, 244)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertTrue(e[0] == six.b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
+        self.assertTrue(e[0] == b('QRC_FILENAME env var exists, but cannot find qrc file at %s' % non_existent_filename))
 
     def test_explicit_qrc_filename_that_exists(self):
-        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
+        tmp_qrc_file = self.create_file_with_data(b('''[options]
 output_delimiter=|
 '''))
         env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name}
@@ -35,13 +34,13 @@ output_delimiter=|
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0] == six.b('1|2'))
+        self.assertTrue(o[0] == b('1|2'))
 
         self.cleanup(tmp_qrc_file)
 
     def test_all_default_options(self):
         # Create a qrc file that contains all default values inside the qrc file, but with some different values than the regular defaults
-        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
+        tmp_qrc_file = self.create_file_with_data(b('''[options]
 analyze_only=True
 beautify=True
 caching_mode=readwrite
@@ -83,46 +82,46 @@ with_universal_newlines=True
         self.assertEqual(len(o), 34)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b('[options]'))
+        self.assertEqual(o[0],b('[options]'))
         o = o[1:]
 
         m = {}
         for r in o:
-            key,val = r.split(six.b("="),1)
+            key,val = r.split(b("="),1)
             m[key] = val
 
-        self.assertEqual(m[six.b('analyze_only')],six.b('True'))
-        self.assertEqual(m[six.b('beautify')],six.b('True'))
-        self.assertEqual(m[six.b('caching_mode')],six.b('readwrite'))
-        self.assertEqual(m[six.b('column_count')],six.b('32'))
-        self.assertEqual(m[six.b('delimiter')],six.b(','))
-        self.assertEqual(m[six.b('disable_column_type_detection')],six.b('True'))
-        self.assertEqual(m[six.b('disable_double_double_quoting')],six.b('False'))
-        self.assertEqual(m[six.b('disable_escaped_double_quoting')],six.b('False'))
-        self.assertEqual(m[six.b('encoding')],six.b('ascii'))
-        self.assertEqual(m[six.b('formatting')],six.b('xxx'))
-        self.assertEqual(m[six.b('gzipped')],six.b('True'))
-        self.assertEqual(m[six.b('input_quoting_mode')],six.b('all'))
-        self.assertEqual(m[six.b('keep_leading_whitespace_in_values')],six.b('True'))
-        self.assertEqual(m[six.b('list_user_functions')],six.b('True'))
-        self.assertEqual(m[six.b('max_attached_sqlite_databases')],six.b('888'))
-        self.assertEqual(m[six.b('max_column_length_limit')],six.b('8888'))
-        self.assertEqual(m[six.b('mode')],six.b('strict'))
-        self.assertEqual(m[six.b('output_delimiter')],six.b('|'))
-        self.assertEqual(m[six.b('output_encoding')],six.b('utf-8'))
-        self.assertEqual(m[six.b('output_header')],six.b('True'))
-        self.assertEqual(m[six.b('output_quoting_mode')],six.b('all'))
-        self.assertEqual(m[six.b('overwrite_qsql')],six.b('False'))
-        self.assertEqual(m[six.b('pipe_delimited')],six.b('True'))
-        self.assertEqual(m[six.b('pipe_delimited_output')],six.b('True'))
-        self.assertEqual(m[six.b('query_encoding')],six.b('ascii'))
-        self.assertEqual(m[six.b('query_filename')],six.b('query-filename'))
-        self.assertEqual(m[six.b('save_db_to_disk_filename')],six.b('save-db-to-disk-filename'))
-        self.assertEqual(m[six.b('skip_header')],six.b('True'))
-        self.assertEqual(m[six.b('tab_delimited')],six.b('True'))
-        self.assertEqual(m[six.b('tab_delimited_output')],six.b('True'))
-        self.assertEqual(m[six.b('verbose')],six.b('True'))
-        self.assertEqual(m[six.b('with_universal_newlines')],six.b('True'))
+        self.assertEqual(m[b('analyze_only')],b('True'))
+        self.assertEqual(m[b('beautify')],b('True'))
+        self.assertEqual(m[b('caching_mode')],b('readwrite'))
+        self.assertEqual(m[b('column_count')],b('32'))
+        self.assertEqual(m[b('delimiter')],b(','))
+        self.assertEqual(m[b('disable_column_type_detection')],b('True'))
+        self.assertEqual(m[b('disable_double_double_quoting')],b('False'))
+        self.assertEqual(m[b('disable_escaped_double_quoting')],b('False'))
+        self.assertEqual(m[b('encoding')],b('ascii'))
+        self.assertEqual(m[b('formatting')],b('xxx'))
+        self.assertEqual(m[b('gzipped')],b('True'))
+        self.assertEqual(m[b('input_quoting_mode')],b('all'))
+        self.assertEqual(m[b('keep_leading_whitespace_in_values')],b('True'))
+        self.assertEqual(m[b('list_user_functions')],b('True'))
+        self.assertEqual(m[b('max_attached_sqlite_databases')],b('888'))
+        self.assertEqual(m[b('max_column_length_limit')],b('8888'))
+        self.assertEqual(m[b('mode')],b('strict'))
+        self.assertEqual(m[b('output_delimiter')],b('|'))
+        self.assertEqual(m[b('output_encoding')],b('utf-8'))
+        self.assertEqual(m[b('output_header')],b('True'))
+        self.assertEqual(m[b('output_quoting_mode')],b('all'))
+        self.assertEqual(m[b('overwrite_qsql')],b('False'))
+        self.assertEqual(m[b('pipe_delimited')],b('True'))
+        self.assertEqual(m[b('pipe_delimited_output')],b('True'))
+        self.assertEqual(m[b('query_encoding')],b('ascii'))
+        self.assertEqual(m[b('query_filename')],b('query-filename'))
+        self.assertEqual(m[b('save_db_to_disk_filename')],b('save-db-to-disk-filename'))
+        self.assertEqual(m[b('skip_header')],b('True'))
+        self.assertEqual(m[b('tab_delimited')],b('True'))
+        self.assertEqual(m[b('tab_delimited_output')],b('True'))
+        self.assertEqual(m[b('verbose')],b('True'))
+        self.assertEqual(m[b('with_universal_newlines')],b('True'))
 
         self.cleanup(tmp_qrc_file)
 
@@ -138,14 +137,14 @@ with_universal_newlines=True
         self.assertEqual(retcode,0)
         self.assertEqual(len(o),3)
         self.assertEqual(len(e),0)
-        self.assertEqual(o[0],six.b('a,1,0'))
-        self.assertEqual(o[1],six.b('b,2,0'))
-        self.assertEqual(o[2],six.b('c,,0'))
+        self.assertEqual(o[0],b('a,1,0'))
+        self.assertEqual(o[1],b('b,2,0'))
+        self.assertEqual(o[2],b('c,,0'))
 
         # Ensure default does not create a cache file
         self.assertTrue(not os.path.exists(expected_cache_filename))
 
-        tmp_qrc_file = self.create_file_with_data(six.b('''[options]
+        tmp_qrc_file = self.create_file_with_data(b('''[options]
 caching_mode=readwrite
 '''))
         env_to_inject = { 'QRC_FILENAME': tmp_qrc_file.name }
@@ -156,9 +155,9 @@ caching_mode=readwrite
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o),3)
         self.assertEqual(len(e),0)
-        self.assertEqual(o[0],six.b('a,1,0'))
-        self.assertEqual(o[1],six.b('b,2,0'))
-        self.assertEqual(o[2],six.b('c,,0'))
+        self.assertEqual(o[0],b('a,1,0'))
+        self.assertEqual(o[1],b('b,2,0'))
+        self.assertEqual(o[2],b('c,,0'))
 
         # Ensure that qrc file caching is being used and caching is activated (cache file should exist)
         self.assertTrue(os.path.exists(expected_cache_filename))

@@ -5,8 +5,10 @@ import locale
 import os
 from subprocess import PIPE, Popen
 import sys
-import six
 
+
+def b(s):
+    return s.encode("latin-1")
 
 SYSTEM_ENCODING = locale.getpreferredencoding()
 Q_EXECUTABLE = os.getenv('Q_EXECUTABLE', 'q')
@@ -45,12 +47,12 @@ def run_command(cmd_to_run,env_to_inject=None):
     o = o.rstrip()
     e = e.strip()
     # split rows
-    if o != six.b(''):
-        o = o.split(six.b(os.linesep))
+    if o != b(''):
+        o = o.split(b(os.linesep))
     else:
         o = []
-    if e != six.b(''):
-        e = e.split(six.b(os.linesep))
+    if e != b(''):
+        e = e.split(b(os.linesep))
     else:
         e = []
 
@@ -61,7 +63,7 @@ def run_command(cmd_to_run,env_to_inject=None):
 
 
 def one_column_warning(e):
-    return e[0].startswith(six.b('Warning: column count is one'))
+    return e[0].startswith(b('Warning: column count is one'))
 
 
 def sqlite_dict_factory(cursor, row):
@@ -78,3 +80,4 @@ def get_sqlite_table_list(c,exclude_qcatalog=True):
         r = c.execute("select tbl_name from sqlite_master where type='table'").fetchall()
 
     return r
+

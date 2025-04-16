@@ -1,9 +1,9 @@
+from io import StringIO
 from qtextasdata.core import DataStream, QInputParams, QTextAsData
 from test.base import AbstractQTestCase
 
 
-import six
-from test.utils import DEBUG
+from test.utils import DEBUG,b
 import sys
 import codecs
 from test.test_data import header_row_with_spaces, sample_data_no_header, sample_data_with_header
@@ -12,8 +12,8 @@ from test.base import AbstractQTestCase
 class BasicModuleTests(AbstractQTestCase):
 
     def test_engine_isolation(self):
-        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
-        tmpfile2 = self.create_file_with_data(six.b("d e f\n10 20 30\n40 50 60"))
+        tmpfile1 = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(b("d e f\n10 20 30\n40 50 60"))
 
         # Run file 1 on engine 1
         q1 = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
@@ -70,7 +70,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_simple_query(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r = q.execute('select * from %s' % tmpfile.name)
@@ -90,7 +90,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_loaded_data_reuse(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
         r1 = q.execute('select * from %s' % tmpfile.name)
@@ -120,7 +120,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_stdin_injection(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         data_streams_dict = {
             '-': DataStream('stdin','-',codecs.open(tmpfile.name,'rb',encoding='utf-8'))
@@ -144,7 +144,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_named_stdin_injection(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         data_streams_dict = {
             'my_stdin_data': DataStream('my_stdin_data','my_stdin_data',codecs.open(tmpfile.name,'rb',encoding='utf-8'))
@@ -166,8 +166,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_data_stream_isolation(self):
-        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
-        tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
+        tmpfile1 = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(b("d e f\n7 8 9\n10 11 12"))
 
         data_streams_dict = {
             'a-': DataStream('a-','a-',codecs.open(tmpfile1.name, 'rb', encoding='utf-8')),
@@ -211,8 +211,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_multiple_stdin_injection(self):
-        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
-        tmpfile2 = self.create_file_with_data(six.b("d e f\n7 8 9\n10 11 12"))
+        tmpfile1 = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(b("d e f\n7 8 9\n10 11 12"))
 
         data_streams_dict = {
             'my_stdin_data1': DataStream('my_stdin_data1','my_stdin_data1',codecs.open(tmpfile1.name,'rb',encoding='utf-8')),
@@ -257,8 +257,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_different_input_params_for_different_files(self):
-        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
-        tmpfile2 = self.create_file_with_data(six.b("7\t8\t9\n10\t11\t12"))
+        tmpfile1 = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(b("7\t8\t9\n10\t11\t12"))
 
         q = QTextAsData(QInputParams(skip_header=True,delimiter=' '))
 
@@ -280,8 +280,8 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_different_input_params_for_different_files_2(self):
-        tmpfile1 = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
-        tmpfile2 = self.create_file_with_data(six.b("7\t8\t9\n10\t11\t12"))
+        tmpfile1 = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
+        tmpfile2 = self.create_file_with_data(b("7\t8\t9\n10\t11\t12"))
 
         q = QTextAsData()
 
@@ -303,7 +303,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile2)
 
     def test_input_params_override(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         default_input_params = QInputParams()
 
@@ -359,7 +359,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.assertTrue(q_output.error.msg.startswith('query error'))
 
     def test_execute_response(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData()
 
@@ -392,7 +392,7 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_analyze_response(self):
-        tmpfile = self.create_file_with_data(six.b("a b c\n1 2 3\n4 5 6"))
+        tmpfile = self.create_file_with_data(b("a b c\n1 2 3\n4 5 6"))
 
         q = QTextAsData()
 
@@ -425,11 +425,11 @@ class BasicModuleTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_load_data_from_string_without_previous_data_load(self):
-        input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
+        input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
 
 
         data_streams_dict = {
-            'my_data': DataStream('my_data_stream_id','my_data',six.StringIO(input_str))
+            'my_data': DataStream('my_data_stream_id','my_data',StringIO(input_str))
         }
         q = QTextAsData(default_input_params=QInputParams(skip_header=True,delimiter=','),data_streams_dict=data_streams_dict)
 
@@ -460,10 +460,10 @@ class BasicModuleTests(AbstractQTestCase):
         q.done()
 
     def test_load_data_from_string_with_previous_data_load(self):
-        input_str = six.u('column1,column2,column3\n') + six.u('\n').join([six.u('value1,2.5,value3')] * 1000)
+        input_str = 'column1,column2,column3\n' + '\n'.join(['value1,2.5,value3'] * 1000)
 
         data_streams_dict = {
-            'my_data': DataStream('a','my_data',six.StringIO(input_str))
+            'my_data': DataStream('a','my_data',StringIO(input_str))
         }
         q = QTextAsData(default_input_params=QInputParams(skip_header=True,delimiter=','),data_streams_dict=data_streams_dict)
 

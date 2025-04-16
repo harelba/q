@@ -3,8 +3,7 @@ from test.utils import Q_EXECUTABLE, batch, run_command
 from test.test_data import sample_data_no_header, sample_data_rows
 from test.base import AbstractQTestCase
 
-import six
-from six.moves import range
+from test.utils import b
 from test.utils import DEBUG
 
 import collections
@@ -21,7 +20,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         numbers = list(range(1,1+BATCH_SIZE*FILE_COUNT))
         numbers_as_text = batch([str(x) for x in numbers],n=BATCH_SIZE)
 
-        content_list = list(map(six.b,['a\n' + "\n".join(x)+'\n' for x in numbers_as_text]))
+        content_list = list(map(b,['a\n' + "\n".join(x)+'\n' for x in numbers_as_text]))
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -35,7 +34,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b("%s,%s" % (BATCH_SIZE*FILE_COUNT,sum(numbers))))
+        self.assertEqual(o[0],b("%s,%s" % (BATCH_SIZE*FILE_COUNT,sum(numbers))))
 
         self.cleanup_folder(tmpfolder)
 
@@ -45,7 +44,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+        content_list = map(b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -60,7 +59,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
 
@@ -70,7 +69,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+        content_list = map(b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -86,7 +85,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
 
@@ -98,7 +97,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+        content_list = map(b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -114,7 +113,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         # Now execute the same query with -C readwrite, so all files will be read directly from the qsql files
         cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
@@ -123,7 +122,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
 
@@ -138,7 +137,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+        content_list = map(b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -154,7 +153,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         # Now execute the same query with -C readwrite, so all files will be read directly from the qsql files
         cmd = 'cd %s && %s -c 1 "select count(*) from (%s)" -C readwrite' % (tmpfolder,Q_EXECUTABLE,unioned_subquery)
@@ -163,7 +162,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         from glob import glob
         files_in_folder = [os.path.basename(x) for x in glob('%s/*' % (tmpfolder))]
@@ -182,7 +181,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x)+'\n' for x in numbers_as_text])
+        content_list = map(b,["\n".join(x)+'\n' for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -208,7 +207,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
 
@@ -222,7 +221,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+        content_list = map(b,["\n".join(x) for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -235,7 +234,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(retcode, 82)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        x = six.b('Maximum source files for table must be %s. Table is name is %s/* Number of actual files is %s' % (MAX_ALLOWED_FILES,os.path.realpath(tmpfolder),FILE_COUNT))
+        x = b('Maximum source files for table must be %s. Table is name is %s/* Number of actual files is %s' % (MAX_ALLOWED_FILES,os.path.realpath(tmpfolder),FILE_COUNT))
         print(x)
         self.assertEqual(e[0],x)
 
@@ -249,7 +248,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1,1+BATCH_SIZE*FILE_COUNT)],n=BATCH_SIZE)
 
-        content_list = map(six.b,["\n".join(x) for x in numbers_as_text])
+        content_list = map(b,["\n".join(x) for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x,range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -264,7 +263,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b(str(BATCH_SIZE*FILE_COUNT)))
+        self.assertEqual(o[0],b(str(BATCH_SIZE*FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder)
 
@@ -274,7 +273,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
 
         numbers_as_text = batch([str(x) for x in range(1, 1 + BATCH_SIZE * FILE_COUNT)], n=BATCH_SIZE)
 
-        content_list = map(six.b, ["\n".join(x) for x in numbers_as_text])
+        content_list = map(b, ["\n".join(x) for x in numbers_as_text])
 
         filename_list = list(map(lambda x: 'file-%s' % x, range(FILE_COUNT)))
         d = collections.OrderedDict(zip(filename_list, content_list))
@@ -292,7 +291,7 @@ class ManyOpenFilesTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b(str(BATCH_SIZE * FILE_COUNT)))
+        self.assertEqual(o[0], b(str(BATCH_SIZE * FILE_COUNT)))
 
         self.cleanup_folder(tmpfolder1)
         self.cleanup_folder(tmpfolder2)

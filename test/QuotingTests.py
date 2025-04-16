@@ -7,8 +7,8 @@ from test.test_data import double_double_quoted_data
 from test.test_data import escaped_double_quoted_data
 from test.test_data import combined_quoted_data
 
-import six
 from test.utils import DEBUG
+from test.utils import b
 
 class QuotingTests(AbstractQTestCase):
     def test_non_quoted_values_in_quoted_data(self):
@@ -90,8 +90,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('"quoted,data",23'))
-        self.assertEqual(o[1],six.b('unquoted-data,54,'))
+        self.assertEqual(o[0],b('"quoted,data",23'))
+        self.assertEqual(o[1],b('unquoted-data,54,'))
 
         self.cleanup(tmp_data_file)
 
@@ -105,7 +105,7 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),1)
         self.assertEqual(len(o),0)
 
-        self.assertTrue(e[0].startswith(six.b('Strict mode. Column Count is expected to identical')))
+        self.assertTrue(e[0].startswith(b('Strict mode. Column Count is expected to identical')))
 
         self.cleanup(tmp_data_file)
 
@@ -119,8 +119,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('quoted data,23'))
-        self.assertEqual(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],b('quoted data,23'))
+        self.assertEqual(o[1],b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -134,8 +134,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('quoted data,23'))
-        self.assertEqual(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],b('quoted data,23'))
+        self.assertEqual(o[1],b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -149,8 +149,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),1)
         self.assertEqual(len(o),0)
 
-        self.assertTrue(e[0].startswith(six.b('Input quoting mode can only be one of all,minimal,none')))
-        self.assertTrue(six.b('unknown_wrapping_mode') in e[0])
+        self.assertTrue(e[0].startswith(b('Input quoting mode can only be one of all,minimal,none')))
+        self.assertTrue(b('unknown_wrapping_mode') in e[0])
 
         self.cleanup(tmp_data_file)
 
@@ -164,8 +164,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('quoted data,23'))
-        self.assertEqual(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],b('quoted data,23'))
+        self.assertEqual(o[1],b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -179,8 +179,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('quoted data,23'))
-        self.assertEqual(o[1],six.b('unquoted-data,54'))
+        self.assertEqual(o[0],b('quoted data,23'))
+        self.assertEqual(o[1],b('unquoted-data,54'))
 
         self.cleanup(tmp_data_file)
 
@@ -195,8 +195,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('"quoted data" 23'))
-        self.assertEqual(o[1],six.b('unquoted-data 54'))
+        self.assertEqual(o[0],b('"quoted data" 23'))
+        self.assertEqual(o[1],b('unquoted-data 54'))
 
         self.cleanup(tmp_data_file)
 
@@ -211,10 +211,10 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),3)
 
-        self.assertEqual(o[0],six.b('"quoted data with'))
+        self.assertEqual(o[0],b('"quoted data with'))
         # Notice that the third column here is not quoted, because we replaced the newline with something else
-        self.assertEqual(o[1],six.b('a new line inside it":23:quoted data NEWLINE-REMOVED'))
-        self.assertEqual(o[2],six.b('unquoted-data:54:unquoted-data'))
+        self.assertEqual(o[1],b('a new line inside it":23:quoted data NEWLINE-REMOVED'))
+        self.assertEqual(o[2],b('unquoted-data:54:unquoted-data'))
 
         self.cleanup(tmp_data_file)
 
@@ -228,8 +228,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('"quoted data",23'))
-        self.assertEqual(o[1],six.b('"unquoted-data",54'))
+        self.assertEqual(o[0],b('"quoted data",23'))
+        self.assertEqual(o[1],b('"unquoted-data",54'))
 
         self.cleanup(tmp_data_file)
 
@@ -243,8 +243,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('"quoted data","23"'))
-        self.assertEqual(o[1],six.b('"unquoted-data","54"'))
+        self.assertEqual(o[0],b('"quoted data","23"'))
+        self.assertEqual(o[1],b('"unquoted-data","54"'))
 
         self.cleanup(tmp_data_file)
 
@@ -261,16 +261,16 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(six.b("\n").join(o),input_data)
+        self.assertEqual(b("\n").join(o),input_data)
 
         self.cleanup(tmp_data_file)
 
     def test_consistency_of_chaining_minimal_wrapping_to_minimal_wrapping(self):
-        input_data = six.b('"quoted data" 23\nunquoted-data 54')
+        input_data = b('"quoted data" 23\nunquoted-data 54')
         self._internal_test_consistency_of_chaining_output_to_input(input_data,'minimal','minimal')
 
     def test_consistency_of_chaining_all_wrapping_to_all_wrapping(self):
-        input_data = six.b('"quoted data" "23"\n"unquoted-data" "54"')
+        input_data = b('"quoted data" "23"\n"unquoted-data" "54"')
         self._internal_test_consistency_of_chaining_output_to_input(input_data,'all','all')
 
     def test_input_field_quoting_and_data_types_with_encoding(self):
@@ -278,7 +278,7 @@ class QuotingTests(AbstractQTestCase):
 
         # Checks combination of minimal input field quoting, with special characters that need to be decoded -
         # Both content and proper data types are verified
-        data = six.b('111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n')
+        data = b('111,22.22,"testing text with special characters - citt\xc3\xa0 ",http://somekindofurl.com,12.13.14.15,12.1\n')
         tmp_data_file = self.create_file_with_data(data)
 
         cmd = Q_EXECUTABLE + ' -d , "select * from %s" -E %s' % (tmp_data_file.name,OUTPUT_ENCODING)
@@ -297,16 +297,16 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),10)
 
-        self.assertEqual(o[0],six.b('Table: %s' % tmp_data_file.name))
-        self.assertEqual(o[1],six.b('  Sources:'))
-        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmp_data_file.name))
-        self.assertEqual(o[3],six.b('  Fields:'))
-        self.assertEqual(o[4],six.b('    `c1` - int'))
-        self.assertEqual(o[5],six.b('    `c2` - real'))
-        self.assertEqual(o[6],six.b('    `c3` - text'))
-        self.assertEqual(o[7],six.b('    `c4` - text'))
-        self.assertEqual(o[8],six.b('    `c5` - text'))
-        self.assertEqual(o[9],six.b('    `c6` - real'))
+        self.assertEqual(o[0],b('Table: %s' % tmp_data_file.name))
+        self.assertEqual(o[1],b('  Sources:'))
+        self.assertEqual(o[2],b('    source_type: file source: %s' % tmp_data_file.name))
+        self.assertEqual(o[3],b('  Fields:'))
+        self.assertEqual(o[4],b('    `c1` - int'))
+        self.assertEqual(o[5],b('    `c2` - real'))
+        self.assertEqual(o[6],b('    `c3` - text'))
+        self.assertEqual(o[7],b('    `c4` - text'))
+        self.assertEqual(o[8],b('    `c5` - text'))
+        self.assertEqual(o[9],b('    `c6` - real'))
 
         self.cleanup(tmp_data_file)
 
@@ -321,10 +321,10 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),4)
 
-        self.assertTrue(o[0],six.b('multiline_double_double_quoted'))
-        self.assertTrue(o[1],six.b('control-value-5'))
-        self.assertTrue(o[2],six.b('this is a double double quoted "multiline\n value".'))
-        self.assertTrue(o[3],six.b('control-value-5'))
+        self.assertTrue(o[0],b('multiline_double_double_quoted'))
+        self.assertTrue(o[1],b('control-value-5'))
+        self.assertTrue(o[2],b('this is a double double quoted "multiline\n value".'))
+        self.assertTrue(o[3],b('control-value-5'))
 
         self.cleanup(tmp_data_file)
 
@@ -359,8 +359,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('double_double_quoted'))
-        self.assertEqual(o[1],six.b('this is a quoted value with "double'))
+        self.assertEqual(o[0],b('double_double_quoted'))
+        self.assertEqual(o[1],b('this is a quoted value with "double'))
 
         cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -369,8 +369,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b(''))
-        self.assertEqual(o[1],six.b('double'))
+        self.assertEqual(o[0],b(''))
+        self.assertEqual(o[1],b('double'))
 
         cmd = Q_EXECUTABLE + ' -d " " --disable-double-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -379,8 +379,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b(''))
-        self.assertEqual(o[1],six.b('quotes"""'))
+        self.assertEqual(o[0],b(''))
+        self.assertEqual(o[1],b('quotes"""'))
 
         self.cleanup(tmp_data_file)
 
@@ -397,8 +397,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('escaped_double_quoted'))
-        self.assertEqual(o[1],six.b('this is a quoted value with \\escaped'))
+        self.assertEqual(o[0],b('escaped_double_quoted'))
+        self.assertEqual(o[1],b('this is a quoted value with \\escaped'))
 
         cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select c3 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -407,8 +407,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b(''))
-        self.assertEqual(o[1],six.b('double'))
+        self.assertEqual(o[0],b(''))
+        self.assertEqual(o[1],b('double'))
 
         cmd = Q_EXECUTABLE + ' -d " " --disable-escaped-double-quoting "select c4 from %s" -W none' % tmp_data_file.name
         retcode, o, e = run_command(cmd)
@@ -417,8 +417,8 @@ class QuotingTests(AbstractQTestCase):
         self.assertEqual(len(e),0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b(''))
-        self.assertEqual(o[1],six.b('quotes\\""'))
+        self.assertEqual(o[0],b(''))
+        self.assertEqual(o[1],b('quotes\\""'))
 
         self.cleanup(tmp_data_file)
 
@@ -432,7 +432,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[o.index(six.b('  Fields:'))+1:]
+        o = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(o),7) # found 7 fields
 
@@ -441,7 +441,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[o.index(six.b('  Fields:'))+1:]
+        o = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(o),5) # found 5 fields
 
@@ -450,7 +450,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[o.index(six.b('  Fields:'))+1:]
+        o = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(o),5) # found 5 fields
 
@@ -459,7 +459,7 @@ class QuotingTests(AbstractQTestCase):
 
         self.assertEqual(retcode,0)
         self.assertEqual(len(e),0)
-        o = o[o.index(six.b('  Fields:'))+1:]
+        o = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(o),3) # found only 3 fields, which is the correct amount
 

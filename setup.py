@@ -7,7 +7,7 @@ with open("README.markdown", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name='q',
+    name='qtextasdata',
     url='https://github.com/harelba/q',
     license='LICENSE',
     version=q_version,

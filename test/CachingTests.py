@@ -2,9 +2,7 @@ from test.base import AbstractQTestCase
 from test.utils import Q_EXECUTABLE, run_command
 
 
-import six
-
-from test.utils import DEBUG
+from test.utils import DEBUG,b
 import os
 import sqlite3
 from test.test_data import sample_data_with_header
@@ -15,7 +13,7 @@ from test.base import AbstractQTestCase
 class CachingTests(AbstractQTestCase):
 
     def test_cache_empty_file(self):
-        file_data = six.b("a,b,c")
+        file_data = b("a,b,c")
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
@@ -28,7 +26,7 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0],six.b("Warning - data is empty"))
+        self.assertEqual(e[0],b("Warning - data is empty"))
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C readwrite' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -36,7 +34,7 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0],six.b("Warning - data is empty"))
+        self.assertEqual(e[0],b("Warning - data is empty"))
 
         # After readwrite caching has been activated, the cache file is expected to exist
         self.assertTrue(os.path.exists(expected_cache_filename))
@@ -53,7 +51,7 @@ class CachingTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_reading_the_wrong_cache__original_file_having_different_data(self):
-        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data1 = b("a,b,c\n10,20,30\n30,40,50")
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -66,14 +64,14 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
 
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename))
 
         # Overwrite the original file
-        file_data2 = six.b("a,b,c\n10,20,30\n30,40,50\n50,60,70")
+        file_data2 = b("a,b,c\n10,20,30\n30,40,50\n50,60,70")
         self.write_file(tmpfile1.name,file_data2)
 
         cmd = Q_EXECUTABLE + ' -H -d , "select a from %s" -C read' % tmpfile1.name
@@ -82,12 +80,12 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 81)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        self.assertEqual(e[0], six.b('%s vs %s.qsql: Content Signatures differ at inferer.rows (actual analysis data differs)' % \
+        self.assertEqual(e[0], b('%s vs %s.qsql: Content Signatures differ at inferer.rows (actual analysis data differs)' % \
                                      (tmpfile1.name,tmpfile1.name)))
 
 
     def test_reading_the_wrong_cache__original_file_having_different_delimiter(self):
-        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data1 = b("a,b,c\n10,20,30\n30,40,50")
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -100,14 +98,14 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
 
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename))
 
         # Overwrite the original file
-        file_data2 = six.b("a\tb\tc\n10\t20\t30\n30\t40\t50")
+        file_data2 = b("a\tb\tc\n10\t20\t30\n30\t40\t50")
         self.write_file(tmpfile1.name,file_data2)
 
         cmd = Q_EXECUTABLE + ' -H -t "select a from %s" -C read' % tmpfile1.name
@@ -116,13 +114,13 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 80)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        x = six.b("%s vs %s.qsql: Content Signatures for table %s differ at input_delimiter (source value '\t' disk signature value ',')" % \
+        x = b("%s vs %s.qsql: Content Signatures for table %s differ at input_delimiter (source value '\t' disk signature value ',')" % \
                                      (tmpfile1.name,tmpfile1.name,tmpfile1.name))
         self.assertEqual(e[0], x)
 
     def test_rename_cache_and_read_from_it(self):
         # create a file, along with its qsql
-        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data1 = b("a,b,c\n10,20,30\n30,40,50")
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -135,8 +133,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
@@ -149,13 +147,13 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
 
 
     def test_reading_the_wrong_cache__qsql_file_not_having_a_matching_content_signature(self):
         # create a file, along with its qsql
-        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data1 = b("a,b,c\n10,20,30\n30,40,50")
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -168,12 +166,12 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
-        file_data2 = six.b("c,d,e\n10,20,30\n30,40,50")
+        file_data2 = b("c,d,e\n10,20,30\n30,40,50")
 
         # create another file with a different header, along with its qsql
         tmpfile2 = self.create_file_with_data(file_data2)
@@ -187,8 +185,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename2))
 
@@ -204,12 +202,12 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 80)
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
-        x = six.b("%s vs %s.qsql: Content Signatures for table %s differ at inferer.header_row (source value '['a', 'b', 'c']' disk signature value '['c', 'd', 'e']')" % (tmpfile1.name,tmpfile1.name,tmpfile1.name))
+        x = b("%s vs %s.qsql: Content Signatures for table %s differ at inferer.header_row (source value '['a', 'b', 'c']' disk signature value '['c', 'd', 'e']')" % (tmpfile1.name,tmpfile1.name,tmpfile1.name))
         self.assertEqual(e[0], x)
 
     def test_reading_the_wrong_cache__qsql_file_not_having_any_content_signature(self):
         # create a file, along with its qsql
-        file_data1 = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data1 = b("a,b,c\n10,20,30\n30,40,50")
 
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
@@ -222,12 +220,12 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0], six.b('10'))
-        self.assertEqual(o[1], six.b('30'))
+        self.assertTrue(o[0], b('10'))
+        self.assertEqual(o[1], b('30'))
         # Ensure cache has been created
         self.assertTrue(os.path.exists(expected_cache_filename1))
 
-        file_data2 = six.b("c,d,e\n10,20,30\n30,40,50")
+        file_data2 = b("c,d,e\n10,20,30\n30,40,50")
 
         # delete qcatalog content, so no entries will be available
         c = sqlite3.connect(expected_cache_filename1)
@@ -241,11 +239,11 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 97)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertEqual(e[0],six.b("Could not autodetect table name in qsql file. File contains no record of a table"))
+        self.assertEqual(e[0],b("Could not autodetect table name in qsql file. File contains no record of a table"))
 
 
     def test_cache_full_flow(self):
-        file_data = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data = b("a,b,c\n10,20,30\n30,40,50")
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
@@ -258,8 +256,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # Ensure cache has not been created
         self.assertTrue(not os.path.exists(expected_cache_filename))
@@ -270,8 +268,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # Ensure cache has not been created, as cache mode is "read" only
         self.assertTrue(not os.path.exists(expected_cache_filename))
@@ -282,8 +280,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # After readwrite caching has been activated, the cache file is expected to exist
         self.assertTrue(os.path.exists(expected_cache_filename))
@@ -303,8 +301,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # After readwrite caching has been activated, the cache file is expected to exist
         self.assertTrue(os.path.exists(expected_cache_filename))
@@ -312,13 +310,13 @@ class CachingTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_cache_full_flow_with_concatenated_files(self):
-        file_data1 = six.b("a,b,c\n10,11,12\n20,21,22")
+        file_data1 = b("a,b,c\n10,11,12\n20,21,22")
         tmpfile1 = self.create_file_with_data(file_data1)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
         tmpfile1_filename = os.path.basename(tmpfile1.name)
         expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
 
-        file_data2 = six.b("a,b,c\n30,31,32\n40,41,42")
+        file_data2 = b("a,b,c\n30,31,32\n40,41,42")
         tmpfile2 = self.create_file_with_data(file_data2)
         tmpfile2_folder = os.path.dirname(tmpfile2.name)
         tmpfile2_filename = os.path.basename(tmpfile2.name)
@@ -330,11 +328,11 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 5)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('a,b,c'))
-        self.assertEqual(o[1],six.b('10,11,12'))
-        self.assertEqual(o[2],six.b('20,21,22'))
-        self.assertEqual(o[3],six.b('30,31,32'))
-        self.assertEqual(o[4],six.b('40,41,42'))
+        self.assertEqual(o[0],b('a,b,c'))
+        self.assertEqual(o[1],b('10,11,12'))
+        self.assertEqual(o[2],b('20,21,22'))
+        self.assertEqual(o[3],b('30,31,32'))
+        self.assertEqual(o[4],b('40,41,42'))
 
         self.assertTrue(os.path.exists(expected_cache_filename1))
         self.assertTrue(os.path.exists(expected_cache_filename2))
@@ -344,7 +342,7 @@ class CachingTests(AbstractQTestCase):
 
 
     def test_analyze_result_with_cache_file(self):
-        file_data = six.b("a,b,c\n10,20,30\n30,40,50")
+        file_data = b("a,b,c\n10,20,30\n30,40,50")
         tmpfile = self.create_file_with_data(file_data)
         tmpfile_folder = os.path.dirname(tmpfile.name)
         tmpfile_filename = os.path.basename(tmpfile.name)
@@ -359,8 +357,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 2)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # Ensure cache is now created
         self.assertTrue(os.path.exists(expected_cache_filename))
@@ -372,13 +370,13 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(len(o),7)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
-        self.assertEqual(o[1],six.b('  Sources:'))
-        self.assertEqual(o[2],six.b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile.name))
-        self.assertEqual(o[3],six.b('  Fields:'))
-        self.assertEqual(o[4],six.b('    `a` - int'))
-        self.assertEqual(o[5],six.b('    `b` - int'))
-        self.assertEqual(o[6],six.b('    `c` - int'))
+        self.assertEqual(o[0],b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],b('  Sources:'))
+        self.assertEqual(o[2],b('    source_type: qsql-file-with-original source: %s.qsql' % tmpfile.name))
+        self.assertEqual(o[3],b('  Fields:'))
+        self.assertEqual(o[4],b('    `a` - int'))
+        self.assertEqual(o[5],b('    `b` - int'))
+        self.assertEqual(o[6],b('    `c` - int'))
 
         # delete the newly created cache
         os.remove(expected_cache_filename)
@@ -391,24 +389,24 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(len(o),7)
         self.assertEqual(len(e),0)
 
-        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
-        self.assertEqual(o[1],six.b('  Sources:'))
-        self.assertEqual(o[2],six.b('    source_type: file source: %s' % tmpfile.name))
-        self.assertEqual(o[3],six.b('  Fields:'))
-        self.assertEqual(o[4],six.b('    `a` - int'))
-        self.assertEqual(o[5],six.b('    `b` - int'))
-        self.assertEqual(o[6],six.b('    `c` - int'))
+        self.assertEqual(o[0],b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],b('  Sources:'))
+        self.assertEqual(o[2],b('    source_type: file source: %s' % tmpfile.name))
+        self.assertEqual(o[3],b('  Fields:'))
+        self.assertEqual(o[4],b('    `a` - int'))
+        self.assertEqual(o[5],b('    `b` - int'))
+        self.assertEqual(o[6],b('    `c` - int'))
 
         self.cleanup(tmpfile)
 
     def test_partial_caching_exists(self):
-        file1_data = six.b("a,b,c\n10,20,30\n30,40,50\n60,70,80")
+        file1_data = b("a,b,c\n10,20,30\n30,40,50\n60,70,80")
         tmpfile1 = self.create_file_with_data(file1_data)
         tmpfile1_folder = os.path.dirname(tmpfile1.name)
         tmpfile1_filename = os.path.basename(tmpfile1.name)
         expected_cache_filename1 = os.path.join(tmpfile1_folder,tmpfile1_filename + '.qsql')
 
-        file2_data = six.b("b,x\n10,linewith10\n20,linewith20\n30,linewith30\n40,linewith40")
+        file2_data = b("b,x\n10,linewith10\n20,linewith20\n30,linewith30\n40,linewith40")
         tmpfile2 = self.create_file_with_data(file2_data)
         tmpfile2_folder = os.path.dirname(tmpfile2.name)
         tmpfile2_filename = os.path.basename(tmpfile2.name)
@@ -421,8 +419,8 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 3)
         self.assertEqual(len(e), 0)
-        self.assertTrue(o[0],six.b('10'))
-        self.assertEqual(o[1],six.b('30'))
+        self.assertTrue(o[0],b('10'))
+        self.assertEqual(o[1],b('30'))
 
         # Ensure cache has been created for file 1
         self.assertTrue(os.path.exists(expected_cache_filename1))
@@ -434,9 +432,9 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 3)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('10,20,30,linewith20'))
-        self.assertEqual(o[1],six.b('30,40,50,linewith40'))
-        self.assertEqual(o[2],six.b('60,70,80,'))
+        self.assertEqual(o[0],b('10,20,30,linewith20'))
+        self.assertEqual(o[1],b('30,40,50,linewith40'))
+        self.assertEqual(o[2],b('60,70,80,'))
 
         # Ensure cache has NOT been created for file 2
         self.assertTrue(not os.path.exists(expected_cache_filename2))
@@ -448,9 +446,9 @@ class CachingTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(o), 3)
         self.assertEqual(len(e), 0)
-        self.assertEqual(o[0],six.b('10,20,30,linewith20'))
-        self.assertEqual(o[1],six.b('30,40,50,linewith40'))
-        self.assertEqual(o[2],six.b('60,70,80,'))
+        self.assertEqual(o[0],b('10,20,30,linewith20'))
+        self.assertEqual(o[1],b('30,40,50,linewith40'))
+        self.assertEqual(o[2],b('60,70,80,'))
 
         # Ensure cache has now been created for file 2
         self.assertTrue(os.path.exists(expected_cache_filename2))

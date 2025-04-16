@@ -3,8 +3,7 @@ from test.utils import Q_EXECUTABLE, run_command
 from test.test_data import (uneven_ls_output,find_output,header_row,sample_data_rows,sample_data_rows_with_empty_string,sample_data_no_header,sample_data_with_empty_string_no_header,sample_data_with_header,sample_data_with_missing_header_names,generate_sample_data_with_header,sample_quoted_data,double_double_quoted_data,escaped_double_quoted_data,combined_quoted_data,sample_quoted_data2,sample_quoted_data2_with_newline,one_column_data,sample_data_rows_with_spaces,sample_data_with_spaces_no_header,header_row_with_spaces,sample_data_with_spaces_with_header,long_value1,int_value,sample_data_with_long_values)
 from test.base import AbstractQTestCase
 
-import six
-from six.moves import range
+from test.utils import b
 from test.utils import DEBUG
 
 class ParsingModeTests(AbstractQTestCase):
@@ -18,7 +17,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 0)
         self.assertEqual(len(e), 1)
 
-        self.assertTrue(six.b("Column Count is expected to identical") in e[0])
+        self.assertTrue(b("Column Count is expected to identical") in e[0])
 
         self.cleanup(tmpfile)
 
@@ -32,7 +31,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 1)
 
         self.assertEqual(
-            e[0], six.b("Strict mode. Column count is expected to be 4 but is 3"))
+            e[0], b("Strict mode. Column count is expected to be 4 but is 3"))
 
         self.cleanup(tmpfile)
 
@@ -46,7 +45,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 1)
 
         self.assertEqual(
-            e[0], six.b("Strict mode. Column count is expected to be 2 but is 3"))
+            e[0], b("Strict mode. Column count is expected to be 2 but is 3"))
 
         self.cleanup(tmpfile)
 
@@ -60,13 +59,13 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 7)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0],six.b('Table: %s' % tmpfile.name))
-        self.assertEqual(o[1],six.b('  Sources:'))
-        self.assertEqual(o[2],six.b('    source_type: file source: %s') % six.b(tmpfile.name))
-        self.assertEqual(o[3],six.b('  Fields:'))
-        self.assertEqual(o[4],six.b('    `name` - text'))
-        self.assertEqual(o[5],six.b('    `value1` - int'))
-        self.assertEqual(o[6],six.b('    `c3` - int'))
+        self.assertEqual(o[0],b('Table: %s' % tmpfile.name))
+        self.assertEqual(o[1],b('  Sources:'))
+        self.assertEqual(o[2],b('    source_type: file source: %s') % b(tmpfile.name))
+        self.assertEqual(o[3],b('  Fields:'))
+        self.assertEqual(o[4],b('    `name` - text'))
+        self.assertEqual(o[5],b('    `value1` - int'))
+        self.assertEqual(o[6],b('    `c3` - int'))
 
         self.cleanup(tmpfile)
 
@@ -81,7 +80,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 1)
 
         self.assertEqual(
-            e[0], six.b('Strict mode. Header row contains less columns than expected column count(2 vs 3)'))
+            e[0], b('Strict mode. Header row contains less columns than expected column count(2 vs 3)'))
 
         self.cleanup(tmpfile)
 
@@ -94,9 +93,9 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 3)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('a;1;0'))
-        self.assertEqual(o[1], six.b('b;2;0'))
-        self.assertEqual(o[2], six.b('c;;0'))
+        self.assertEqual(o[0], b('a;1;0'))
+        self.assertEqual(o[1], b('b;2;0'))
+        self.assertEqual(o[2], b('c;;0'))
 
         self.cleanup(tmpfile)
 
@@ -109,7 +108,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('1.5'))
+        self.assertEqual(o[0], b('1.5'))
 
         self.cleanup(tmpfile)
 
@@ -122,7 +121,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('c,,0'))
+        self.assertEqual(o[0], b('c,,0'))
 
         self.cleanup(tmpfile)
 
@@ -137,7 +136,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 1)
         self.assertEqual(len(e), 0)
 
-        self.assertEqual(o[0], six.b('c,,0'))
+        self.assertEqual(o[0], b('c,,0'))
 
         self.cleanup(tmpfile)
 
@@ -149,17 +148,17 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
 
-        column_rows = o[o.index(six.b('  Fields:'))+1:]
+        column_rows = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(column_rows), 11)
 
-        column_tuples = [x.strip().split(six.b(" ")) for x in column_rows]
+        column_tuples = [x.strip().split(b(" ")) for x in column_rows]
         column_info = [(x[0], x[2]) for x in column_tuples]
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEqual(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 12)])
-        self.assertEqual(column_types, list(map(lambda x:six.b(x),[
+        self.assertEqual(column_names, [b('`c{}`'.format(x)) for x in range(1, 12)])
+        self.assertEqual(column_types, list(map(lambda x:b(x),[
                           'text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text', 'text', 'text'])))
 
         self.cleanup(tmpfile)
@@ -172,18 +171,18 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(retcode, 0)
         self.assertEqual(len(e), 0)
 
-        column_rows = o[o.index(six.b('  Fields:'))+1:]
+        column_rows = o[o.index(b('  Fields:'))+1:]
 
         self.assertEqual(len(column_rows), 9)
 
-        column_tuples = [x.strip().split(six.b(" ")) for x in column_rows]
+        column_tuples = [x.strip().split(b(" ")) for x in column_rows]
         column_info = [(x[0], x[2]) for x in column_tuples]
         column_names = [x[0] for x in column_tuples]
         column_types = [x[2] for x in column_tuples]
 
-        self.assertEqual(column_names, [six.b('`c{}`'.format(x)) for x in range(1, 10)])
+        self.assertEqual(column_names, [b('`c{}`'.format(x)) for x in range(1, 10)])
         self.assertEqual(
-            column_types, list(map(lambda x:six.b(x),['text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text'])))
+            column_types, list(map(lambda x:b(x),['text', 'int', 'text', 'text', 'int', 'text', 'int', 'int', 'text'])))
 
         self.cleanup(tmpfile)
 
@@ -196,7 +195,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 9)
         self.assertEqual(len(e), 0)
 
-        expected_output = list(map(lambda x:six.b(x),["/selinux", "/mnt", "/srv", "/lost+found", '"/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic"',
+        expected_output = list(map(lambda x:b(x),["/selinux", "/mnt", "/srv", "/lost+found", '"/initrd.img.old -> /boot/initrd.img-3.8.0-19-generic"',
                            "/cdrom", "/home", '"/vmlinuz -> boot/vmlinuz-3.8.0-19-generic"', '"/initrd.img -> boot/initrd.img-3.8.0-19-generic"']))
 
         self.assertEqual(o, expected_output)
@@ -212,8 +211,8 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('data without commas 1'))
-        self.assertEqual(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],b('data without commas 1'))
+        self.assertEqual(o[1],b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -226,8 +225,8 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('data without commas 1'))
-        self.assertEqual(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],b('data without commas 1'))
+        self.assertEqual(o[1],b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -241,8 +240,8 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('data without commas 1'))
-        self.assertEqual(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],b('data without commas 1'))
+        self.assertEqual(o[1],b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -255,8 +254,8 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(e), 0)
         self.assertEqual(len(o),2)
 
-        self.assertEqual(o[0],six.b('data without commas 1'))
-        self.assertEqual(o[1],six.b('data without commas 2'))
+        self.assertEqual(o[0],b('data without commas 1'))
+        self.assertEqual(o[1],b('data without commas 2'))
 
         self.cleanup(tmpfile)
 
@@ -269,7 +268,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(len(o), 9)
         self.assertEqual(len(e), 0)
 
-        expected_output = list(map(lambda x:six.b(x),["/selinux", "/mnt", "/srv", "/lost+found",
+        expected_output = list(map(lambda x:b(x),["/selinux", "/mnt", "/srv", "/lost+found",
                            "/initrd.img.old", "/cdrom", "/home", "/vmlinuz", "/initrd.img"]))
 
         self.assertEqual(o, expected_output)
@@ -277,10 +276,10 @@ class ParsingModeTests(AbstractQTestCase):
         self.cleanup(tmpfile)
 
     def test_relaxed_mode_column_count_mismatch__was_previously_fluffy_mode_test(self):
-        data_row = six.b("column1 column2 column3 column4")
+        data_row = b("column1 column2 column3 column4")
         data_list = [data_row] * 1000
-        data_list[950] = six.b("column1 column2 column3 column4 column5")
-        tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
+        data_list[950] = b("column1 column2 column3 column4 column5")
+        tmpfile = self.create_file_with_data(b("\n").join(data_list))
 
         cmd = Q_EXECUTABLE + ' -m relaxed "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -288,15 +287,15 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertEqual(retcode,0)
         self.assertEqual(len(o),1000)
         self.assertEqual(len(e),0)
-        self.assertEqual(o[950],six.b('column1 column2 column3 "column4 column5"'))
+        self.assertEqual(o[950],b('column1 column2 column3 "column4 column5"'))
 
         self.cleanup(tmpfile)
 
     def test_strict_mode_column_count_mismatch__less_columns(self):
-        data_row = six.b("column1 column2 column3 column4")
+        data_row = b("column1 column2 column3 column4")
         data_list = [data_row] * 1000
-        data_list[750] = six.b("column1 column3 column4")
-        tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
+        data_list[750] = b("column1 column3 column4")
+        tmpfile = self.create_file_with_data(b("\n").join(data_list))
 
         cmd = Q_EXECUTABLE + ' -m strict "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -304,16 +303,16 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertNotEqual(retcode,0)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertTrue(e[0].startswith(six.b("Strict mode - Expected 4 columns instead of 3 columns")))
-        self.assertTrue(six.b(' row 751.') in e[0])
+        self.assertTrue(e[0].startswith(b("Strict mode - Expected 4 columns instead of 3 columns")))
+        self.assertTrue(b(' row 751.') in e[0])
 
         self.cleanup(tmpfile)
 
     def test_strict_mode_column_count_mismatch__more_columns(self):
-        data_row = six.b("column1 column2 column3 column4")
+        data_row = b("column1 column2 column3 column4")
         data_list = [data_row] * 1000
-        data_list[750] = six.b("column1 column2 column3 column4 column5")
-        tmpfile = self.create_file_with_data(six.b("\n").join(data_list))
+        data_list[750] = b("column1 column2 column3 column4 column5")
+        tmpfile = self.create_file_with_data(b("\n").join(data_list))
 
         cmd = Q_EXECUTABLE + ' -m strict "select * from %s"' % tmpfile.name
         retcode, o, e = run_command(cmd)
@@ -321,7 +320,7 @@ class ParsingModeTests(AbstractQTestCase):
         self.assertNotEqual(retcode,0)
         self.assertEqual(len(o),0)
         self.assertEqual(len(e),1)
-        self.assertTrue(e[0].startswith(six.b("Strict mode - Expected 4 columns instead of 5 columns")))
-        self.assertTrue(six.b(' row 751.') in e[0])
+        self.assertTrue(e[0].startswith(b("Strict mode - Expected 4 columns instead of 5 columns")))
+        self.assertTrue(b(' row 751.') in e[0])
 
         self.cleanup(tmpfile)

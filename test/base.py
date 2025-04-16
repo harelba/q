@@ -1,14 +1,12 @@
 from test.utils import Q_EXECUTABLE, run_command
 
 
-import six
-
 
 import os
 import random
 import unittest
 from tempfile import NamedTemporaryFile
-from test.utils import DEBUG
+from test.utils import DEBUG,b
 
 class AbstractQTestCase(unittest.TestCase):
 
@@ -29,10 +27,10 @@ class AbstractQTestCase(unittest.TestCase):
 
     def arrays_to_csv_file_content(self,delimiter,header_row_list,cell_list):
         all_rows = [delimiter.join(row) for row in [header_row_list] + cell_list]
-        return six.b("\n").join(all_rows)
+        return b("\n").join(all_rows)
 
     def create_qsql_file_with_content_and_return_filename(self, header_row,cell_list):
-        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        csv_content = self.arrays_to_csv_file_content(b(','),header_row,cell_list)
         tmpfile = self.create_file_with_data(csv_content)
 
         cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
@@ -45,7 +43,7 @@ class AbstractQTestCase(unittest.TestCase):
         return created_qsql_filename
 
     def arrays_to_qsql_file_content(self, header_row,cell_list):
-        csv_content = self.arrays_to_csv_file_content(six.b(','),header_row,cell_list)
+        csv_content = self.arrays_to_csv_file_content(b(','),header_row,cell_list)
         tmpfile = self.create_file_with_data(csv_content)
 
         cmd = '%s -d , -H "select count(*) from %s" -C readwrite' % (Q_EXECUTABLE,tmpfile.name)
@@ -69,7 +67,7 @@ class AbstractQTestCase(unittest.TestCase):
     def create_folder_with_files(self,filename_to_content_dict,prefix, suffix):
         name = self.random_tmp_filename(prefix,suffix)
         os.makedirs(name)
-        for filename,content in six.iteritems(filename_to_content_dict):
+        for filename,content in filename_to_content_dict.items():
             if os.path.sep in filename:
                 os.makedirs('%s/%s' % (name,os.path.split(filename)[0]))
             f = open(os.path.join(name,filename),'wb')

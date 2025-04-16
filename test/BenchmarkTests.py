@@ -3,9 +3,8 @@ from test.utils import Q_EXECUTABLE, run_command
 
 
 import pytest
-import six
-from six.moves import range
-from test.utils import DEBUG
+
+from test.utils import DEBUG,b
 from test.base import AbstractQTestCase
 import itertools
 import os
@@ -133,18 +132,18 @@ class BenchmarkTests(AbstractQTestCase):
                 final_result = self._decide_result(attempt_results)
                 results += [final_result]
 
-        series_fields = [six.u('lines'),six.u('columns')]
-        value_fields = [six.u('mean'),six.u('stddev')]
+        series_fields = ['lines','columns']
+        value_fields = ['mean','stddev']
 
         all_fields = series_fields + value_fields
 
         output_filename = '{}/{}.benchmark-results'.format(benchmark_results_folder,name)
         output_file = open(output_filename,'w')
         for columns,g in itertools.groupby(sorted(results,key=lambda x:x.columns),key=lambda x:x.columns):
-            x = six.u("\t").join(series_fields + [six.u('{}_{}').format(name, f) for f in value_fields])
+            x = "\t".join(series_fields + ['{}_{}'.format(name, f) for f in value_fields])
             print(x,file = output_file)
             for result in g:
-                print(six.u("\t").join(map(str,[getattr(result,f) for f in all_fields])),file=output_file)
+                print("\t".join(map(str,[getattr(result,f) for f in all_fields])),file=output_file)
         output_file.close()
 
         print("results have been written to : {}".format(output_filename))

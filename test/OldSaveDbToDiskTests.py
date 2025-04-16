@@ -3,7 +3,6 @@ from test.utils import Q_EXECUTABLE, run_command, sqlite_dict_factory
 
 
 import six
-from six.moves import range
 from test.utils import DEBUG
 from test.test_data import sample_data_no_header, sample_data_rows
 from test.base import AbstractQTestCase

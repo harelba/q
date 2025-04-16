@@ -5,7 +5,6 @@ import locale
 import os
 from subprocess import PIPE, Popen
 import sys
-from six.moves import range
 import six
 
 

@@ -45,6 +45,17 @@ Instructions for all OSs are [here](https://harelba.github.io/q/#installation).
 
 The previous version `2.0.19` Can still be downloaded from [here](https://github.com/harelba/q/releases/tag/2.0.19)  
 
+## Version Management
+
+q uses semantic versioning (MAJOR.MINOR.PATCH):
+- MAJOR: Incompatible API changes
+- MINOR: New functionality (backwards compatible)
+- PATCH: Bug fixes (backwards compatible)
+
+For version management:
+- Check the [CHANGELOG.md](CHANGELOG.md) for details about each release
+- Use `./bump-version.py` to bump versions (run `./bump-version.py --help` for usage information)
+
 ## Contact
 Any feedback/suggestions/complaints regarding this tool would be much appreciated. Contributions are most welcome as well, of course.
 

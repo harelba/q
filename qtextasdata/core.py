@@ -600,7 +600,6 @@ class QTextAsData(object):
         except KeyboardInterrupt as e:
             warnings.append(QWarning(e,"Interrupted"))
         except Exception as e:
-            global DEBUG
             if DEBUG:
                 xprint(traceback.format_exc())
             error = QError(e,repr(e),199)

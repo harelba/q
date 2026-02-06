@@ -617,8 +617,68 @@ One additional thing to note is that many Linux tools treat text as text and not
 ### Philosophy
 This tool has been designed with general Linux/Unix design principles in mind. If you're interested in these general design principles, read this amazing [book](http://catb.org/~esr/writings/taoup/) and specifically [this part](http://catb.org/~esr/writings/taoup/html/ch01s06.html). If you believe that the way this tool works goes strongly against any of the principles, I would love to hear your view about it.
 
+## Python Module Usage
+
+Starting from version 4.0.0, q is available as a Python module under the package name `qtextasdata`. This allows running SQL queries on text data directly from Python code.
+
+### Installation
+```bash
+pip install qtextasdata
+```
+
+### Basic Usage
+```python
+from qtextasdata import QTextAsData, QInputParams
+
+# Create an engine with default input parameters
+q = QTextAsData(QInputParams(skip_header=True, delimiter=','))
+
+# Execute a query
+result = q.execute('SELECT name, age FROM data.csv WHERE age > 25')
+
+if result.status == 'ok':
+    print("Columns:", result.metadata.output_column_name_list)
+    for row in result.data:
+        print(row)
+else:
+    print("Error:", result.error.msg)
+
+# Clean up
+q.done()
+```
+
+### In-Memory Data
+```python
+from io import StringIO
+from qtextasdata import QTextAsData, QInputParams, DataStream
+
+csv_data = "name,age\nAlice,30\nBob,25\n"
+data_streams_dict = {
+    'my_data': DataStream('my_data', 'my_data', StringIO(csv_data))
+}
+
+q = QTextAsData(
+    QInputParams(skip_header=True, delimiter=','),
+    data_streams_dict=data_streams_dict
+)
+result = q.execute('SELECT * FROM my_data WHERE age > 28')
+q.done()
+```
+
+### Key Features
+
+* Run SQL queries on CSV/TSV files programmatically
+* Inject in-memory data via `DataStream` objects
+* Automatic data reuse across multiple queries on the same engine
+* Pre-load data with per-file input parameters
+* Analyze queries without executing them
+* Full engine isolation between instances
+
+For a complete API reference, see the [Python API documentation](https://github.com/harelba/q/blob/master/doc/PYTHON-API.md).
+
 ## Future
 
-* Expose python as a python module - Planned as a goal after the new version `3.x` is out
-
+* Additional convenience methods for common query patterns
+* Type hints for better IDE integration
+* Context manager protocol for `QTextAsData`
 

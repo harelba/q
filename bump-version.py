@@ -90,11 +90,13 @@ def create_git_tag(version):
 def show_help():
     """Display help information"""
     print("Usage: python bump-version.py <major|minor|patch|prerelease> [--tag]")
+    print("       python bump-version.py --set <version>")
     print("\nOptions:")
     print("  major        Increment the MAJOR version (incompatible API changes)")
     print("  minor        Increment the MINOR version (add functionality, backwards compatible)")
     print("  patch        Increment the PATCH version (bug fixes, backwards compatible)")
     print("  prerelease   Create or increment a prerelease version")
+    print("  --set VER    Set version to an explicit value (no confirmation prompt)")
     print("  --tag        Create a git tag for the new version")
     print("  --help       Show this help message")
     print("\nExamples:")
@@ -102,12 +104,28 @@ def show_help():
     print("  python bump-version.py minor          # 4.0.0 -> 4.1.0")
     print("  python bump-version.py prerelease     # 4.0.0 -> 4.0.0-beta.1")
     print("  python bump-version.py patch --tag    # 4.0.0 -> 4.0.1 and create tag v4.0.1")
+    print("  python bump-version.py --set 4.2.0    # Set version to 4.2.0 directly")
     sys.exit(0)
 
 def main():
     if len(sys.argv) < 2 or "--help" in sys.argv or "-h" in sys.argv:
         show_help()
-    
+
+    # Handle --set <version> for explicit version setting (used by CI)
+    if "--set" in sys.argv:
+        set_idx = sys.argv.index("--set")
+        if set_idx + 1 >= len(sys.argv):
+            print("Error: --set requires a version argument")
+            sys.exit(1)
+        new_version = sys.argv[set_idx + 1]
+        current_version = get_current_version()
+        print(f"Current version: {current_version}")
+        print(f"Setting version to: {new_version}")
+        update_version(new_version)
+        if "--tag" in sys.argv:
+            create_git_tag(new_version)
+        sys.exit(0)
+
     bump_type = sys.argv[1].lower()
     create_tag = "--tag" in sys.argv
     

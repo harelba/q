@@ -38,12 +38,119 @@ $ q "select count(*) from some_db.sqlite3:::albums a left join another_db.sqlite
 
 Detailed examples are in [here](https://harelba.github.io/q/#examples)
 
-## Installation.
-**New Major Version `3.1.6` is out with a lot of significant additions.**
+## Installation
+
+### As a Python package (recommended)
+```bash
+pip install qtextasdata
+```
+
+This installs both the `q` command-line tool and the `qtextasdata` Python module.
+
+### Previous versions
+The previous version `2.0.19` can still be downloaded from [here](https://github.com/harelba/q/releases/tag/2.0.19).
 
 Instructions for all OSs are [here](https://harelba.github.io/q/#installation).
 
-The previous version `2.0.19` Can still be downloaded from [here](https://github.com/harelba/q/releases/tag/2.0.19)  
+## Python Module Usage
+
+Starting from version 4.0.0, q can be used as a Python module, allowing you to run SQL queries on text data directly from your Python code.
+
+### Basic Usage
+```python
+from qtextasdata import QTextAsData, QInputParams
+
+# Create an engine instance with default input parameters
+q = QTextAsData(QInputParams(skip_header=True, delimiter=','))
+
+# Execute a query on a CSV file
+result = q.execute('SELECT name, age FROM data.csv WHERE age > 25')
+
+# Check the result
+if result.status == 'ok':
+    print("Columns:", result.metadata.output_column_name_list)
+    for row in result.data:
+        print(row)
+else:
+    print("Error:", result.error.msg)
+
+# Clean up resources when done
+q.done()
+```
+
+### Data Reuse Across Queries
+Once a file is loaded, subsequent queries on the same file reuse the already-loaded data:
+```python
+from qtextasdata import QTextAsData, QInputParams
+
+q = QTextAsData(QInputParams(skip_header=True, delimiter=','))
+
+# First query loads the data
+r1 = q.execute('SELECT COUNT(*) FROM large_file.csv')
+
+# Second query reuses the already-loaded data (no reload)
+r2 = q.execute('SELECT name FROM large_file.csv WHERE age > 30')
+
+q.done()
+```
+
+### In-Memory Data via Data Streams
+You can query in-memory data by injecting data streams:
+```python
+from io import StringIO
+from qtextasdata import QTextAsData, QInputParams, DataStream
+
+csv_data = "name,age,city\nAlice,30,NYC\nBob,25,LA\nCharlie,35,Chicago\n"
+
+data_streams_dict = {
+    'my_data': DataStream('my_data', 'my_data', StringIO(csv_data))
+}
+
+q = QTextAsData(
+    default_input_params=QInputParams(skip_header=True, delimiter=','),
+    data_streams_dict=data_streams_dict
+)
+
+result = q.execute('SELECT name, city FROM my_data WHERE age > 28')
+print(result.data)  # [('Alice', 'NYC'), ('Charlie', 'Chicago')]
+
+q.done()
+```
+
+### Query Analysis
+Analyze a query without executing it to get metadata about the tables involved:
+```python
+from qtextasdata import QTextAsData, QInputParams
+
+q = QTextAsData(QInputParams(skip_header=True, delimiter=','))
+
+analysis = q.analyze('SELECT * FROM data.csv')
+if analysis.status == 'ok':
+    for table_name, structure in analysis.metadata.table_structures.items():
+        print(f"Table: {table_name}")
+        print(f"  Columns: {structure.column_names}")
+        print(f"  Types: {structure.sqlite_column_types}")
+
+q.done()
+```
+
+### Per-File Input Parameters
+Different files can have different input parameters:
+```python
+from qtextasdata import QTextAsData, QInputParams
+
+q = QTextAsData(QInputParams(skip_header=True, delimiter=','))
+
+# Load a tab-delimited file with specific parameters
+q.load_data('tsv_file.tsv', QInputParams(skip_header=True, delimiter='\t'))
+
+# Query the pre-loaded data
+result = q.execute('SELECT * FROM tsv_file.tsv')
+
+q.done()
+```
+
+For a complete API reference, see [PYTHON-API.md](doc/PYTHON-API.md).
 
 ## Version Management
 

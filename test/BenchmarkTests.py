@@ -82,7 +82,7 @@ class BenchmarkTests(AbstractQTestCase):
         self.assertEqual(r, 0)
         # Create file cache as part of preparation
         r, o, e = run_command(Q_EXECUTABLE + ' -C readwrite -d , "select count(*) from %s"' % filename)
-        self.asserEqual(r, 0)
+        self.assertEqual(r, 0)
         return filename
 
     def _decide_result(self,attempt_results):

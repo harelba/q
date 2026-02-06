@@ -1,0 +1,59 @@
+name: Publish Python Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r test-requirements.txt
+        pip install -e .
+    - name: Run tests
+      run: |
+        pytest -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    - name: Update version from tag
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "Setting version to $VERSION"
+        python3 ./bump-version.py --set "$VERSION"
+    - name: Verify package imports
+      run: |
+        python3 -c "from qtextasdata import QTextAsData, QInputParams, __version__; print('Version:', __version__)"
+    - name: Build package
+      run: |
+        python -m build
+        twine check dist/*
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload dist/*

@@ -10,11 +10,11 @@ win_output
 win_build
 packages
 .idea/
-dist/windows/
+dist/
 generated-site/
 benchmark_data.tar.gz
 _benchmark_data/
-q.egg-info/
+*.egg-info/
 .pytest_cache/
 *.qsql
 htmlcov/

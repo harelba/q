@@ -215,7 +215,7 @@ class StdevPopulation(object):
             self.S += ((val - tM) * (val - self.M))
         except ValueError:
             # TODO propagate udf errors to console
-            raise Exception("Data is not numeric when calculating stddev (%s)" % value)
+            raise ValueError("Data is not numeric when calculating stddev: %s" % value)
 
     def finalize(self):
         if self.k <= 1: # avoid division by zero
@@ -241,7 +241,7 @@ class StdevSample(object):
             self.S += ((val - tM) * (val - self.M))
         except ValueError:
             # TODO propagate udf errors to console
-            raise Exception("Data is not numeric when calculating stddev (%s)" % value)
+            raise ValueError("Data is not numeric when calculating stddev: %s" % value)
 
     def finalize(self):
         if self.k <= 1: # avoid division by zero
@@ -431,7 +431,7 @@ class Sqlite3DB(object):
                 return table_name_attempt
 
         # TODO Add test for this
-        raise Exception('Cannot find free table name in db %s for planned table name %s' % (self.db_id,planned_table_name))
+        raise RuntimeError('Cannot find free table name in db %s for planned table name %s' % (self.db_id,planned_table_name))
 
     def create_qcatalog_table(self):
         if not self.qcatalog_table_exists():
@@ -483,7 +483,7 @@ class Sqlite3DB(object):
             return None
 
         if len(r.results) > 1:
-            raise Exception("Bug - Exactly one result should have been provided: %s" % str(r.results))
+            raise RuntimeError("Bug - Exactly one result should have been provided: %s" % str(r.results))
 
         d = dict(zip(field_names,r.results[0]))
         return d
@@ -505,13 +505,13 @@ class Sqlite3DB(object):
             return None
 
         if len(r.results) > 1:
-            raise Exception("Bug - Exactly one result should have been provided: %s" % str(r.results))
+            raise RuntimeError("Bug - Exactly one result should have been provided: %s" % str(r.results))
 
         d = dict(zip(field_names,r.results[0]))
         # content_signature should be the first in the list of field_names
         cs = OrderedDict(json.loads(r.results[0][0]))
         if self.calculate_content_signature_key(cs) != d['content_signature_key']:
-            raise Exception('Table contains an invalid entry - content signature key is not matching the actual content signature')
+            raise RuntimeError('Table contains an invalid entry - content signature key is not matching the actual content signature')
         return d
 
     def get_all_from_qcatalog(self):
@@ -553,7 +553,7 @@ class Sqlite3DB(object):
             elif type(udf.func_or_obj) == type(md5):
                 self.conn.create_function(udf.name,udf.param_count,udf.func_or_obj)
             else:
-                raise Exception("Invalid user function definition %s" % str(udf))
+                raise ValueError("Invalid user function definition: %s" % str(udf))
 
     def is_numeric_type(self, column_type):
         return column_type in Sqlite3DB.NUMERIC_COLUMN_TYPES
@@ -929,7 +929,7 @@ class Sql(object):
     def set_effective_table_name(self, qtable_name, effective_table_name):
         if qtable_name in self.qtable_name_effective_table_names.keys():
             if self.qtable_name_effective_table_names[qtable_name] != effective_table_name:
-                raise Exception(
+                raise RuntimeError(
                     "Already set effective table name for qtable %s. Trying to change the effective table name from %s to %s" %
                     (qtable_name,self.qtable_name_effective_table_names[qtable_name],effective_table_name))
 
@@ -1041,13 +1041,13 @@ class TableColumnInferer(object):
                 return long
             else:
                 return int
-        except:
+        except Exception:
             pass
 
         try:
             f = float(value)
             return float
-        except:
+        except Exception:
             pass
 
         return str
@@ -1078,7 +1078,7 @@ class TableColumnInferer(object):
         elif self.mode in ['relaxed']:
             self._do_relaxed_analysis()
         else:
-            raise Exception('Unknown parsing mode %s' % self.mode)
+            raise ValueError('Unknown parsing mode: %s' % self.mode)
 
         if self.column_count == 1 and self.expected_column_count != 1 and self.expected_column_count is not None:
             print(f"Warning: column count is one (expected column count is {self.expected_column_count} - did you provide the correct delimiter?", file=sys.stderr)
@@ -1295,10 +1295,10 @@ def skip_BOM(f):
 
         if BOM != six.b('\xef\xbb\xbf'):
             # TODO Add test for this (propagates to try:except)
-            raise Exception('Value of BOM is not as expected - Value is "%s"' % str(BOM))
+            raise ValueError('Value of BOM is not as expected: "%s"' % str(BOM))
     except Exception as e:
         # TODO Add a test for this
-        raise Exception('Tried to skip BOM for "utf-8-sig" encoding and failed. Error message is ' + str(e))
+        raise RuntimeError('Failed to skip BOM for utf-8-sig encoding: ' + str(e))
 
 def detect_qtable_name_source_info(qtable_name,data_streams,read_caching_enabled):
     data_stream = data_streams.get_for_filename(qtable_name)
@@ -1471,7 +1471,7 @@ class DelimitedFileReader(object):
     def close_file(self):
         if not self.is_open:
             # TODO Convert to assertion
-            raise Exception("Bug - file should already be open: %s" % ",".join(self.atomic_fns))
+            raise RuntimeError("Bug - file should already be open: %s" % ",".join(self.atomic_fns))
 
         self.f.close()
         xprint("XX Closed file %s" % ",".join(self.atomic_fns))
@@ -1547,7 +1547,7 @@ class MaterializedState(object):
                 xprint("Found free table name %s for source type %s source %s" % (table_name_attempt,self.source_type,self.source))
                 return table_name_attempt
 
-        raise Exception('Cannot find free table name for source type %s source %s' % (self.source_type,self.source))
+        raise RuntimeError('Cannot find free table name for source type %s source %s' % (self.source_type,self.source))
 
     def initialize(self):
         self.start_time = time.time()
@@ -2068,7 +2068,7 @@ class MaterializedQsqlState(MaterializedState):
             qcatalog_entry = self.db_to_use.get_from_qcatalog_using_table_name(self.table_name)
 
             if qcatalog_entry is None:
-                raise Exception('missing content signature!')
+                raise RuntimeError('missing content signature!')
 
             xprint("Actual Signature Key: %s Expected Signature Key: %s" % (qcatalog_entry['content_signature_key'],original_file_content_signature_key))
             actual_content_signature = json.loads(qcatalog_entry['content_signature'])
@@ -2145,7 +2145,7 @@ class TableCreator(object):
     def _generate_content_signature(self):
         if self.state != TableCreatorState.ANALYZED:
             # TODO Change to assertion
-            raise Exception('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
+            raise RuntimeError('Bug - Wrong state %s. Table needs to be analyzed before a content signature can be calculated' % self.state)
 
         size = self.delimited_file_reader.get_size_hash()
         last_modification_time = self.delimited_file_reader.get_last_modification_time_hash()
@@ -2238,7 +2238,7 @@ class TableCreator(object):
             xprint("Setting content signature after analysis: %s" % content_signature_key)
         else:
             # TODO Convert to assertion
-            raise Exception('Bug - Wrong state %s' % self.state)
+            raise RuntimeError('Bug - Wrong state %s' % self.state)
 
     def perform_read_fully(self, dialect):
         if self.state == TableCreatorState.ANALYZED:
@@ -2246,7 +2246,7 @@ class TableCreator(object):
             self.state = TableCreatorState.FULLY_READ
         else:
             # TODO Convert to assertion
-            raise Exception('Bug - Wrong state %s' % self.state)
+            raise RuntimeError('Bug - Wrong state %s' % self.state)
 
     def _flush_pre_creation_rows(self, filename):
         for i, col_vals in enumerate(self.pre_creation_rows):
@@ -2352,7 +2352,7 @@ class TableCreator(object):
     def try_to_create_table(self, filename, col_vals):
         if self.table_created:
             # TODO Convert to assertion
-            raise Exception('Table is already created')
+            raise RuntimeError('Table is already created')
 
         # Add that line to the column inferer
         result = self.column_inferer.analyze(filename, col_vals)
@@ -2520,7 +2520,7 @@ class DataStreams(object):
         for k in d:
             v = d[k]
             if type(k) != str or type(v) != DataStream:
-                raise Exception('Bug - Invalid dict: %s' % str(d))
+                raise RuntimeError('Bug - Invalid dict: %s' % str(d))
 
     def get_for_filename(self, filename):
         xprint("Data streams dict is %s. Trying to find %s" % (self.data_streams_dict,filename))
@@ -2683,7 +2683,7 @@ class QTextAsData(object):
         if db_id in self.databases:
             # TODO Convert to assertion
             if id(database_info.sqlite_db) != id(self.databases[db_id].sqlite_db):
-                raise Exception('Bug - database already in database list: db_id %s: old %s new %s' % (db_id,self.databases[db_id],database_info))
+                raise RuntimeError('Bug - database already in database list: db_id %s: old %s new %s' % (db_id,self.databases[db_id],database_info))
             else:
                 return
         self.databases[db_id] = database_info
@@ -3198,7 +3198,7 @@ def get_option_with_default(p, option_type, option, default):
             r = p.get('options', option)
             return r
         else:
-            raise Exception("Unknown option type %s " % option_type)
+            raise ValueError("Unknown option type %s " % option_type)
     except ValueError as e:
         raise IncorrectDefaultValueException(option_type,option,p.get("options",option))
 
@@ -3482,7 +3482,7 @@ def parse_options(args, options):
             f = open(options.query_filename, 'rb')
             query_strs = [f.read()]
             f.close()
-        except:
+        except Exception:
             print("Could not read query from file %s" % options.query_filename, file=sys.stderr)
             sys.exit(1)
     else:
@@ -3513,7 +3513,7 @@ def parse_options(args, options):
             STDOUT = codecs.getwriter(output_encoding)(sys.stdout.buffer)
         else:
             STDOUT = codecs.getwriter(output_encoding)(sys.stdout)
-    except:
+    except Exception:
         print("Could not create output stream using output encoding %s" % (output_encoding), file=sys.stderr)
         sys.exit(200)
     # If the user flagged for a tab-delimited file then set the delimiter to tab
@@ -3554,7 +3554,7 @@ def parse_options(args, options):
             options.output_delimiter = " "
     try:
         max_column_length_limit = int(options.max_column_length_limit)
-    except:
+    except Exception:
         print("Max column length limit must be an integer larger than 2 (%s)" % options.max_column_length_limit,
               file=sys.stderr)
         sys.exit(31)
